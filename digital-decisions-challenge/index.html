@@ -38,6 +38,7 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+            transition: padding 0.3s ease; /* Added for full-frame transition */
         }
 
         /* --- MOBILE PHONE FRAME STYLES (PORTRAIT MODE DEFAULT) --- */
@@ -104,6 +105,7 @@
             overflow-y: auto;
             overflow-x: hidden;
             transform: rotateY(0deg); /* Default facing forward */
+            transition: border-radius 0.3s ease; /* Added for full-frame */
         }
         
         #phone-screen.landscape-mode {
@@ -142,7 +144,7 @@
         #phone-screen.landscape-mode #landscape-sidebar {
             display: flex !important; /* Override hidden */
             height: 100%;
-            width: 80px; /* Fixed width for the sidebar */
+            width: 5rem; /* CHANGED: Was 80px. Now 5rem to scale with root font-size. */
             flex-shrink: 0;
             background-color: var(--brand-secondary); /* Deep Cyan */
             padding-left: 0.5rem;
@@ -316,6 +318,70 @@
             }
         }
 
+        /* --- NEW: FULL FRAME MODE STYLES --- */
+
+        /* NEW: This rule scales the root font size based on the viewport */
+        html.full-frame-mode {
+            /* This is the scaling magic. 
+                It scales the root font size, which scales all 'rem' units.
+                Min size: 16px (default)
+                Ideal size: 2.2% of the *smallest* viewport dimension
+                Max size: 24px (to prevent huge text on large monitors)
+            */
+            font-size: clamp(16px, 2.2vw, 24px); /* CHANGED: vmin -> vw */
+        }
+        
+        /* This class will be toggled on the <body> */
+        html.full-frame-mode body {
+             /* Remove the 1rem padding from the body to allow true full screen */
+            padding: 0;
+            /* Ensure the app is centered if vh < 100% */
+            align-items: center; 
+        }
+        
+        html.full-frame-mode #mobile-frame {
+            /* Override all phone simulation styles */
+            max-width: 100%;
+            width: 100%;
+            height: 100vh; /* Fill the viewport/iframe */
+            max-height: 100vh;
+            border: none;
+            background-color: transparent;
+            box-shadow: none;
+            border-radius: 0;
+            padding: 0; /* No padding on the frame */
+            perspective: none; /* Turn off 3D effects */
+        }
+        
+        html.full-frame-mode #phone-flipper {
+            /* Disable flipping */
+            transform-style: flat;
+            transform: none !important;
+        }
+        
+        html.full-frame-mode #phone-screen {
+            /* Make the screen fill the frame and remove rounded corners */
+            border-radius: 0;
+            height: 100%;
+            width: 100%;
+            /* Make sure it's visible (was absolute) */
+            position: relative; 
+            transform: rotateY(0deg) !important; /* Force front-facing */
+        }
+
+        html.full-frame-mode #back-plate {
+             /* Hide the back plate, it's irrelevant */
+            display: none;
+        }
+
+        /* Hide the orientation/flip buttons */
+        html.full-frame-mode #orientation-button,
+        html.full-frame-mode #landscape-sidebar-orientation {
+            display: none !important;
+        }
+        /* --- END FULL FRAME MODE STYLES --- */
+
+
         /* Details/Summary styling for the collapsible rules */
         details summary {
             cursor: pointer;
@@ -366,6 +432,11 @@
                                 <i id="landscape-orientation-icon" class="fas fa-mobile-screen-button"></i>
                             </button>
                             
+                            <!-- New: Full Frame Toggle Button (Icon Only) -->
+                            <button id="landscape-sidebar-full-frame" class="p-3 rounded-xl transition-colors sidebar-nav-btn" onclick="toggleFullFrame()" aria-label="Toggle Full Frame Mode" title="Toggle Full Frame Mode">
+                                <i id="landscape-full-frame-icon" class="fas fa-expand"></i>
+                            </button>
+
                             <!-- Menu Button (Icon Only) -->
                             <button id="landscape-sidebar-menu" class="p-3 rounded-xl transition-colors sidebar-nav-btn" onclick="toggleNavigationMenu()" aria-label="Open Navigation Menu">
                                 <i class="fas fa-bars"></i>
@@ -408,6 +479,11 @@
                             <!-- New: Orientation Toggle Button (PORTRAIT) -->
                             <button id="orientation-button" class="p-1.5 rounded-full transition-colors header-icon-btn" onclick="toggleOrientation()" aria-label="Toggle Landscape/Portrait" title="Switch to Landscape">
                                 <i id="orientation-icon" class="fas fa-mobile-screen-button fa-sm"></i>
+                            </button>
+
+                            <!-- New: Full Frame Toggle Button (PORTRAIT) -->
+                            <button id="full-frame-button" class="p-1.5 rounded-full transition-colors header-icon-btn" onclick="toggleFullFrame()" aria-label="Toggle Full Frame Mode" title="Toggle Full Frame Mode">
+                                <i id="full-frame-icon" class="fas fa-expand fa-sm"></i>
                             </button>
                             
                             <!-- Global Navigation Menu Button (Icon) -->
@@ -520,6 +596,8 @@
         const restartButton = document.getElementById('restart-button');
         const orientationIcon = document.getElementById('orientation-icon');
         const orientationButton = document.getElementById('orientation-button');
+        const fullFrameButton = document.getElementById('full-frame-button');
+        const fullFrameIcon = document.getElementById('full-frame-icon');
         
         // Landscape sidebar elements
         const mobileFrame = document.getElementById('mobile-frame');
@@ -531,6 +609,8 @@
         const lSidebarBackButton = document.getElementById('landscape-sidebar-back');
         const lSidebarNextButton = document.getElementById('landscape-sidebar-next');
         const courseApp = document.getElementById('course-app'); 
+        const lSidebarFullFrameButton = document.getElementById('landscape-sidebar-full-frame');
+        const lSidebarFullFrameIcon = document.getElementById('landscape-full-frame-icon');
 
         // UPDATED CONFIGURATION (Digital Decisions Challenge)
         const goodBlockConfig = {
@@ -1203,6 +1283,39 @@
 
         // --- 6. ORIENTATION & INITIALIZATION ---
 
+        // --- NEW: FULL FRAME MODE ---
+        function toggleFullFrame() {
+            // CHANGED: Toggle the class on the <html> tag, not the <body>
+            document.documentElement.classList.toggle('full-frame-mode');
+            
+            // CHANGED: Check the <html> tag for the class
+            const isFullFrame = document.documentElement.classList.contains('full-frame-mode');
+            
+            // Determine new icon and title
+            const newIcon = isFullFrame ? 'fa-compress' : 'fa-expand';
+            const newTitle = isFullFrame ? 'Exit Full Frame' : 'Enter Full Frame';
+
+            // Update Portrait Icon
+            if (fullFrameIcon) {
+                fullFrameIcon.classList.remove('fa-expand', 'fa-compress');
+                fullFrameIcon.classList.add(newIcon);
+            }
+            if (fullFrameButton) {
+                fullFrameButton.title = newTitle;
+            }
+
+            // Update Landscape Icon
+            if (lSidebarFullFrameIcon) {
+                lSidebarFullFrameIcon.classList.remove('fa-expand', 'fa-compress');
+                lSidebarFullFrameIcon.classList.add(newIcon);
+            }
+            if (lSidebarFullFrameButton) {
+                lSidebarFullFrameButton.title = newTitle;
+            }
+        }
+        window.toggleFullFrame = toggleFullFrame;
+
+
         function toggleOrientation() {
             const phoneScreen = document.getElementById('phone-screen');
             const mainContent = document.querySelector('main');
@@ -1316,4 +1429,3 @@
     </script>
 </body>
 </html>
-
