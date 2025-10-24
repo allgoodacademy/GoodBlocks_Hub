@@ -34,13 +34,19 @@
             padding: 1rem;
             overflow-x: hidden;
             overflow-y: auto;
+            /* ADDED: Force sharper font rendering */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
         }
 
         /* --- MOBILE PHONE FRAME STYLES (PORTRAIT MODE DEFAULT) --- */
         #mobile-frame {
             /* Fixed dimensions to simulate a phone */
-            width: 400px; 
-            height: 700px;
+            max-width: 400px; 
+            width: 100%; 
+            height: 95vh; /* CHANGED: Was 700px. Now responsive to viewport height. */
+            max-height: 700px; /* ADDED: But never taller than 700px. */
             /* Styling for the phone "bezel" */
             background-color: #000000;
             border: 10px solid #222; 
@@ -1310,3 +1316,4 @@
     </script>
 </body>
 </html>
+
