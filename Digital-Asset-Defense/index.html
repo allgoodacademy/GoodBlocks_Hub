@@ -309,7 +309,10 @@
                             <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600" data-page="20">21. Irreversibility</button>
                             <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600" data-page="21">22. The Crash</button>
                             <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600" data-page="22">23. The Tax Man</button>
-                            <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600 font-bold text-allgood-secondary" data-page="23">24. Mission Complete</button>
+                            
+                            <div class="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">Phase VI: Certification</div>
+                            <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600 font-bold text-allgood-primary" data-page="23">24. The Final Exam</button>
+                            <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600 font-bold text-allgood-secondary" data-page="24">25. Mission Complete</button>
                         </div>
                     </div>
                 </div>
@@ -1120,7 +1123,52 @@
                     </div>
                 </div>
 
-                <!-- Page 24: Credits (Standard) -->
+                <!-- Page 24: The Final Exam -->
+                <div class="page" id="page-24">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Final Exam</h2></section>
+                    <p class="text-sm text-gray-600 mb-6">To earn your badge, you must pass this situational assessment. <strong>Pass Mark: 6/7</strong>.</p>
+                    
+                    <!-- Quiz Container -->
+                    <div id="final-quiz-container" class="bg-white p-6 rounded border border-gray-200 shadow-sm relative min-h-[300px]">
+                        <!-- Progress -->
+                        <div class="flex justify-between items-center mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                            <span id="quiz-progress-text">Question 1 of 7</span>
+                            <span id="quiz-score-display" class="text-allgood-primary hidden">Score: 0</span>
+                        </div>
+
+                        <!-- Question Block -->
+                        <div id="quiz-question-block">
+                            <h3 id="quiz-scenario-title" class="font-bold text-allgood-dark text-lg mb-2">Loading...</h3>
+                            <p id="quiz-scenario-text" class="text-sm text-gray-600 mb-6 leading-relaxed">Loading scenario...</p>
+                            
+                            <div id="quiz-options" class="space-y-3">
+                                <!-- Options injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Feedback Block (Hidden initially) -->
+                        <div id="quiz-feedback-block" class="hidden mt-4 p-4 rounded border bg-gray-50 border-gray-200">
+                            <div class="flex items-start">
+                                <div id="quiz-feedback-icon" class="mr-3 mt-1"></div>
+                                <div>
+                                    <strong id="quiz-feedback-title" class="block text-sm font-bold mb-1"></strong>
+                                    <p id="quiz-feedback-text" class="text-xs text-gray-600 leading-relaxed"></p>
+                                </div>
+                            </div>
+                            <button id="quiz-next-btn" onclick="nextQuestion()" class="mt-4 w-full bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded text-xs uppercase tracking-wider transition-colors">Next Question</button>
+                        </div>
+
+                        <!-- Result Block (Hidden initially) -->
+                        <div id="quiz-result-block" class="hidden text-center py-8">
+                            <div id="quiz-result-icon" class="mx-auto mb-4"></div>
+                            <h3 id="quiz-result-title" class="text-2xl font-heading font-bold text-allgood-dark mb-2"></h3>
+                            <p id="quiz-result-text" class="text-sm text-gray-600 mb-6"></p>
+                            <div id="quiz-result-actions"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 25: Credits (Standard) -->
                 <div class="page" id="page-final">
                     <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8">
                         <div class="mb-8"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2><p class="text-xs text-gray-400 font-bold tracking-widest uppercase mt-2">Pragmatic Action</p></div>
@@ -1148,7 +1196,7 @@
                         </div>
 
                         <!-- Certification -->
-                        <div id="certification-section" class="w-full max-w-md bg-gradient-to-br from-allgood-secondary to-allgood-accent p-1 rounded-lg shadow-xl mb-8 transform transition-all duration-700 scale-95 opacity-0">
+                        <div id="certification-section" class="w-full max-w-md bg-gradient-to-br from-allgood-secondary to-allgood-accent p-1 rounded-lg shadow-xl mb-6 transform transition-all duration-700 scale-95 opacity-0">
                             <div class="bg-white p-6 rounded-md text-center">
                                 <div class="mb-4 relative inline-block">
                                     <div class="absolute inset-0 bg-yellow-100 rounded-full blur-xl opacity-50 animate-pulse"></div>
@@ -1158,19 +1206,28 @@
                                 <p class="text-sm text-gray-600 mb-6">Verify readiness to deploy.</p>
                                 <button id="download-badge-btn" onclick="downloadBadge()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md flex items-center justify-center transition-all duration-300">
                                     <i id="btn-icon" data-lucide="download" class="w-4 h-4 mr-2"></i>
-                                    <span id="btn-text">Download Certification</span>
+                                    <span id="btn-text">Download Badge</span>
                                 </button>
                             </div>
                         </div>
 
                         <!-- About Us -->
-                        <div class="w-full max-w-md text-left mx-auto mb-4">
+                        <div class="w-full max-w-md text-left mx-auto mb-8 mt-12">
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-sm flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                 <span class="font-heading font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors">About Us</span>
                                 <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
                             <div class="accordion-content hidden bg-white border-x border-b border-gray-200 rounded-b-lg p-6 text-gray-600 space-y-3 shadow-inner text-sm font-body leading-relaxed">
                                 <p>The Allgood Academy is a learning lab focused on Pragmatic Action. We apply the advanced instructional design used by top tech companies to guarantee one result: a mindset shift that converts passive learning into tangible, real-world execution.</p>
+                            </div>
+                            
+                            <!-- GoodBlock Logo/Link -->
+                            <div class="text-center mt-6">
+                                <a href="https://www.allgoodacademy.com/goodblocks" target="_blank" class="inline-block group">
+                                    <span class="font-heading font-bold text-3xl tracking-tight text-allgood-primary animate-pulse-glow block">
+                                        GoodBlock
+                                    </span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1198,8 +1255,8 @@
         const APPS_SCRIPT_URL = ""; 
         let sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
         
-        // UPDATED: Reverted page count back to 24
-        const totalPages = 24; 
+        // UPDATED: Increased page count to 25
+        const totalPages = 25; 
 
         const SessionManager = {
             log: function(action, detail, payload = {}) {
@@ -1548,29 +1605,292 @@
             document.getElementById('btn-hodl').disabled = true;
         }
 
+        // --- PAGE 24: FINAL EXAM LOGIC ---
+        const examQuestions = [
+            {
+                title: "The Urgent Email",
+                scenario: "You receive an email from 'Metamask Security' claiming your wallet is compromised. They ask you to reply with your 12-word seed phrase to 'verify ownership' and secure your funds.",
+                options: [
+                    { text: "Reply immediately to secure the funds.", correct: false, feedback: "FAIL. Legitimate support teams will NEVER ask for your seed phrase. This is a classic phishing attack." },
+                    { text: "Ignore the email.", correct: true, feedback: "CORRECT. This is a phishing attempt. No company needs your private keys to check security status." },
+                    { text: "Click the link to check the status.", correct: false, feedback: "FAIL. Clicking unknown links in crypto emails can install malware or keyloggers on your device." }
+                ]
+            },
+            {
+                title: "The 'Guaranteed' 100x",
+                scenario: "An influencer invites you to a Telegram group for a new coin called 'SafeMoonMars'. They promise a guaranteed 100x return within 24 hours.",
+                options: [
+                    { text: "Invest $100 just in case.", correct: false, feedback: "FAIL. 'Guaranteed' returns are the hallmark of a scam. This is likely a Rug Pull waiting to happen." },
+                    { text: "Research the team and utility first.", correct: true, feedback: "CORRECT. Always Do Your Own Research (DYOR). Hype is not a fundamental metric." },
+                    { text: "Borrow money to invest maximum amount.", correct: false, feedback: "FAIL. Never invest money you cannot afford to lose, especially on speculative assets." }
+                ]
+            },
+            {
+                title: "Cold Storage Backup",
+                scenario: "You have moved the corporate Bitcoin to a Hardware Wallet. You need to store the backup paper seed phrase.",
+                options: [
+                    { text: "Take a photo and save to cloud.", correct: false, feedback: "FAIL. Cloud photos can be hacked. Your keys must remain air-gapped (offline)." },
+                    { text: "Store it in a fireproof physical safe.", correct: true, feedback: "CORRECT. Physical security is the only way to protect a non-digital key." },
+                    { text: "Save it in a password manager.", correct: false, feedback: "FAIL. If your computer is compromised, the hacker gets your passwords and your crypto." }
+                ]
+            },
+            {
+                title: "The Transaction",
+                scenario: "You are authorized to send $50,000 worth of BTC to a new exchange account. The Board wants it done fast.",
+                options: [
+                    { text: "Send full amount immediately.", correct: false, feedback: "FAIL. If the address is wrong, the company loses $50k instantly. High risk." },
+                    { text: "Send a $10 test transaction first.", correct: true, feedback: "CORRECT. Always verify receipt with a small amount before sending the treasure." },
+                    { text: "Ask a friend to check the address.", correct: false, feedback: "FAIL. Trustless systems require YOU to verify, not third parties." }
+                ]
+            },
+            {
+                title: "Market Crash",
+                scenario: "You bought BTC at $60k. A week later, bad news hits and it drops to $45k (-25%). The fundamentals of the protocol haven't changed.",
+                options: [
+                    { text: "Panic sell to stop the bleeding.", correct: false, feedback: "FAIL. You just realized a loss based on emotion. Panic selling destroys wealth." },
+                    { text: "Double down with leverage.", correct: false, feedback: "FAIL. Trading with leverage during volatility is gambling, not investing." },
+                    { text: "Hold the thesis (HODL).", correct: true, feedback: "CORRECT. Volatility is the price of performance. If the thesis is sound, you wait." }
+                ]
+            },
+            {
+                title: "The 'Generous' Giveaway",
+                scenario: "A YouTube livestream features Elon Musk promising to double any Bitcoin sent to a specific address.",
+                options: [
+                    { text: "Send immediately! It's live!", correct: false, feedback: "FAIL. This is a classic 'doubling' scam using deepfake video loops." },
+                    { text: "Recognize no one gives money for free.", correct: true, feedback: "CORRECT. If it sounds too good to be true, it is. There is no free lunch in crypto." },
+                    { text: "Check his official Twitter.", correct: false, feedback: "FAIL. Even verified accounts get hacked. The premise itself is the red flag." }
+                ]
+            },
+            {
+                title: "Compliance",
+                scenario: "The company made a $5,000 profit trading crypto this quarter.",
+                options: [
+                    { text: "Don't report it. Crypto is anon.", correct: false, feedback: "FAIL. Blockchains are public ledgers. Tax evasion is a crime and puts the company at risk." },
+                    { text: "Move it to a privacy coin to hide it.", correct: false, feedback: "FAIL. Attempting to obfuscate funds is money laundering. High legal risk." },
+                    { text: "Report it as capital gains.", correct: true, feedback: "CORRECT. Operating in the light allows you to build wealth legally and sustainably." }
+                ]
+            }
+        ];
+
+        let quizIndex = 0;
+        let quizScore = 0;
+        let examPassed = false;
+
+        window.loadQuestion = function() {
+            const q = examQuestions[quizIndex];
+            document.getElementById('quiz-progress-text').textContent = `Question ${quizIndex + 1} of ${examQuestions.length}`;
+            document.getElementById('quiz-scenario-title').textContent = q.title;
+            document.getElementById('quiz-scenario-text').textContent = q.scenario;
+            
+            const optsDiv = document.getElementById('quiz-options');
+            optsDiv.innerHTML = '';
+            
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 border border-gray-200 rounded text-sm hover:bg-gray-50 hover:border-allgood-secondary transition-all font-body flex items-center group";
+                btn.innerHTML = `<div class="w-4 h-4 rounded-full border border-gray-300 mr-3 group-hover:border-allgood-secondary flex-shrink-0"></div><span>${opt.text}</span>`;
+                btn.onclick = () => selectAnswer(idx, btn);
+                optsDiv.appendChild(btn);
+            });
+
+            document.getElementById('quiz-question-block').classList.remove('hidden');
+            document.getElementById('quiz-feedback-block').classList.add('hidden');
+            document.getElementById('quiz-next-btn').classList.add('hidden'); // Hide next button until answered
+        }
+
+        window.selectAnswer = function(idx, btnEl) {
+            // Disable all buttons
+            const allBtns = document.getElementById('quiz-options').querySelectorAll('button');
+            allBtns.forEach(b => { b.disabled = true; b.classList.add('opacity-60', 'cursor-not-allowed'); });
+
+            const q = examQuestions[quizIndex];
+            const isCorrect = q.options[idx].correct;
+            
+            // Style selection
+            btnEl.classList.remove('opacity-60');
+            if(isCorrect) {
+                btnEl.classList.add('bg-green-50', 'border-green-500');
+                btnEl.querySelector('div').classList.add('bg-green-500', 'border-green-500');
+                quizScore++;
+                sfx.success();
+                document.getElementById('quiz-feedback-icon').innerHTML = `<i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>`;
+                document.getElementById('quiz-feedback-title').textContent = "Correct";
+                document.getElementById('quiz-feedback-title').className = "block text-sm font-bold mb-1 text-green-700";
+            } else {
+                btnEl.classList.add('bg-red-50', 'border-red-500');
+                btnEl.querySelector('div').classList.add('bg-red-500', 'border-red-500');
+                sfx.error();
+                document.getElementById('quiz-feedback-icon').innerHTML = `<i data-lucide="x-circle" class="w-6 h-6 text-red-600"></i>`;
+                document.getElementById('quiz-feedback-title').textContent = "Incorrect";
+                document.getElementById('quiz-feedback-title').className = "block text-sm font-bold mb-1 text-red-700";
+            }
+
+            // Show feedback
+            document.getElementById('quiz-feedback-text').textContent = q.options[idx].feedback;
+            document.getElementById('quiz-feedback-block').classList.remove('hidden');
+            document.getElementById('quiz-next-btn').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        window.nextQuestion = function() {
+            quizIndex++;
+            if (quizIndex < examQuestions.length) {
+                loadQuestion();
+            } else {
+                showFinalResult();
+            }
+            sfx.nav();
+        }
+
+        window.showFinalResult = function() {
+            document.getElementById('quiz-question-block').classList.add('hidden');
+            document.getElementById('quiz-feedback-block').classList.add('hidden');
+            document.getElementById('quiz-progress-text').textContent = "Assessment Complete";
+            
+            const resultBlock = document.getElementById('quiz-result-block');
+            const title = document.getElementById('quiz-result-title');
+            const text = document.getElementById('quiz-result-text');
+            const icon = document.getElementById('quiz-result-icon');
+            const actions = document.getElementById('quiz-result-actions');
+            
+            resultBlock.classList.remove('hidden');
+
+            if (quizScore >= 6) {
+                examPassed = true;
+                icon.innerHTML = `<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mx-auto"><i data-lucide="award" class="w-8 h-8"></i></div>`;
+                title.textContent = "Mission Accomplished";
+                text.textContent = `You scored ${quizScore}/7. You have demonstrated the pragmatic mindset required to defend digital assets.`;
+                actions.innerHTML = `<button onclick="goToCertification()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-3 rounded font-bold shadow-lg transition-transform hover:scale-105">Access Certification</button>`;
+                sfx.success();
+                document.getElementById('next-button').style.display = 'flex'; // Enable navbar next
+            } else {
+                examPassed = false;
+                icon.innerHTML = `<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600 mx-auto"><i data-lucide="alert-triangle" class="w-8 h-8"></i></div>`;
+                title.textContent = "Deployment Failed";
+                text.textContent = `You scored ${quizScore}/7. The Treasury cannot be risked with this error rate. Review the intel and try again.`;
+                actions.innerHTML = `<button onclick="retryExam()" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded font-bold shadow transition-colors">Retry Assessment</button>`;
+                sfx.error();
+                document.getElementById('next-button').style.display = 'none'; // Lock navbar next
+            }
+            lucide.createIcons();
+        }
+
+        window.retryExam = function() {
+            quizIndex = 0;
+            quizScore = 0;
+            document.getElementById('quiz-result-block').classList.add('hidden');
+            loadQuestion();
+        }
+
+        window.goToCertification = function() {
+            const nextBtn = document.getElementById('next-button');
+            // Manually trigger the page transition logic used in the event listener
+            if (currentPageIndex < totalPages - 1) { 
+                // Find the logic that normally runs on click
+                // We just simulate it by calling the internal page logic if accessible, or just clicking the button
+                nextBtn.click();
+            }
+        }
+
         // --- STANDARD TEMPLATE LOGIC ---
         window.downloadBadge = function() {
+            // NEW: Check if exam passed
+            if (!examPassed) {
+                sfx.error();
+                const btn = document.getElementById('download-badge-btn');
+                const originalText = btn.innerHTML;
+                
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Exam Incomplete`;
+                lucide.createIcons();
+
+                setTimeout(() => {
+                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                    btn.innerHTML = originalText;
+                    lucide.createIcons();
+                }, 2000);
+                return;
+            }
+
             SessionManager.log("Badge Downloaded", "Certification Earned");
             const nameText = (currentUserName && currentUserName !== "Anonymous") ? currentUserName.toUpperCase() : "TRAVELER";
             const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
             const badgeSVG = `
             <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="gradBrand" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#D34716;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#EB8D69;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
                 <g transform="translate(300, 280)">
                     <rect x="10" y="10" width="580" height="220" rx="16" fill="white" stroke="#D1D5DB" stroke-width="1" />
-                    <path d="M 10 26 A 16 16 0 0 1 26 10 L 574 10 A 16 16 0 0 1 590 26 L 590 60 L 10 60 Z" fill="#357889" />
+                    
+                    <!-- Header Strip -->
+                    <path d="M 10 26 A 16 16 0 0 1 26 10 L 574 10 A 16 16 0 0 1 590 26 L 590 60 L 10 60 Z" fill="url(#gradBrand)" />
+                    
+                    <!-- Brand Name -->
                     <text x="30" y="42" font-family="Georgia, serif" font-weight="bold" font-size="18" fill="white" letter-spacing="1">ALLGOOD ACADEMY</text>
-                    <text x="570" y="42" font-family="Verdana, sans-serif" font-size="12" fill="white" opacity="0.8" text-anchor="end">PRAGMATIC ACTION CERTIFIED</text>
+                    <text x="570" y="42" font-family="Verdana, sans-serif" font-size="12" fill="white" opacity="0.8" text-anchor="end">PRAGMATIC ACTION BADGE</text>
+
+                    <!-- Perforation Line -->
+                    <path d="M 430 10 L 430 230" stroke="white" stroke-width="2" stroke-dasharray="6,6" opacity="0.4" />
+                    <path d="M 430 60 L 430 230" stroke="#D1D5DB" stroke-width="2" stroke-dasharray="6,6" />
+
+                    <!-- LEFT SECTION: Data & Skills -->
                     <text x="30" y="90" font-family="Verdana, sans-serif" font-size="10" fill="#757575" uppercase="true">GOODBLOCK MODULE</text>
                     <text x="30" y="110" font-family="Georgia, serif" font-weight="bold" font-size="18" fill="#D34716">DIGITAL ASSET DEFENSE</text>
+
                     <text x="30" y="140" font-family="Verdana, sans-serif" font-size="10" fill="#757575">CERTIFIED AGENT</text>
                     <text x="30" y="160" font-family="Verdana, sans-serif" font-weight="bold" font-size="16" fill="#4C4C4C">${nameText}</text>
+
+                    <!-- Skills List -->
+                    <g transform="translate(290, 90)">
+                        <text x="0" y="0" font-family="Verdana, sans-serif" font-size="10" fill="#757575" font-weight="bold">PROTOCOLS CLEARED:</text>
+                        
+                        <g transform="translate(0, 15)">
+                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
+                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Immutable Ledger</text>
+                        </g>
+                        <g transform="translate(0, 30)">
+                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
+                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Self-Custody</text>
+                        </g>
+                        <g transform="translate(0, 45)">
+                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
+                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Risk Analysis</text>
+                        </g>
+                    </g>
+
+                    <!-- Date Stamp -->
                     <text x="30" y="205" font-family="Courier New, monospace" font-size="12" fill="#357889">ISSUED: ${dateText}</text>
+
+                    <!-- RIGHT SECTION: The "Immutable Block" Icon -->
                     <g transform="translate(450, 80)">
-                        <rect x="20" y="0" width="80" height="80" fill="#F7F7F7" stroke="#D1D5DB" />
-                        <path d="M 30 10 L 90 10 L 90 70 L 30 70 Z" fill="none" stroke="#357889" stroke-width="2" />
-                        <rect x="45" y="25" width="30" height="30" fill="#357889" />
-                        <text x="60" y="100" font-family="Verdana, sans-serif" font-size="10" fill="#D34716" font-weight="bold" text-anchor="middle">VERIFIED</text>
-                        <text x="60" y="120" font-family="Verdana, sans-serif" font-size="24" fill="#4C4C4C" font-weight="bold" text-anchor="middle">A+</text>
+                        <!-- Circle Background -->
+                        <circle cx="60" cy="60" r="50" fill="#F7F7F7" stroke="#D1D5DB" stroke-width="1" />
+                        
+                        <!-- The Isometric Block (Scaled for Badge) -->
+                        <g transform="translate(28, 28) scale(0.65)">
+                            <!-- Left Face -->
+                            <path d="M 50 100 L 6 75 L 6 25 L 50 50 Z" fill="#D34716" opacity="0.8" />
+                            <!-- Top Face -->
+                            <path d="M 50 0 L 94 25 L 50 50 L 6 25 Z" fill="#EB8D69" />
+                            <!-- Right Face -->
+                            <path d="M 50 100 L 94 75 L 94 25 L 50 50 Z" fill="#D34716" />
+                            
+                            <!-- The Lock Icon (Overlay) - REMOVED per request -->
+                            <!-- <g transform="translate(35, 35)">
+                                <rect x="5" y="12" width="20" height="16" rx="2" fill="white" />
+                                <path d="M 15 12 L 15 6 A 5 5 0 0 0 5 6 L 5 12" fill="none" stroke="white" stroke-width="3" />
+                                <circle cx="15" cy="20" r="2" fill="#D34716" />
+                            </g> -->
+                        </g>
+
+                        <!-- Verification Stamp - Updated to Orange & Animated -->
+                        <text x="60" y="140" font-family="Verdana, sans-serif" font-size="10" fill="#D34716" font-weight="bold" text-anchor="middle" letter-spacing="2" class="animate-shimmer">SECURED</text>
                     </g>
                 </g>
             </svg>`;
@@ -1665,7 +1985,11 @@
             });
 
             // Navigation Logic
+            // UPDATED: We need to map the linear index to the DOM IDs because of the inserted video page
             const pages = document.querySelectorAll('.page');
+            // Re-query pages to ensure the new one is included in the NodeList order
+            // The order in the DOM determines the index
+
             const nextButton = document.getElementById('next-button');
             const backButton = document.getElementById('back-button');
 
@@ -1683,6 +2007,23 @@
                 else { backButton.disabled = false; backButton.classList.remove('opacity-0'); }
 
                 const nextSpan = nextButton.querySelector('span');
+                
+                // Logic for Exam Page (Index 23, aka Page 24)
+                if (currentPageIndex === 23) { // The Exam Page
+                    // Lock navigation until passed
+                    if (!examPassed) {
+                        nextButton.style.display = 'none';
+                    } else {
+                        nextButton.style.display = 'flex';
+                    }
+                    // Initialize exam if fresh
+                    if(document.getElementById('quiz-options').children.length === 0) {
+                        loadQuestion();
+                    }
+                } else {
+                    nextButton.style.display = 'flex';
+                }
+
                 if (nextSpan) {
                     if (currentPageIndex === totalPages - 2) { nextSpan.textContent = 'Finish'; nextButton.style.display = 'flex'; } 
                     else if (currentPageIndex === totalPages - 1) { 
@@ -1694,6 +2035,11 @@
                     } else { nextSpan.textContent = 'Next'; nextButton.style.display = 'flex'; }
                 }
                 
+                // Re-check exam lock specifically
+                if (currentPageIndex === 23 && !examPassed) {
+                     nextButton.style.display = 'none';
+                }
+
                 const progressBar = document.getElementById('flex-progress-fill');
                 if (progressBar) progressBar.style.width = `${((currentPageIndex + 1) / totalPages) * 100}%`;
                 
