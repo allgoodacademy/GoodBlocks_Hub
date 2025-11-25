@@ -52,6 +52,23 @@
 
         h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
 
+        /* --- ANIMATIONS --- */
+        @keyframes pulse-glow {
+            0%, 100% { 
+                text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); 
+                transform: scale(1);
+            }
+            50% { 
+                text-shadow: 0 0 30px rgba(211, 71, 22, 0.9), 0 0 15px rgba(211, 71, 22, 0.6); 
+                transform: scale(1.02);
+            }
+        }
+        
+        .animate-pulse-glow {
+            animation: pulse-glow 2.5s infinite ease-in-out;
+            will-change: transform, text-shadow;
+        }
+
         /* --- TABLET FRAME --- */
         .tablet-frame {
             height: 80vh;
@@ -197,7 +214,7 @@
                             <div class="relative">
                                 <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Digital Asset Defense</h2>
-                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md" style="text-shadow: 0 0 20px rgba(211, 71, 22, 0.8);">GoodBlock</h1>
+                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md animate-pulse-glow">GoodBlock</h1>
                             </div>
                             <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
                         </div>
@@ -1000,15 +1017,59 @@
 
                 <!-- Page 21: Irreversibility -->
                 <div class="page" id="page-21">
-                    <div class="flex flex-col items-center justify-center h-full text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner">
-                        <i data-lucide="alert-octagon" class="w-16 h-16 text-red-500 mb-6 animate-pulse"></i>
-                        <h2 class="text-3xl font-heading font-bold mb-4">Point of No Return</h2>
+                    <div class="flex flex-col items-center justify-center h-full text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner relative">
+                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse"></i>
+                        <h2 class="text-3xl font-heading font-bold mb-2">Point of No Return</h2>
                         <p class="text-sm max-w-md leading-relaxed text-gray-400 mb-8">
-                            Blockchain transactions are immutable. Once you press confirm, no bank, no government, and no admin can reverse it.
+                            Blockchain transactions are immutable. Once you press confirm, no bank, no government, and no admin can reverse it. History is full of regrets.
                         </p>
-                        <div class="p-4 border border-red-500 rounded bg-red-900/20 text-red-300 text-xs">
-                            Verify. Verify. Then Verify Again.
+
+                        <!-- Cautionary Tales Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-4xl z-10">
+                            <!-- Card 1: Pizza -->
+                            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-red-500 cursor-pointer transition-all group" onclick="showHistoryModal('pizza')">
+                                <div class="bg-orange-500/20 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-orange-500 transition-colors">
+                                    <i data-lucide="pizza" class="w-5 h-5 text-orange-500 group-hover:text-white"></i>
+                                </div>
+                                <h3 class="font-bold text-sm mb-1">The $700M Pizza</h3>
+                                <p class="text-xs text-gray-500">2010 • Regret</p>
+                            </div>
+
+                            <!-- Card 2: Lost Drive -->
+                            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-all group" onclick="showHistoryModal('drive')">
+                                <div class="bg-blue-500/20 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-blue-500 transition-colors">
+                                    <i data-lucide="hard-drive" class="w-5 h-5 text-blue-500 group-hover:text-white"></i>
+                                </div>
+                                <h3 class="font-bold text-sm mb-1">The Landfill</h3>
+                                <p class="text-xs text-gray-500">2013 • Loss</p>
+                            </div>
+
+                            <!-- Card 3: Fat Finger -->
+                            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-green-500 cursor-pointer transition-all group" onclick="showHistoryModal('fee')">
+                                <div class="bg-green-500/20 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-green-500 transition-colors">
+                                    <i data-lucide="mouse-pointer-click" class="w-5 h-5 text-green-500 group-hover:text-white"></i>
+                                </div>
+                                <h3 class="font-bold text-sm mb-1">The $23M Fee</h3>
+                                <p class="text-xs text-gray-500">2021 • Error</p>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- History Modal (Hidden) -->
+                <div id="history-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/90 flex items-center justify-center p-6 modal-transition" onclick="closeHistoryModal()">
+                    <div class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl p-6 max-w-md w-full text-center relative" onclick="event.stopPropagation()">
+                        <button onclick="closeHistoryModal()" class="absolute top-3 right-3 text-gray-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        <div id="history-icon-container" class="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 text-3xl transition-colors bg-gray-800"></div>
+                        <h3 id="history-title" class="text-2xl font-heading font-bold text-white mb-2"></h3>
+                        <p id="history-text" class="text-sm text-gray-400 font-body mb-6 leading-relaxed"></p>
+                        <div class="bg-gray-800 p-3 rounded border-l-4 border-red-500 text-left mb-4">
+                            <strong class="text-red-400 text-xs uppercase tracking-wide block mb-1">The Lesson</strong>
+                            <p id="history-lesson" class="text-xs text-gray-300"></p>
+                        </div>
+                        <a id="history-link" href="#" target="_blank" class="inline-flex items-center text-allgood-primary hover:text-white text-xs font-bold uppercase tracking-widest transition-colors">
+                            Read Full Story <i data-lucide="external-link" class="w-3 h-3 ml-1"></i>
+                        </a>
                     </div>
                 </div>
 
@@ -1237,15 +1298,6 @@
                 sfx.tick();
             } else {
                 pill.style.transform = 'translateX(100%)';
-                // pill.style.width is handled by calc in CSS, transform moves it 100% of its own width (which is 50% of container approx)
-                // Actually translateX(100%) moves it by its own width. Since width is ~50%, this works perfect.
-                // Let's add a slight nudge for the gap if needed, but standard 100% usually lines up if width is accurate.
-                // To be precise with the gap, we can use left positioning or just stick to simple translate. 
-                // The CSS `w-[calc(50%-4px)]` means it fits exactly in half minus padding. 
-                // So translating 100% + gap correction might be needed. 
-                // Easier approach: Use margin-left or just trust the visual toggle. 
-                // Let's stick to a simple class toggle for the pill's left position if translate is tricky without exact pixel math.
-                // Actually, Tailwind `translate-x-full` works well.
                 
                 pill.style.transform = 'translateX(104%)'; // Slight nudge for the gap
                 pill.classList.remove('bg-white'); pill.classList.add('bg-green-100');
@@ -1421,6 +1473,58 @@
             }
         }
 
+        // PAGE 21: HISTORY MODAL LOGIC
+        const historyData = {
+            'pizza': {
+                title: "The Bitcoin Pizza",
+                text: "On May 22, 2010, Laszlo Hanyecz paid 10,000 BTC for two Papa John's pizzas. At the time, it was worth about $41. Today, those pizzas would be worth over $700 Million.",
+                lesson: "Understand the asset you are holding. Spending a deflationary asset on consumables is the most expensive mistake you can make.",
+                icon: "pizza",
+                color: "text-orange-500",
+                link: "https://www.google.com/search?q=bitcoin+pizza+day+laszlo"
+            },
+            'drive': {
+                title: "Buried Treasure",
+                text: "James Howells accidentally threw away a hard drive containing the private keys to 8,000 BTC. He has spent a decade petitioning the city council to let him excavate the landfill. They refuse.",
+                lesson: "Physical security is paramount. A private key is not 'in the cloud.' If the device holding it is destroyed, the wealth is gone forever.",
+                icon: "hard-drive",
+                color: "text-blue-500",
+                link: "https://www.google.com/search?q=james+howells+bitcoin+hard+drive"
+            },
+            'fee': {
+                title: "The Fat Finger Error",
+                text: "In 2021, an exchange (Bitfinex) accidentally paid $23.7 Million in transaction fees to send just $100k of ETH. It was a simple typo in the software configuration.",
+                lesson: "There is no 'Undo' button. Automation must be double-checked. Precision is not optional in a system where code is law.",
+                icon: "mouse-pointer-click",
+                color: "text-green-500",
+                link: "https://www.google.com/search?q=bitfinex+23+million+fee+mistake"
+            }
+        };
+
+        function showHistoryModal(key) {
+            const data = historyData[key];
+            const modal = document.getElementById('history-modal');
+            const iconContainer = document.getElementById('history-icon-container');
+            
+            document.getElementById('history-title').textContent = data.title;
+            document.getElementById('history-text').textContent = data.text;
+            document.getElementById('history-lesson').textContent = data.lesson;
+            document.getElementById('history-link').href = data.link;
+            
+            iconContainer.innerHTML = `<i data-lucide="${data.icon}" class="${data.color}"></i>`;
+            
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            sfx.nav();
+            lucide.createIcons();
+        }
+
+        function closeHistoryModal() {
+            const modal = document.getElementById('history-modal');
+            modal.classList.remove('visible-modal');
+            modal.classList.add('hidden-modal');
+        }
+
         // PAGE 22: MARKET
         window.marketDecision = function(choice) {
             const feedback = document.getElementById('market-feedback');
@@ -1561,11 +1665,7 @@
             });
 
             // Navigation Logic
-            // UPDATED: We need to map the linear index to the DOM IDs because of the inserted video page
             const pages = document.querySelectorAll('.page');
-            // Re-query pages to ensure the new one is included in the NodeList order
-            // The order in the DOM determines the index
-
             const nextButton = document.getElementById('next-button');
             const backButton = document.getElementById('back-button');
 
@@ -1642,3 +1742,5 @@
             showPage(0);
         });
     </script>
+</body>
+</html>
