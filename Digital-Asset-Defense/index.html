@@ -1252,7 +1252,8 @@
         let currentUserName = "Anonymous";
         let currentUserEmail = "";
         let currentPageIndex = 0; 
-        const APPS_SCRIPT_URL = ""; 
+        // *** ENTER YOUR DEPLOYED WEB APP URL HERE ***
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2UASi5e1KZx0IBfUWCyRmNdlp_IXr2zRXB-V0EV-Zi606s5w-jGy8-DEaDaB9W6ae6g/exec"; 
         let sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
         
         // UPDATED: Increased page count to 25
@@ -1262,9 +1263,10 @@
             log: function(action, detail, payload = {}) {
                 if(!APPS_SCRIPT_URL) return; 
                 const data = { sessionId: sessionId, userName: currentUserName, userEmail: currentUserEmail, action: action, detail: detail, payload: payload };
-                fetch(APPS_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(data) }).then(() => console.log("Logged:", action)).catch(err => console.error("Error:", err));
+                // Fire and forget (no-cors) to prevent blocking the UI
+                fetch(APPS_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(data) }).catch(err => console.error("Log Error:", err));
             },
-            start: function(name, email) { this.log("Session Started", "User Logged In", { startTime: new Date().toISOString() }); }
+            start: function(name, email) { this.log("System", "Session Started", { startTime: new Date().toISOString() }); }
         };
 
         // --- AUDIO ENGINE (Standard) ---
@@ -1302,6 +1304,9 @@
             const btnLedger = document.getElementById('btn-ledger');
             const display = document.getElementById('ledger-display');
             const feedback = document.getElementById('ledger-feedback');
+
+            // TRACKING: Log the infrastructure choice
+            SessionManager.log("Infrastructure", "Trust Model Toggle", { selected: mode === 'bank' ? "SQL Database" : "Blockchain Ledger" });
 
             if (mode === 'bank') {
                 // UI State
@@ -1374,8 +1379,14 @@
             // Initialize values on load
             updateScarcity(slider.value);
 
+            // Debounce logging to prevent flooding on every slide tick
+            let slideLogTimer;
             slider.addEventListener('input', (e) => {
                 updateScarcity(e.target.value);
+                clearTimeout(slideLogTimer);
+                slideLogTimer = setTimeout(() => {
+                     SessionManager.log("Simulation", "Inflation Slider", { years: e.target.value });
+                }, 1000);
             });
         }
 
@@ -1409,6 +1420,8 @@
         let selectedCard = null;
         const correctMap = { 'exchange': 'high', 'mobile': 'high', 'hardware': 'low' };
         let sortedCount = 0;
+        // TRACKING: Mistake Counter
+        let custodyMistakes = 0;
         
         window.selectCard = function(id) {
             document.querySelectorAll('.wallet-card').forEach(c => c.classList.remove('selected'));
@@ -1428,9 +1441,18 @@
                 document.getElementById(`container-${zone}`).appendChild(card);
                 selectedCard = null; sortedCount++; sfx.success();
                 document.getElementById('custody-feedback').textContent = "Correct assessment.";
-                if(sortedCount === 3) document.getElementById('custody-feedback').textContent = "Protocol complete. Risk segregated.";
+                
+                if(sortedCount === 3) {
+                    document.getElementById('custody-feedback').textContent = "Protocol complete. Risk segregated.";
+                    // TRACKING: Log completion and accuracy
+                    SessionManager.log("Protocol", "Custody Sorter Completed", { 
+                        mistakes: custodyMistakes, 
+                        performance: custodyMistakes === 0 ? "Perfect" : "Needs Review" 
+                    });
+                }
             } else {
                 sfx.error();
+                custodyMistakes++; // Increment error count
                 document.getElementById('custody-feedback').textContent = "Incorrect. Check the security level.";
             }
         }
@@ -1486,12 +1508,21 @@
             }
         }
 
-        // QUIZ LOGIC (Generic)
+        // QUIZ LOGIC (Generic - Handles Page 14 & 19)
         window.checkAnswer = function(btn) {
             const isCorrect = btn.getAttribute('data-correct') === 'true';
             const feedbackText = btn.getAttribute('data-feedback');
             const container = btn.closest('.quiz-container');
             const feedbackEl = container.querySelector('.feedback');
+            
+            // TRACKING: Scrape the question context directly from the DOM
+            const questionTitle = container.querySelector('h4') ? container.querySelector('h4').innerText : "Unknown Question";
+            const answerText = btn.innerText;
+
+            SessionManager.log("Decision", questionTitle, { 
+                selectedAnswer: answerText, 
+                isCorrect: isCorrect 
+            });
             
             // Reset buttons
             container.querySelectorAll('.quiz-btn').forEach(b => {
@@ -1519,6 +1550,13 @@
         // PAGE 20: ADDRESS AUDIT
         window.auditTransaction = function(isReject) {
             const feedback = document.getElementById('tx-feedback');
+            
+            // TRACKING: Log the final audit decision
+            SessionManager.log("Deployment", "Address Audit", { 
+                decision: isReject ? "Rejected (Safe)" : "Approved (Dangerous)",
+                outcome: isReject ? "Success" : "Funds Lost"
+            });
+
             if (isReject) {
                 feedback.textContent = "CRISIS AVERTED. The addresses did not match. You saved the company funds.";
                 feedback.className = "text-sm font-bold mt-4 text-center min-h-[20px] text-green-600";
@@ -1675,6 +1713,8 @@
         let quizIndex = 0;
         let quizScore = 0;
         let examPassed = false;
+        // NEW: Track detailed answer history
+        let answerLog = [];
 
         window.loadQuestion = function() {
             const q = examQuestions[quizIndex];
@@ -1705,6 +1745,14 @@
 
             const q = examQuestions[quizIndex];
             const isCorrect = q.options[idx].correct;
+            const selectedText = q.options[idx].text;
+            
+            // NEW: Log the specific answer chosen
+            answerLog.push({
+                question: q.title,
+                selected: selectedText,
+                isCorrect: isCorrect
+            });
             
             // Style selection
             btnEl.classList.remove('opacity-60');
@@ -1755,6 +1803,16 @@
             
             resultBlock.classList.remove('hidden');
 
+            const status = quizScore >= 6 ? "Pass" : "Fail";
+            
+            // TRACKING: Log full detailed breakdown of every answer
+            SessionManager.log("Certification", "Final Exam Completed", { 
+                status: status,
+                score: `${quizScore}/7`,
+                percentage: Math.round((quizScore/7)*100) + "%",
+                detailedAnswers: answerLog
+            });
+
             if (quizScore >= 6) {
                 examPassed = true;
                 icon.innerHTML = `<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mx-auto"><i data-lucide="award" class="w-8 h-8"></i></div>`;
@@ -1778,6 +1836,7 @@
         window.retryExam = function() {
             quizIndex = 0;
             quizScore = 0;
+            answerLog = []; // Reset answer log
             document.getElementById('quiz-result-block').classList.add('hidden');
             loadQuestion();
         }
@@ -1817,83 +1876,46 @@
             SessionManager.log("Badge Downloaded", "Certification Earned");
             const nameText = (currentUserName && currentUserName !== "Anonymous") ? currentUserName.toUpperCase() : "TRAVELER";
             const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            
+            // UPDATED BADGE: Option 1 "Cold Storage"
             const badgeSVG = `
-            <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+            <svg width="600" height="350" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <linearGradient id="gradBrand" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#D34716;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#EB8D69;stop-opacity:1" />
+                    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#2d2d2d;stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:#1a1a1a;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
                     </linearGradient>
                 </defs>
-                <g transform="translate(300, 280)">
-                    <rect x="10" y="10" width="580" height="220" rx="16" fill="white" stroke="#D1D5DB" stroke-width="1" />
-                    
-                    <!-- Header Strip -->
-                    <path d="M 10 26 A 16 16 0 0 1 26 10 L 574 10 A 16 16 0 0 1 590 26 L 590 60 L 10 60 Z" fill="url(#gradBrand)" />
-                    
-                    <!-- Brand Name -->
-                    <text x="30" y="42" font-family="Georgia, serif" font-weight="bold" font-size="18" fill="white" letter-spacing="1">ALLGOOD ACADEMY</text>
-                    <text x="570" y="42" font-family="Verdana, sans-serif" font-size="12" fill="white" opacity="0.8" text-anchor="end">PRAGMATIC ACTION BADGE</text>
 
-                    <!-- Perforation Line -->
-                    <path d="M 430 10 L 430 230" stroke="white" stroke-width="2" stroke-dasharray="6,6" opacity="0.4" />
-                    <path d="M 430 60 L 430 230" stroke="#D1D5DB" stroke-width="2" stroke-dasharray="6,6" />
+                <!-- Device Body -->
+                <rect x="10" y="10" width="580" height="330" rx="20" fill="url(#metalGrad)" stroke="#444" stroke-width="2"/>
+                
+                <!-- Screen Area -->
+                <rect x="50" y="50" width="500" height="180" rx="8" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+                
+                <!-- Screen Content -->
+                <text x="70" y="90" font-family="Courier New, monospace" font-size="14" fill="#D34716" font-weight="bold">PROTOCOL: VERIFIED</text>
+                <text x="70" y="140" font-family="Verdana, sans-serif" font-size="24" fill="white" font-weight="bold">${nameText}</text>
+                <text x="70" y="170" font-family="Verdana, sans-serif" font-size="14" fill="#94a3b8">DIGITAL ASSET DEFENSE</text>
+                
+                <!-- Hash ID -->
+                <text x="70" y="210" font-family="Courier New, monospace" font-size="10" fill="#357889">0x7f8...a9b2 [PRAGMATIC ACTION BADGE SECURED]</text>
 
-                    <!-- LEFT SECTION: Data & Skills -->
-                    <text x="30" y="90" font-family="Verdana, sans-serif" font-size="10" fill="#757575" uppercase="true">GOODBLOCK MODULE</text>
-                    <text x="30" y="110" font-family="Georgia, serif" font-weight="bold" font-size="18" fill="#D34716">DIGITAL ASSET DEFENSE</text>
+                <!-- Brand Logo / Element -->
+                <circle cx="500" cy="140" r="30" fill="none" stroke="#D34716" stroke-width="3" opacity="0.5"/>
+                <path d="M 500 120 L 500 160 M 480 140 L 520 140" stroke="#D34716" stroke-width="2" opacity="0.5"/>
 
-                    <text x="30" y="140" font-family="Verdana, sans-serif" font-size="10" fill="#757575">CERTIFIED AGENT</text>
-                    <text x="30" y="160" font-family="Verdana, sans-serif" font-weight="bold" font-size="16" fill="#4C4C4C">${nameText}</text>
-
-                    <!-- Skills List -->
-                    <g transform="translate(290, 90)">
-                        <text x="0" y="0" font-family="Verdana, sans-serif" font-size="10" fill="#757575" font-weight="bold">PROTOCOLS CLEARED:</text>
-                        
-                        <g transform="translate(0, 15)">
-                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
-                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Immutable Ledger</text>
-                        </g>
-                        <g transform="translate(0, 30)">
-                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
-                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Self-Custody</text>
-                        </g>
-                        <g transform="translate(0, 45)">
-                            <rect x="0" y="0" width="10" height="10" rx="2" fill="#D34716" />
-                            <text x="15" y="8" font-family="Verdana, sans-serif" font-size="10" fill="#4C4C4C">Risk Analysis</text>
-                        </g>
-                    </g>
-
-                    <!-- Date Stamp -->
-                    <text x="30" y="205" font-family="Courier New, monospace" font-size="12" fill="#357889">ISSUED: ${dateText}</text>
-
-                    <!-- RIGHT SECTION: The "Immutable Block" Icon -->
-                    <g transform="translate(450, 80)">
-                        <!-- Circle Background -->
-                        <circle cx="60" cy="60" r="50" fill="#F7F7F7" stroke="#D1D5DB" stroke-width="1" />
-                        
-                        <!-- The Isometric Block (Scaled for Badge) -->
-                        <g transform="translate(28, 28) scale(0.65)">
-                            <!-- Left Face -->
-                            <path d="M 50 100 L 6 75 L 6 25 L 50 50 Z" fill="#D34716" opacity="0.8" />
-                            <!-- Top Face -->
-                            <path d="M 50 0 L 94 25 L 50 50 L 6 25 Z" fill="#EB8D69" />
-                            <!-- Right Face -->
-                            <path d="M 50 100 L 94 75 L 94 25 L 50 50 Z" fill="#D34716" />
-                            
-                            <!-- The Lock Icon (Overlay) - REMOVED per request -->
-                            <!-- <g transform="translate(35, 35)">
-                                <rect x="5" y="12" width="20" height="16" rx="2" fill="white" />
-                                <path d="M 15 12 L 15 6 A 5 5 0 0 0 5 6 L 5 12" fill="none" stroke="white" stroke-width="3" />
-                                <circle cx="15" cy="20" r="2" fill="#D34716" />
-                            </g> -->
-                        </g>
-
-                        <!-- Verification Stamp - Updated to Orange & Animated -->
-                        <text x="60" y="140" font-family="Verdana, sans-serif" font-size="10" fill="#D34716" font-weight="bold" text-anchor="middle" letter-spacing="2" class="animate-shimmer">SECURED</text>
-                    </g>
-                </g>
+                <!-- Bottom Plate -->
+                <rect x="50" y="260" width="120" height="60" rx="30" fill="#333" />
+                <circle cx="80" cy="290" r="10" fill="#111" stroke="#555" stroke-width="2"/>
+                <circle cx="140" cy="290" r="10" fill="#111" stroke="#555" stroke-width="2"/>
+                
+                <text x="420" y="300" font-family="Georgia, serif" font-size="16" fill="#666" text-anchor="end">ALLGOOD ACADEMY</text>
+                <rect x="440" y="285" width="110" height="20" rx="4" fill="#D34716"/>
+                <text x="495" y="300" font-family="Verdana, sans-serif" font-size="10" fill="white" text-anchor="middle" font-weight="bold">KEY HOLDER</text>
             </svg>`;
+            
             const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a'); link.href = url; link.download = `Allgood-Badge-${nameText}.svg`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
