@@ -299,8 +299,8 @@
                             Day 100: Project Kickoff
                         </div>
 
-                        <p class="text-lg text-gray-600 mb-8 max-w-md">100 Days. 3 Phases. One Goal: The Keys.</p>
-                        <div class="w-16 h-1 bg-allgood-secondary rounded mx-auto mb-8"></div>
+                        <p class="text-lg text-gray-600 mb-8 max-w-md">100 Days. One Goal. The Keys.</p>
+                        <p class="text-sm text-allgood-primary font-bold mb-12 animate-pulse">Initialize the simulation to begin your timeline.</p>
 
                         <!-- How To Use Accordion -->
                         <div class="w-full max-w-lg text-left mx-auto">
@@ -323,21 +323,24 @@
 
                 <!-- Page 2: Scope -->
                 <div class="page" id="page-2">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Project Scope</h2></section>
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Briefing</h2></section>
                     <div class="bg-white p-6 rounded border-l-4 border-allgood-secondary shadow-sm text-gray-700 leading-relaxed">
-                        <p class="mb-4"><strong>The Mission:</strong> You are the Project Manager of your own home purchase. You have 100 days to navigate the turbulence of the market.</p>
-                        <ul class="space-y-3 text-sm">
-                            <li class="flex items-start"><i data-lucide="clock" class="w-5 h-5 text-allgood-primary mr-2 mt-0.5"></i><span><strong>Time is Money:</strong> Delays cost you leverage.</span></li>
-                            <li class="flex items-start"><i data-lucide="dollar-sign" class="w-5 h-5 text-allgood-primary mr-2 mt-0.5"></i><span><strong>Budget is Fixed:</strong> You cannot spend what you do not have.</span></li>
-                            <li class="flex items-start"><i data-lucide="search" class="w-5 h-5 text-allgood-primary mr-2 mt-0.5"></i><span><strong>Details Matter:</strong> A missed inspection item can bankrupt you.</span></li>
-                        </ul>
+                        <p class="mb-4"><strong>Narrative:</strong> You are the Project Manager of your own financial future. The market is volatile. The seller is impatient. The bank is strict.</p>
+                        <p class="mb-6"><strong>Instruction:</strong> Understand the three phases of the operation: Funding, Fieldwork, and Liquidity. Before we look at houses, we must look at <em>you</em>.</p>
+                        <div class="flex items-center p-3 bg-gray-100 rounded border border-gray-200 text-sm font-bold text-allgood-secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                            Proceed to establish your strategy.
+                        </div>
                     </div>
                 </div>
 
                 <!-- Page 3: Risk Profile -->
                 <div class="page" id="page-3">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Set Your Strategy</h2></section>
-                    <p class="text-sm text-gray-600 mb-6">How will you finance this project? Select your risk profile.</p>
+                    <div class="mb-6">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Narrative:</strong> How will you fund this operation? Cash is safety, but leverage is power. Your choice here determines how fragile your deal will be later.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Select your financial personality. This sets your baseline for stress.</p>
+                    </div>
                     <div class="grid grid-cols-1 gap-4">
                         <div class="profile-card bg-white p-4 rounded shadow-sm border border-gray-200 flex items-center justify-between" onclick="selectProfile('Conservative')">
                             <div>
@@ -362,20 +365,20 @@
                         </div>
                     </div>
                     <p id="profile-feedback" class="text-center text-sm font-bold text-allgood-primary mt-6 h-6"></p>
+                    <p class="text-center text-xs text-gray-400 mt-2 italic hidden" id="bridge-p3">Strategy set. Now, let's see if the market agrees with your budget.</p>
                 </div>
 
                 <!-- Page 4: Rate Shock -->
                 <div class="page" id="page-4">
                     <section class="mb-4 border-b border-gray-200 pb-2">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Cost of Capital</h2>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The External Threat</h2>
                         <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 90: Funding Phase</div>
                     </section>
                     
-                    <!-- Context Header -->
-                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
-                        <p class="text-xs text-gray-700 italic">
-                            "The bank isn't lending you money for free. A 1% rate hike can destroy $50,000 of your buying power."
-                        </p>
+                    <!-- Narrative Block -->
+                    <div class="bg-blue-50 p-4 rounded border-l-4 border-allgood-secondary mb-6 shadow-sm">
+                        <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> You found the perfect home listed at $350k. But the Fed just met, and rates are moving.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Slide the rate to see how a 1% hike impacts your buying power. Find the 'Breaking Point' where you pay more in interest than equity.</p>
                     </div>
 
                     <div class="bg-white p-6 rounded shadow-sm border border-gray-200 text-center">
@@ -395,20 +398,20 @@
                             <span class="text-green-600">Standard market rate. Buying power is stable.</span>
                         </div>
                     </div>
+                    <p class="text-center text-xs text-gray-400 mt-4 italic">The monthly payment is only half the battle. The bank isn't just looking at the house; they are looking at <em>your</em> other debts.</p>
                 </div>
 
                 <!-- Page 5: DTI Input -->
                 <div class="page" id="page-5">
                     <section class="mb-4 border-b border-gray-200 pb-2">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The DTI Test</h2>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Internal Threat</h2>
                         <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 85: Qualification</div>
                     </section>
                     
-                    <!-- Context Header -->
-                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
-                        <p class="text-xs text-gray-700 italic">
-                            "Lenders don't care about your feelings; they care about your <strong>Debt-to-Income Ratio</strong>. If your debt is too high, you are a liability."
-                        </p>
+                    <!-- Narrative Block -->
+                    <div class="bg-blue-50 p-4 rounded border-l-4 border-allgood-secondary mb-6 shadow-sm">
+                        <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> The Underwriter paused your file. That $600 car lease you signed last month? It might kill the deal.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Input your Income vs. Debts. Prove to the bank you aren't 'House Poor'. If your ratio is above 43%, the deal dies.</p>
                     </div>
 
                     <div class="space-y-4">
@@ -440,7 +443,10 @@
                             <div class="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
                                 <div id="dti-bar" class="h-4 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
                             </div>
-                            <p id="dti-message" class="text-xs leading-relaxed"></p>
+                            <p id="dti-message" class="text-xs leading-relaxed mb-4"></p>
+                            <div class="border-t border-gray-200 pt-4">
+                                <p class="text-xs text-gray-500 italic">"You passed the math test. Now you get the 'Golden Ticket'. But just because the bank <em>gives</em> you $500k, doesn't mean you should <em>spend</em> it."</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -448,32 +454,35 @@
                 <!-- Page 7: Budget Quiz -->
                 <div class="page" id="page-7">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Budget Discipline</h2></section>
-                    <div class="bg-white p-6 rounded shadow-sm border border-gray-200">
-                        <p class="font-bold text-gray-800 mb-4">Scenario:</p>
-                        <p class="text-sm text-gray-600 mb-6">The lender approved you for $500,000. However, your personal budget only allows for $400,000 comfortably. The agent shows you a "perfect" home for $480,000.</p>
+                    
+                    <!-- Narrative Block -->
+                    <div class="bg-white p-6 rounded shadow-sm border border-gray-200 mb-6">
+                        <p class="text-sm text-gray-700 mb-2"><strong>Context (Day 70):</strong> You find a stunning home at the absolute top of your approval limit ($490k). The agent says, 'It's a forever home!'</p>
+                        <p class="text-sm text-allgood-primary font-bold mb-4"><strong>Instruction:</strong> Decide: Stretch the budget (and live on ramen) or stay conservative to keep cash for repairs?</p>
+                        
                         <div class="space-y-3">
                             <button class="w-full text-left p-3 border border-gray-200 rounded hover:bg-gray-50 text-sm" onclick="budgetCheck(false)">Stretch the budget. It's a forever home.</button>
                             <button class="w-full text-left p-3 border border-gray-200 rounded hover:bg-gray-50 text-sm" onclick="budgetCheck(true)">Stick to the $400k limit. Being "house poor" is risky.</button>
                         </div>
                         <p id="budget-feedback" class="mt-4 text-xs font-bold"></p>
                     </div>
+                    <p class="text-center text-xs text-gray-400 italic">Budget locked. Now we go into the field. It looks pretty on the surface, but what's underneath?</p>
                 </div>
 
                 <!-- Page 8: Property Audit -->
                 <div class="page" id="page-8">
                     <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-center">
                         <div>
-                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Audit</h2>
-                            <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 60: Due Diligence</div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Inspection</h2>
+                            <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 60: Field Op</div>
                         </div>
                         <span class="text-xs bg-gray-200 px-2 py-1 rounded">Found: <span id="audit-count">0</span>/5</span>
                     </section>
                     
                     <!-- Context Header -->
                     <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
-                        <p class="text-xs text-gray-700 italic">
-                            "Staging is designed to distract you. Ignore the furniture. Look at the <strong>bones</strong> of the house. Find the 5 red flags hidden in this room."
-                        </p>
+                        <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> Open House. The staging furniture is beautiful. It's a trap.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Ignore the sofa. Tap the 5 structural red flags that cost real money. If you miss them now, you pay for them later.</p>
                     </div>
 
                     <!-- CSS Room - No Images -->
@@ -496,11 +505,21 @@
                         <div class="hotspot" style="bottom: 10%; left: 40%;" onclick="foundFlag(this, 'HVAC Noise')"><i data-lucide="wind" class="w-5 h-5 text-allgood-primary"></i></div>
                     </div>
                     <p id="audit-msg" class="text-center text-xs font-bold text-green-600 mt-2 min-h-[20px]"></p>
+                    <p id="audit-bridge" class="text-center text-xs text-gray-400 mt-2 italic hidden">You spotted the flaws. Now, we need to put a price tag on them.</p>
                 </div>
 
                 <!-- Page 9: Cost vs Value -->
                 <div class="page" id="page-9">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Surface vs. Structure</h2></section>
+                    <section class="mb-6 border-b border-gray-200 pb-4">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Assessment</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 55: Field Op</div>
+                    </section>
+                    
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-6 shadow-sm">
+                        <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> You're calculating the repair bill. Is it a $500 fix or a $10,000 disaster?</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Flip the cards to see the reality behind the 'cosmetic' issues.</p>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div class="flip-card" onclick="this.classList.toggle('flipped')">
                             <div class="flip-card-inner">
@@ -542,14 +561,19 @@
                             </div>
                         </div>
                     </div>
+                    <p class="text-center text-xs text-gray-400 mt-6 italic">The repair list is long. You want to negotiate repairs, but there's a problem: Competition.</p>
                 </div>
 
                 <!-- Page 10: Contingency Kill -->
                 <div class="page" id="page-10">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Bidding War</h2></section>
+                    <section class="mb-6 border-b border-gray-200 pb-4">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Gamble</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 45: Bidding War</div>
+                    </section>
                     <div class="bg-white p-6 rounded shadow-sm border-l-4 border-yellow-500">
-                        <h3 class="font-bold text-gray-800 mb-2">High Stakes Decision</h3>
-                        <p class="text-sm text-gray-600 mb-6">There are 5 other offers. The seller says they will accept yours immediately if you <strong>waive the Inspection Contingency</strong>.</p>
+                        <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> There are 5 other offers. The seller says: 'Waive the inspection, and the house is yours right now.'</p>
+                        <p class="text-sm text-allgood-primary font-bold mb-6"><strong>Instruction:</strong> Do you sign the waiver to win, or walk away to stay safe? This is the moment most buyers panic.</p>
+
                         <div class="space-y-3">
                             <button class="w-full bg-gray-50 hover:bg-red-50 border border-gray-200 p-3 rounded text-left text-sm transition-colors" onclick="contingencyResult('waive')">
                                 <span class="font-bold block text-gray-800">Sign the Waiver</span>
@@ -562,38 +586,37 @@
                         </div>
                         <p id="contingency-feedback" class="mt-4 text-xs font-bold"></p>
                     </div>
+                    <p class="text-center text-xs text-gray-400 mt-6 italic hidden" id="contingency-bridge">Offer Accepted. The contract is signed. But the hardest part isn't finding the house... it's paying for it.</p>
                 </div>
 
-                <!-- Page 11: Due Diligence Score -->
+                <!-- Page 11: The Pivot (Phase III Intro) -->
                 <div class="page" id="page-11">
-                    <div class="flex flex-col items-center justify-center h-full">
-                        <div class="bg-allgood-secondary text-white p-8 rounded-full w-40 h-40 flex items-center justify-center shadow-lg mb-6">
-                            <div class="text-center">
-                                <div class="text-xs uppercase tracking-wide opacity-80">Phase II</div>
-                                <div class="text-3xl font-bold">COMPLETE</div>
-                            </div>
+                    <div class="flex flex-col items-center justify-center h-full px-6 text-center">
+                        <div class="bg-allgood-secondary text-white p-6 rounded-full w-32 h-32 flex items-center justify-center shadow-lg mb-6">
+                            <i data-lucide="dollar-sign" class="w-16 h-16"></i>
                         </div>
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Moving to Phase III</h2>
-                        <p class="text-gray-600">Funding Secured. Property Vetted. Now: Show me the money.</p>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4">Phase III: The Cash Crunch</h2>
+                        <p class="text-gray-600 mb-6">The loan is approved. The inspection is done. Now comes the <strong>"Cash to Close"</strong>.</p>
+                        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                            <p class="text-sm text-yellow-800 italic">"Most first-time buyers think the Down Payment is the only check they write. They are wrong."</p>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-8 italic">Let's look at your actual bank account versus the bill.</p>
                     </div>
                 </div>
 
                 <!-- Page 12: The Final Tally (Bucket Allocator) -->
                 <div class="page" id="page-12">
                     <section class="mb-4 border-b border-gray-200 pb-2">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Cash to Close</h2>
-                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 10: The Final Tally</div>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Reality Check</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 10: Cash to Close</div>
                     </section>
                     
                     <!-- Context Header -->
                     <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
-                        <p class="text-xs text-gray-700 italic">
-                            "Most first-time buyers forget that <strong>Closing Costs</strong> are separate from the Down Payment. If you don't have liquid cash for both, the deal dies at the table."
-                        </p>
+                         <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> The Closing Disclosure (CD) arrived. You have $50,000 in the bank.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Fill the buckets. You must pay the Down Payment ($35k) AND the Closing Costs ($12k). Do not run out of cash.</p>
                     </div>
 
-                    <p class="text-xs text-gray-600 mb-4">Allocate your $50,000 cash savings. Click the pile to fill buckets.</p>
-                    
                     <div class="flex justify-center mb-6">
                         <div class="cash-pile bg-green-100 border-2 border-green-500 rounded-lg p-4 text-center w-32" onclick="fillBucket()">
                             <i data-lucide="banknote" class="w-8 h-8 text-green-600 mx-auto mb-1"></i>
@@ -624,64 +647,80 @@
                             <div class="text-[10px] text-gray-400">Target: $2k</div>
                         </div>
                     </div>
+                    <p id="bucket-bridge" class="text-center text-xs text-gray-400 mt-4 italic hidden">You barely scraped by. But did you leave anything for <em>after</em> you move in?</p>
                 </div>
 
                 <!-- Page 13: The Shortfall -->
                 <div class="page" id="page-13">
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Lesson</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 5: Review</div>
+                    </section>
                     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded shadow-sm my-8">
-                        <h2 class="text-xl font-bold text-red-700 mb-2">Liquidity Check</h2>
-                        <p class="text-gray-700 text-sm">
-                            Did you notice? Closing costs are rarely rolled into the loan. They are <strong>cash out of pocket</strong>. 
-                            Many buyers budget for the down payment but forget the extra $10k-$15k needed to sign the papers.
-                        </p>
+                         <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> Reviewing the numbers. You have $0 left for moving trucks or pizza.</p>
+                        <p class="text-sm text-red-800 font-bold"><strong>Instruction:</strong> Acknowledge the liquidity risk. Being 'House Rich and Cash Poor' is a dangerous place to be.</p>
                     </div>
+                     <p class="text-center text-xs text-gray-400 mt-8 italic">Living with $0 in the bank is fine... until Day 1.</p>
                 </div>
 
                 <!-- Page 14: Emergency Lockbox -->
                 <div class="page" id="page-14">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Safety Net</h2></section>
+                    <section class="mb-6 border-b border-gray-200 pb-4">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Safety Net</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 1: Move-In</div>
+                    </section>
+                    
+                    <!-- Context Header -->
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
+                        <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> Move-in day! ...Snap. The key breaks in the lock. The locksmith costs $200.</p>
+                        <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Unlock your Reserve Fund. If you spent it all on the down payment, you're in debt on Day 1.</p>
+                    </div>
+
                     <div class="bg-white p-6 rounded border border-gray-200 shadow-sm text-center">
                         <i data-lucide="lock" class="w-12 h-12 text-allgood-secondary mx-auto mb-4"></i>
-                        <p class="text-sm text-gray-600 mb-6">Smart buyers keep 3 months of payments locked away. Do not spend this on furniture.</p>
                         
                         <button id="lockbox-btn" class="bg-gray-200 text-gray-500 font-bold py-3 px-6 rounded-full shadow-inner transition-all" onclick="toggleLockbox()">
                             <span id="lockbox-text">Unlock Reserve Fund</span>
                         </button>
                     </div>
+                     <p id="lockbox-bridge" class="text-center text-xs text-gray-400 mt-6 italic hidden">Crisis averted. You protected your liquidity. You are ready to sign.</p>
                 </div>
 
                 <!-- Page 15: Readiness -->
                 <div class="page" id="page-15">
-                    <div class="flex flex-col items-center justify-center h-full">
-                        <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-6">Phase III Complete</h2>
-                        <div class="grid grid-cols-3 gap-4 w-full max-w-md text-center">
-                            <div class="p-4 bg-green-100 rounded-lg">
-                                <div class="text-xs uppercase font-bold text-green-700">Credit</div>
-                                <i data-lucide="check-circle" class="w-6 h-6 text-green-600 mx-auto mt-2"></i>
+                    <div class="flex flex-col items-center justify-center h-full text-center px-4">
+                        <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">Mission Complete</h2>
+                        <p class="text-sm text-gray-600 mb-6">Final Systems Check.</p>
+                        
+                        <div class="w-full max-w-md bg-white p-6 rounded-lg shadow-lg border border-gray-200 text-left space-y-4">
+                             <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-700">Credit Verified</span>
+                                <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
-                            <div class="p-4 bg-green-100 rounded-lg">
-                                <div class="text-xs uppercase font-bold text-green-700">Property</div>
-                                <i data-lucide="check-circle" class="w-6 h-6 text-green-600 mx-auto mt-2"></i>
+                             <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-700">Property Inspected</span>
+                                <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
-                            <div class="p-4 bg-green-100 rounded-lg">
-                                <div class="text-xs uppercase font-bold text-green-700">Cash</div>
-                                <i data-lucide="check-circle" class="w-6 h-6 text-green-600 mx-auto mt-2"></i>
+                             <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-700">Cash Wired</span>
+                                <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
                         </div>
+                         <p class="text-xs text-gray-400 mt-8 italic">One final look back at what you learned.</p>
                     </div>
                 </div>
 
                 <!-- Page 16: Mission Debrief -->
                 <div class="page" id="page-16">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Mission Debrief</h2></section>
-                    <div class="space-y-4 text-sm text-gray-700">
-                        <p>You have navigated the 100-day gauntlet. You understood that:</p>
-                        <ul class="list-disc list-inside space-y-2 ml-2">
-                            <li><strong>Rates</strong> determine buying power, not just price.</li>
-                            <li><strong>Inspections</strong> are negotiation tools, not just formalities.</li>
-                            <li><strong>Cash to Close</strong> is separate from your Down Payment.</li>
+                    <div class="space-y-6 text-sm text-gray-700">
+                        <p>You survived the 100-Day Gauntlet. You learned that:</p>
+                        <ul class="space-y-3">
+                            <li class="flex items-start"><i data-lucide="check" class="w-5 h-5 text-allgood-primary mr-2"></i><strong>Rates dictate power.</strong> A small hike changes everything.</li>
+                            <li class="flex items-start"><i data-lucide="check" class="w-5 h-5 text-allgood-primary mr-2"></i><strong>Inspections are leverage.</strong> Never buy a problem you didn't price in.</li>
+                            <li class="flex items-start"><i data-lucide="check" class="w-5 h-5 text-allgood-primary mr-2"></i><strong>Cash is king.</strong> Liquidity saves you when the house breaks (and it will).</li>
                         </ul>
-                        <p class="mt-4 font-bold text-allgood-primary">You are a Project-Ready Buyer.</p>
+                        <p class="mt-8 font-bold text-allgood-primary text-center text-lg">You are no longer a lead. You are a Project-Ready Buyer.</p>
                     </div>
                 </div>
 
@@ -870,6 +909,7 @@
             document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
             event.currentTarget.classList.add('selected');
             document.getElementById('profile-feedback').textContent = `Strategy Set: ${profile}`;
+            document.getElementById('bridge-p3').classList.remove('hidden');
             sfx.click();
         }
 
@@ -896,9 +936,6 @@
                 } else {
                     narrative.innerHTML = `<span class="text-red-600 font-bold">CRITICAL WARNING:</span> High rates crush affordability. You are now paying more to the bank than to your own equity.`;
                 }
-
-                if(currentRate > 7.0) document.getElementById('rate-warning').classList.remove('hidden');
-                else document.getElementById('rate-warning').classList.add('hidden');
             });
         }
 
@@ -971,6 +1008,7 @@
             if(auditFound === 5) {
                 document.getElementById('audit-msg').textContent = "Audit Complete! You have leverage.";
                 document.getElementById('audit-msg').className = "text-center text-xs font-bold text-allgood-primary mt-2 min-h-[20px]";
+                document.getElementById('audit-bridge').classList.remove('hidden');
                 sfx.success();
             }
         }
@@ -985,6 +1023,7 @@
             } else {
                 fb.textContent = "Offer Rejected. But you saved yourself financial ruin. The right house is out there.";
                 fb.className = "mt-4 text-xs font-bold text-green-600";
+                document.getElementById('contingency-bridge').classList.remove('hidden');
                 sfx.success();
             }
         }
@@ -1019,6 +1058,9 @@
                 }
                 sfx.click();
             }
+             if (cashAvailable <= 0) {
+                 document.getElementById('bucket-bridge').classList.remove('hidden');
+            }
         }
 
         // --- Page 14: Lockbox ---
@@ -1030,6 +1072,7 @@
             if(lockboxSecured) {
                 btn.className = "bg-green-500 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all transform scale-105";
                 txt.textContent = "FUNDS SECURED";
+                document.getElementById('lockbox-bridge').classList.remove('hidden');
                 sfx.success();
             } else {
                 btn.className = "bg-gray-200 text-gray-500 font-bold py-3 px-6 rounded-full shadow-inner transition-all";
@@ -1140,7 +1183,7 @@
                 const pageTitles = [
                     "Cover", "Scope", "Strategy", "Rate Shock", "DTI Test", "Approval", 
                     "Budget Quiz", "Property Audit", "Cost vs Value", "Bidding War", 
-                    "Due Diligence", "Bucket Allocator", "The Shortfall", "Lockbox", 
+                    "Phase 3 Pivot", "Bucket Allocator", "The Shortfall", "Lockbox", 
                     "Readiness", "Debrief", "Agent Handoff"
                 ];
                 
