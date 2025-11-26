@@ -366,7 +366,18 @@
 
                 <!-- Page 4: Rate Shock -->
                 <div class="page" id="page-4">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Rate Shock</h2></section>
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Cost of Capital</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 90: Funding Phase</div>
+                    </section>
+                    
+                    <!-- Context Header -->
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
+                        <p class="text-xs text-gray-700 italic">
+                            "The bank isn't lending you money for free. A 1% rate hike can destroy $50,000 of your buying power."
+                        </p>
+                    </div>
+
                     <div class="bg-white p-6 rounded shadow-sm border border-gray-200 text-center">
                         <p class="text-xs text-gray-500 mb-1">Loan Amount</p>
                         <div class="text-2xl font-bold text-gray-800 mb-6">$350,000</div>
@@ -378,14 +389,28 @@
                             <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Monthly Principal & Interest</p>
                             <div id="payment-display" class="text-4xl font-bold text-allgood-dark">$1,879</div>
                         </div>
-                        <p class="text-xs text-red-500 mt-4 italic hidden" id="rate-warning">Warning: High rates reduce buying power significantly.</p>
+                        
+                        <!-- Dynamic Narrative Feedback -->
+                        <div id="rate-narrative" class="mt-4 text-sm font-medium min-h-[40px] flex items-center justify-center">
+                            <span class="text-green-600">Standard market rate. Buying power is stable.</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Page 5: DTI Input -->
                 <div class="page" id="page-5">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The DTI Test</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Lenders judge you on Debt-to-Income ratio. It determines if you pass or fail.</p>
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The DTI Test</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 85: Qualification</div>
+                    </section>
+                    
+                    <!-- Context Header -->
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
+                        <p class="text-xs text-gray-700 italic">
+                            "Lenders don't care about your feelings; they care about your <strong>Debt-to-Income Ratio</strong>. If your debt is too high, you are a liability."
+                        </p>
+                    </div>
+
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">Gross Monthly Income (Pre-Tax)</label>
@@ -437,11 +462,20 @@
                 <!-- Page 8: Property Audit -->
                 <div class="page" id="page-8">
                     <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Audit</h2>
+                        <div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Audit</h2>
+                            <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 60: Due Diligence</div>
+                        </div>
                         <span class="text-xs bg-gray-200 px-2 py-1 rounded">Found: <span id="audit-count">0</span>/5</span>
                     </section>
-                    <p class="text-xs text-gray-600 mb-4">Tap the 5 red flags in this room before making an offer.</p>
                     
+                    <!-- Context Header -->
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
+                        <p class="text-xs text-gray-700 italic">
+                            "Staging is designed to distract you. Ignore the furniture. Look at the <strong>bones</strong> of the house. Find the 5 red flags hidden in this room."
+                        </p>
+                    </div>
+
                     <!-- CSS Room - No Images -->
                     <div class="room-container shadow-inner">
                         <!-- Wall -->
@@ -546,7 +580,18 @@
 
                 <!-- Page 12: The Final Tally (Bucket Allocator) -->
                 <div class="page" id="page-12">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Cash to Close</h2></section>
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Cash to Close</h2>
+                        <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 10: The Final Tally</div>
+                    </section>
+                    
+                    <!-- Context Header -->
+                    <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
+                        <p class="text-xs text-gray-700 italic">
+                            "Most first-time buyers forget that <strong>Closing Costs</strong> are separate from the Down Payment. If you don't have liquid cash for both, the deal dies at the table."
+                        </p>
+                    </div>
+
                     <p class="text-xs text-gray-600 mb-4">Allocate your $50,000 cash savings. Click the pile to fill buckets.</p>
                     
                     <div class="flex justify-center mb-6">
@@ -842,6 +887,16 @@
                 
                 document.getElementById('payment-display').textContent = "$" + Math.floor(payment).toLocaleString();
                 
+                // Dynamic Narrative Feedback Logic
+                const narrative = document.getElementById('rate-narrative');
+                if(currentRate < 4.5) {
+                    narrative.innerHTML = `<span class="text-green-600 font-bold">Optimistic Scenario:</span> Low rates boost your buying power. You can afford more square footage.`;
+                } else if (currentRate < 6.5) {
+                    narrative.innerHTML = `<span class="text-yellow-600 font-bold">Realistic Market:</span> Standard conditions. Every dollar counts.`;
+                } else {
+                    narrative.innerHTML = `<span class="text-red-600 font-bold">CRITICAL WARNING:</span> High rates crush affordability. You are now paying more to the bank than to your own equity.`;
+                }
+
                 if(currentRate > 7.0) document.getElementById('rate-warning').classList.remove('hidden');
                 else document.getElementById('rate-warning').classList.add('hidden');
             });
@@ -884,7 +939,7 @@
                     status.textContent = "HIGH RISK";
                     status.className = "text-2xl font-bold mb-2 font-heading text-red-600";
                     icon.innerHTML = `<i data-lucide="alert-circle" class="w-16 h-16 text-red-500 mx-auto"></i>`;
-                    msg.textContent = "Your debt load is too high relative to income. You need to pay down cards or increase down payment.";
+                    msg.textContent = "Bank Rejection Likely. You are 'House Poor'. To fix this, you must eliminate the car payment or lower the purchase price.";
                     sfx.error();
                 }
                 lucide.createIcons();
