@@ -71,7 +71,7 @@
         .tablet-frame {
             height: 80vh;
             width: auto;
-            aspect-ratio: 16/10; 
+            aspect-ratio: 16/10;
             max-width: 1100px;
             max-height: 95vh;
             min-height: 0;
@@ -115,6 +115,16 @@
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        
+        /* NEW: Inspection Feedback Modal Specifics */
+        .inspection-modal-content {
+            max-width: 400px;
+            width: 90%;
+            background: white;
+            border-left: 6px solid #D34716; /* Allgood Primary */
+            border-radius: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
 
         /* --- PROGRESS BAR --- */
         #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
@@ -190,6 +200,11 @@
         
         /* Room Hotspot Game */
         .room-container { position: relative; width: 100%; aspect-ratio: 4/3; background-color: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+        .room-scene { position: relative; width: 100%; height: 100%; perspective: 1000px; background: #fff; }
+        .room-wall { position: absolute; top: 0; left: 0; width: 100%; height: 75%; background: linear-gradient(to bottom, #e2e8f0 0%, #f8fafc 100%); border-bottom: 12px solid #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 1; }
+        .room-floor { position: absolute; bottom: 0; left: 0; width: 100%; height: 25%; background-color: #d4a373; background-image: repeating-linear-gradient(90deg, transparent 0, transparent 49px, rgba(0,0,0,0.05) 50px); z-index: 0; }
+        .flaw-visual { position: absolute; pointer-events: none; z-index: 2; opacity: 0.7; }
+        
         .hotspot { position: absolute; width: 40px; height: 40px; border-radius: 50%; background: rgba(211, 71, 22, 0.2); border: 2px solid #D34716; cursor: pointer; animation: pulse 2s infinite; display: flex; items-center; justify-content: center; z-index: 10; opacity: 0.6; transition: opacity 0.2s;}
         .hotspot:hover { opacity: 1; background: rgba(211, 71, 22, 0.5); }
         .hotspot.found { background: #10b981; border-color: #059669; opacity: 1; animation: none; pointer-events: none; }
@@ -200,7 +215,7 @@
         .cash-pile:active { transform: scale(0.95); }
         .bucket { transition: all 0.3s; border: 2px dashed #94a3b8; }
         .bucket.filled { border-style: solid; border-color: #357889; background-color: #f0f9ff; }
-
+        
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -286,6 +301,35 @@
                     </div>
                 </div>
 
+                <!-- NEW: Inspection Feedback Modal -->
+                <div id="inspection-modal" class="hidden-modal absolute inset-0 z-[150] bg-black/40 flex items-center justify-center modal-transition backdrop-blur-sm">
+                    <div class="inspection-modal-content p-6 relative">
+                        <button onclick="closeInspectionModal()" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <div class="flex items-start mb-4">
+                            <!-- Added ID to the CONTAINER, removed from the icon -->
+                            <div id="insp-modal-icon-container" class="p-2 bg-red-100 rounded-full mr-3 shrink-0 text-red-600">
+                                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h3 id="insp-modal-title" class="text-lg font-heading font-bold text-gray-800">Issue Title</h3>
+                                <p id="insp-modal-cost" class="text-xs font-bold text-red-600 uppercase tracking-wide mt-1">Est. Cost: $0</p>
+                            </div>
+                        </div>
+                        <div class="prose prose-sm text-gray-600 mb-4">
+                            <p id="insp-modal-desc" class="text-sm leading-relaxed">Description goes here.</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                            <strong class="block text-xs text-allgood-primary uppercase tracking-wider mb-1">Pragmatic Action:</strong>
+                            <p id="insp-modal-action" class="text-xs text-gray-700">Action item goes here.</p>
+                        </div>
+                        <button onclick="closeInspectionModal()" class="w-full mt-5 bg-allgood-dark hover:bg-black text-white py-2 rounded font-bold text-sm transition-colors">
+                            Acknowledged
+                        </button>
+                    </div>
+                </div>
+
                 <!-- --- PAGES START --- -->
 
                 <!-- Page 1: Cover -->
@@ -298,10 +342,10 @@
                         <div class="inline-block bg-allgood-secondary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">
                             Day 100: Project Kickoff
                         </div>
-
+                        
                         <p class="text-lg text-gray-600 mb-8 max-w-md">100 Days. One Goal. The Keys.</p>
                         <p class="text-sm text-allgood-primary font-bold mb-12 animate-pulse">Initialize the simulation to begin your timeline.</p>
-
+                        
                         <!-- How To Use Accordion -->
                         <div class="w-full max-w-lg text-left mx-auto">
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
@@ -327,7 +371,7 @@
                     
                     <p class="mb-6 text-sm text-gray-600"><strong>Narrative:</strong> You are the Project Manager of your own financial future. The market is volatile. The seller is impatient. The bank is strict.</p>
                     <p class="mb-4 text-sm font-bold text-allgood-primary"><strong>Instruction:</strong> Review your three operational fronts. Click each file to unlock the mission details.</p>
-
+                    
                     <!-- 3-Column Mission Tiles -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <!-- Card 1 -->
@@ -348,7 +392,7 @@
                                 </div>
                             </div>
                         </div>
-
+                        
                         <!-- Card 2 -->
                         <div class="flip-card" onclick="this.classList.toggle('flipped')">
                             <div class="flip-card-inner">
@@ -367,7 +411,7 @@
                                 </div>
                             </div>
                         </div>
-
+                        
                         <!-- Card 3 -->
                         <div class="flip-card" onclick="this.classList.toggle('flipped')">
                             <div class="flip-card-inner">
@@ -433,7 +477,7 @@
                     </section>
                     
                     <p class="text-sm text-gray-600 mb-6"><strong>Intel:</strong> Before you can buy, you must prove you can pay. This phase is about securing your capital against market volatility.</p>
-
+                    
                     <!-- Video Placeholder -->
                     <div class="aspect-w-16 aspect-h-9 bg-black rounded-lg mb-6 flex items-center justify-center shadow-lg border border-gray-700 relative overflow-hidden group cursor-pointer">
                         <div class="absolute inset-0 bg-gradient-to-tr from-black/80 to-transparent"></div>
@@ -442,7 +486,7 @@
                             <p class="text-white/80 text-xs uppercase tracking-widest font-bold">Watch Mission Briefing</p>
                         </div>
                     </div>
-
+                    
                     <p class="text-center text-xs text-gray-400 italic">Proceed when ready to engage the market.</p>
                 </div>
 
@@ -458,7 +502,7 @@
                         <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> You found the perfect home listed at $350k. But the Fed just met, and rates are moving.</p>
                         <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Slide the rate to see how a 1% hike impacts your buying power. Find the 'Breaking Point' where you pay more in interest than equity.</p>
                     </div>
-
+                    
                     <div class="bg-white p-6 rounded shadow-sm border border-gray-200 text-center">
                         <p class="text-xs text-gray-500 mb-1">Loan Amount</p>
                         <div class="text-2xl font-bold text-gray-800 mb-6">$350,000</div>
@@ -491,7 +535,7 @@
                         <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> The Underwriter paused your file. That $600 car lease you signed last month? It might kill the deal.</p>
                         <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Input your Income vs. Debts. The bank adds a stress-test mortgage payment of <strong>$2,500</strong> to see if you break.</p>
                     </div>
-
+                    
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">Gross Monthly Income (Pre-Tax)</label>
@@ -507,12 +551,12 @@
                                 <input type="number" id="debt-input" class="w-full pl-8 p-2 border border-gray-300 rounded focus:border-allgood-primary outline-none" placeholder="e.g. 500">
                             </div>
                         </div>
-                         <!-- Added Visualization of the Hidden Mortgage -->
+                        <!-- Added Visualization of the Hidden Mortgage -->
                         <div class="p-3 bg-gray-100 rounded border border-gray-200 text-center">
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Bank's Stress Test Mortgage</p>
                             <p class="text-lg font-bold text-gray-800">+ $2,500 / month</p>
                         </div>
-
+                        
                         <button onclick="calculateDTI()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow mt-4">Run Qualification Check</button>
                     </div>
                 </div>
@@ -532,7 +576,7 @@
                                 <div class="flex justify-between font-bold text-gray-800"><span>Total Monthly Liability:</span><span id="res-total-debt">$2,500</span></div>
                                 <div class="flex justify-between"><span>Income:</span><span id="res-income">$0</span></div>
                             </div>
-
+                            
                             <p class="text-sm text-gray-600 mb-4">Your Debt-to-Income Ratio is <span id="dti-value" class="font-bold"></span>%</p>
                             <div class="w-full bg-gray-200 rounded-full h-4 mb-6 overflow-hidden">
                                 <div id="dti-bar" class="h-4 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
@@ -571,7 +615,7 @@
                     </section>
                     
                     <p class="text-sm text-gray-600 mb-6"><strong>Intel:</strong> Paperwork is done. Now we hit the ground. Your objective is to validate the asset and win the contract without overpaying.</p>
-
+                    
                     <!-- Video Placeholder -->
                     <div class="aspect-w-16 aspect-h-9 bg-black rounded-lg mb-6 flex items-center justify-center shadow-lg border border-gray-700 relative overflow-hidden group cursor-pointer">
                         <div class="absolute inset-0 bg-gradient-to-tr from-black/80 to-transparent"></div>
@@ -580,7 +624,7 @@
                             <p class="text-white/80 text-xs uppercase tracking-widest font-bold">Watch Mission Briefing</p>
                         </div>
                     </div>
-
+                    
                     <p class="text-center text-xs text-gray-400 italic">Boots on the ground.</p>
                 </div>
 
@@ -599,28 +643,209 @@
                         <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> Open House. The staging furniture is beautiful. It's a trap.</p>
                         <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Ignore the sofa. Tap the 5 structural red flags that cost real money. If you miss them now, you pay for them later.</p>
                     </div>
+                    
+                    <!-- HIGH-FIDELITY SVG DOLLHOUSE SIMULATION -->
+                    <div class="room-container shadow-inner relative group overflow-hidden bg-white">
+                        
+                        <svg viewBox="0 0 700 550" class="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
+                            <defs>
+                                <!-- Brand Colors -->
+                                <color id="brand-primary" color="#D34716"/>
+                                <color id="brand-secondary" color="#357889"/>
+                                <color id="brand-dark" color="#4C4C4C"/>
+                                <color id="brand-light" color="#F7F7F7"/>
 
-                    <!-- CSS Room - No Images -->
-                    <div class="room-container shadow-inner">
-                        <!-- Wall -->
-                        <div class="absolute inset-x-0 top-0 h-2/3 bg-slate-100 border-b border-slate-300"></div>
-                        <!-- Floor -->
-                        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-[#e2e8f0] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiPjxwYXRoIGQ9Ik0wIDIwaDQwTTIwIDB2NDAiLz48L3N2Zz4=')]"></div>
+                                <!-- Textures -->
+                                <pattern id="siding-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                                    <line x1="0" y1="20" x2="20" y2="20" stroke="#e5e7eb" stroke-width="1" />
+                                </pattern>
+                                
+                                <linearGradient id="sky-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#e0f2fe" /> 
+                                    <stop offset="100%" style="stop-color:#f0f9ff" />
+                                </linearGradient>
+
+                                <pattern id="insulation" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                                    <circle cx="5" cy="5" r="2" fill="#fcd34d" opacity="0.5" />
+                                </pattern>
+
+                                <pattern id="concrete" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                                    <rect width="20" height="20" fill="#d1d5db" />
+                                    <path d="M2 10 L5 15 M15 5 L18 2" stroke="#9ca3af" stroke-width="1" />
+                                </pattern>
+
+                                <!-- Flaw Gradients -->
+                                <filter id="water-blur">
+                                    <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+                                </filter>
+                            </defs>
+
+                            <!-- 0. BACKGROUND -->
+                            <rect width="700" height="550" fill="url(#sky-gradient)" />
+                            <rect x="0" y="450" width="700" height="100" fill="#f0fdf4" /> <!-- Grass base -->
+                            <path d="M0 450 L700 450" stroke="#86efac" stroke-width="2" />
+
+
+                            <!-- ========================================== -->
+                            <!-- 1. EXTERIOR (LEFT SIDE) - Curb Appeal -->
+                            <!-- ========================================== -->
+                            <g id="exterior">
+                                <!-- Roof (Brand Secondary: Deep Cyan) -->
+                                <path d="M50 180 L350 30 L350 180 Z" fill="#357889" stroke="#2D6473" stroke-width="2" />
+                                
+                                <!-- Wall (Clean White with Siding Pattern) -->
+                                <rect x="50" y="180" width="300" height="270" fill="white" />
+                                <rect x="50" y="180" width="300" height="270" fill="url(#siding-pattern)" />
+                                
+                                <!-- Upper Window (Bedroom Ext) -->
+                                <g transform="translate(120, 220)">
+                                    <rect x="0" y="0" width="80" height="80" fill="#e0f2fe" stroke="white" stroke-width="6" />
+                                    <rect x="0" y="0" width="80" height="80" fill="none" stroke="#4C4C4C" stroke-width="2" /> <!-- Frame -->
+                                    <line x1="40" y1="0" x2="40" y2="80" stroke="#4C4C4C" stroke-width="1" />
+                                    <line x1="0" y1="40" x2="80" y2="40" stroke="#4C4C4C" stroke-width="1" />
+                                    
+                                    <!-- FLAW 2: Window Rot (Exterior) -->
+                                    <path d="M-5 82 L85 82 L85 90 L-5 90 Z" fill="#78350f" opacity="0.7" /> <!-- Rotting Sill -->
+                                </g>
+
+                                <!-- Lower Window (Living Ext) -->
+                                <g transform="translate(120, 350)">
+                                    <rect x="0" y="0" width="80" height="80" fill="#e0f2fe" stroke="white" stroke-width="6" />
+                                    <rect x="0" y="0" width="80" height="80" fill="none" stroke="#4C4C4C" stroke-width="2" />
+                                    <line x1="40" y1="0" x2="40" y2="80" stroke="#4C4C4C" stroke-width="1" />
+                                    <line x1="0" y1="40" x2="80" y2="40" stroke="#4C4C4C" stroke-width="1" />
+                                </g>
+
+                                <!-- FLAW 3: Ancient HVAC (Exterior Condenser Unit) -->
+                                <!-- Moved to yard below window -->
+                                <g transform="translate(230, 400)">
+                                    <!-- Concrete Pad -->
+                                    <rect x="-5" y="45" width="60" height="5" fill="#d1d5db" />
+                                    <!-- Unit Body -->
+                                    <rect x="0" y="0" width="50" height="45" fill="#9ca3af" stroke="#4b5563" stroke-width="1" />
+                                    <!-- Fan Grill (Top) -->
+                                    <ellipse cx="25" cy="10" rx="20" ry="5" fill="#4b5563" opacity="0.3" />
+                                    <!-- Side Grills -->
+                                    <line x1="5" y1="20" x2="45" y2="20" stroke="#4b5563" stroke-width="1" />
+                                    <line x1="5" y1="25" x2="45" y2="25" stroke="#4b5563" stroke-width="1" />
+                                    <line x1="5" y1="30" x2="45" y2="30" stroke="#4b5563" stroke-width="1" />
+                                    <line x1="5" y1="35" x2="45" y2="35" stroke="#4b5563" stroke-width="1" />
+                                    
+                                    <!-- Rust/Corrosion at base -->
+                                    <path d="M0 40 L50 40 L50 45 L0 45 Z" fill="#7f1d1d" opacity="0.8" filter="url(#water-blur)" />
+                                    
+                                    <!-- Refrigerant Line (going into wall) -->
+                                    <path d="M25 20 L-20 20 L-20 10" stroke="black" stroke-width="2" fill="none" />
+                                </g>
+
+                                <!-- Foundation (Exterior Visible) -->
+                                <rect x="45" y="450" width="305" height="40" fill="#9ca3af" />
+                            </g>
+
+
+                            <!-- ========================================== -->
+                            <!-- 2. INTERIOR (RIGHT SIDE) - The Reality -->
+                            <!-- ========================================== -->
+                            <g id="interior">
+                                <!-- Cutaway Line -->
+                                <line x1="350" y1="30" x2="350" y2="500" stroke="#D34716" stroke-width="3" stroke-dasharray="6 4" />
+
+                                <!-- ATTIC -->
+                                <path d="M350 30 L650 180 L350 180 Z" fill="#1f2937" /> <!-- Roof Interior -->
+                                <path d="M350 180 L650 180 L350 30 Z" fill="none" stroke="#374151" stroke-width="4" /> <!-- Rafters -->
+                                
+                                <!-- Insulation (Yellow/Pink) -->
+                                <path d="M350 160 L610 160 L650 180 L350 180 Z" fill="#fcd34d" opacity="0.3" />
+                                <rect x="350" y="170" width="280" height="10" fill="url(#insulation)" />
+
+                                <!-- FLAW 1: Roof Leak (Active) -->
+                                <path d="M480 100 L480 170" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 2" opacity="0.8" />
+                                <ellipse cx="480" cy="170" rx="25" ry="4" fill="#3b82f6" opacity="0.6" />
+
+                                <!-- REMOVED ATTIC HVAC -->
+
+
+                                <!-- SECOND FLOOR (Bedroom) -->
+                                <rect x="350" y="180" width="300" height="120" fill="#f3f4f6" /> <!-- Wall color -->
+                                <rect x="350" y="295" width="300" height="5" fill="#d1d5db" /> <!-- Floor -->
+                                
+                                <!-- Bed (Brand Colors) -->
+                                <rect x="450" y="265" width="120" height="30" fill="#4C4C4C" rx="2" /> <!-- Frame -->
+                                <rect x="450" y="260" width="30" height="20" fill="#D34716" rx="2" /> <!-- Pillow -->
+                                <rect x="480" y="260" width="30" height="20" fill="#D34716" rx="2" /> <!-- Pillow -->
+                                <rect x="450" y="275" width="120" height="20" fill="#e5e7eb" opacity="0.5" /> <!-- Sheet -->
+
+                                <!-- Ceiling Stain (From Roof Leak) -->
+                                <ellipse cx="480" cy="180" rx="30" ry="5" fill="#d97706" filter="url(#water-blur)" opacity="0.4" />
+
+
+                                <!-- FIRST FLOOR (Living Room) -->
+                                <rect x="350" y="310" width="300" height="140" fill="#white" />
+                                <rect x="350" y="310" width="300" height="140" fill="url(#siding-pattern)" opacity="0.2" /> <!-- Wallpaper hint -->
+                                
+                                <!-- Floor -->
+                                <rect x="350" y="445" width="300" height="5" fill="#d4a373" /> 
+
+                                <!-- Furniture (Sofa) -->
+                                <path d="M500 445 L620 445 L620 400 L500 400 Z" fill="#357889" /> <!-- Sofa Base (Brand Cyan) -->
+                                <path d="M500 400 L620 400 L610 370 L510 370 Z" fill="#2D6473" /> <!-- Sofa Back -->
+                                
+                                <!-- TV on Wall -->
+                                <rect x="370" y="360" width="60" height="40" fill="#1f2937" stroke="#4C4C4C" stroke-width="2" />
+                                
+                                <!-- FLAW 4: Electrical Scorch (Behind TV) -->
+                                <!-- Hidden slightly but clickable -->
+                                <g transform="translate(390, 410)">
+                                    <rect x="0" y="0" width="10" height="14" fill="white" stroke="#9ca3af" />
+                                    <circle cx="5" cy="5" r="10" fill="#1f2937" opacity="0.7" filter="url(#water-blur)" />
+                                </g>
+
+
+                                <!-- FOUNDATION (Basement) -->
+                                <rect x="350" y="450" width="300" height="60" fill="url(#concrete)" />
+                                
+                                <!-- FLAW 5: Structural Crack -->
+                                <path d="M520 450 L530 480 L525 490 L535 510" stroke="#1f2937" stroke-width="3" fill="none" />
+
+                            </g>
+
+                            <!-- REMOVED TEXT LABELS -->
+
+                        </svg>
+
+                        <!-- 5. INTERACTIVE HOTSPOTS (Aligned to SVG Coordinates) -->
                         
-                        <!-- Elements -->
-                        <div class="absolute top-10 left-10 w-20 h-32 bg-white border-4 border-gray-300 rounded shadow-sm flex items-center justify-center">
-                            <div class="w-full h-full bg-blue-50 opacity-30"></div> <!-- Window -->
+                        <!-- 1. Roof Leak (Attic) -->
+                        <div class="hotspot" style="top: 25%; left: 67%;" onclick="foundFlag(this, 'roof')">
+                            <i data-lucide="droplets" class="w-5 h-5 text-allgood-primary"></i>
                         </div>
-                        
-                        <!-- Hotspots -->
-                        <div class="hotspot" style="top: 15%; left: 15%;" onclick="foundFlag(this, 'Water Stain')"><i data-lucide="droplets" class="w-5 h-5 text-allgood-primary"></i></div>
-                        <div class="hotspot" style="bottom: 25%; right: 20%;" onclick="foundFlag(this, 'Uneven Floor')"><i data-lucide="move-vertical" class="w-5 h-5 text-allgood-primary"></i></div>
-                        <div class="hotspot" style="top: 40%; right: 40%;" onclick="foundFlag(this, 'Old Outlet')"><i data-lucide="plug" class="w-5 h-5 text-allgood-primary"></i></div>
-                        <div class="hotspot" style="top: 5%; right: 5%;" onclick="foundFlag(this, 'Crack')"><i data-lucide="activity" class="w-5 h-5 text-allgood-primary"></i></div>
-                        <div class="hotspot" style="bottom: 10%; left: 40%;" onclick="foundFlag(this, 'HVAC Noise')"><i data-lucide="wind" class="w-5 h-5 text-allgood-primary"></i></div>
+
+                        <!-- 2. Ancient HVAC (Moved Outside: x=230, y=400 -> ~33%, ~73%) -->
+                        <div class="hotspot" style="top: 73%; left: 36%;" onclick="foundFlag(this, 'hvac')">
+                            <i data-lucide="wind" class="w-5 h-5 text-allgood-primary"></i>
+                        </div>
+
+                        <!-- 3. Exterior Rot (Window Sill) -->
+                        <div class="hotspot" style="top: 55%; left: 26%;" onclick="foundFlag(this, 'window')">
+                            <i data-lucide="sun" class="w-5 h-5 text-allgood-primary"></i>
+                        </div>
+
+                        <!-- 4. Electrical (Behind TV) -->
+                        <div class="hotspot" style="top: 73%; left: 56%;" onclick="foundFlag(this, 'electric')">
+                            <i data-lucide="plug" class="w-5 h-5 text-allgood-primary"></i>
+                        </div>
+
+                        <!-- 5. Foundation Crack (Basement) -->
+                        <div class="hotspot" style="bottom: 8%; right: 22%;" onclick="foundFlag(this, 'foundation')">
+                            <i data-lucide="move-vertical" class="w-5 h-5 text-allgood-primary"></i>
+                        </div>
+
                     </div>
-                    <p id="audit-msg" class="text-center text-xs font-bold text-green-600 mt-2 min-h-[20px]"></p>
-                    <p id="audit-bridge" class="text-center text-xs text-gray-400 mt-2 italic hidden">You spotted the flaws. Now, we need to put a price tag on them.</p>
+
+                    <!-- Removed old text feedback container -->
+                    <!-- <p id="audit-msg" class="text-center text-xs font-bold text-green-600 mt-2 min-h-[20px]"></p> -->
+                    
+                    <p id="audit-bridge" class="text-center text-xs text-gray-400 mt-4 italic hidden">You spotted the flaws. Now, we need to put a price tag on them.</p>
                 </div>
 
                 <!-- Page 9: Cost vs Value -->
@@ -676,7 +901,7 @@
                     <div class="bg-white p-6 rounded shadow-sm border-l-4 border-yellow-500">
                         <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> There are 5 other offers. The seller says: 'Waive the inspection, and the house is yours right now.'</p>
                         <p class="text-sm text-allgood-primary font-bold mb-6"><strong>Instruction:</strong> Do you sign the waiver to win, or walk away to stay safe? This is the moment most buyers panic.</p>
-
+                        
                         <div class="space-y-3">
                             <button class="w-full bg-gray-50 hover:bg-red-50 border border-gray-200 p-3 rounded text-left text-sm transition-colors" onclick="contingencyResult('waive')">
                                 <span class="font-bold block text-gray-800">Sign the Waiver</span>
@@ -700,7 +925,7 @@
                     </section>
                     
                     <p class="text-sm text-gray-600 mb-6"><strong>Intel:</strong> The contract is signed, but the deal isn't closed. Liquidity is now your primary constraint.</p>
-
+                    
                     <!-- Video Placeholder -->
                     <div class="aspect-w-16 aspect-h-9 bg-black rounded-lg mb-6 flex items-center justify-center shadow-lg border border-gray-700 relative overflow-hidden group cursor-pointer">
                         <div class="absolute inset-0 bg-gradient-to-tr from-black/80 to-transparent"></div>
@@ -709,7 +934,7 @@
                             <p class="text-white/80 text-xs uppercase tracking-widest font-bold">Watch Mission Briefing</p>
                         </div>
                     </div>
-
+                    
                     <p class="text-center text-xs text-gray-400 italic">Check your balances.</p>
                 </div>
 
@@ -737,10 +962,10 @@
                     
                     <!-- Context Header -->
                     <div class="bg-blue-50 p-3 rounded border-l-4 border-allgood-secondary mb-4 shadow-sm">
-                         <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> The Closing Disclosure (CD) arrived. You have $50,000 in the bank.</p>
+                        <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> The Closing Disclosure (CD) arrived. You have $50,000 in the bank.</p>
                         <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Fill the buckets. You must pay the Down Payment ($35k) AND the Closing Costs ($12k). Do not run out of cash.</p>
                     </div>
-
+                    
                     <div class="flex justify-center mb-6">
                         <div class="cash-pile bg-green-100 border-2 border-green-500 rounded-lg p-4 text-center w-32" onclick="fillBucket()">
                             <i data-lucide="banknote" class="w-8 h-8 text-green-600 mx-auto mb-1"></i>
@@ -748,7 +973,7 @@
                             <div id="cash-display" class="text-sm font-bold">$50,000</div>
                         </div>
                     </div>
-
+                    
                     <div class="grid grid-cols-2 gap-4">
                         <div id="bucket-down" class="bucket bg-white p-3 rounded text-center">
                             <div class="text-xs font-bold text-gray-500">Down Payment</div>
@@ -781,10 +1006,10 @@
                         <div class="text-xs font-bold text-white bg-allgood-secondary px-2 py-0.5 rounded inline-block mt-1">Day 5: Review</div>
                     </section>
                     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded shadow-sm my-8">
-                         <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> Reviewing the numbers. You have $0 left for moving trucks or pizza.</p>
+                        <p class="text-sm text-gray-700 mb-2"><strong>Context:</strong> Reviewing the numbers. You have $0 left for moving trucks or pizza.</p>
                         <p class="text-sm text-red-800 font-bold"><strong>Instruction:</strong> Acknowledge the liquidity risk. Being 'House Rich and Cash Poor' is a dangerous place to be.</p>
                     </div>
-                     <p class="text-center text-xs text-gray-400 mt-8 italic">Living with $0 in the bank is fine... until Day 1.</p>
+                    <p class="text-center text-xs text-gray-400 mt-8 italic">Living with $0 in the bank is fine... until Day 1.</p>
                 </div>
 
                 <!-- Page 14: Emergency Lockbox -->
@@ -799,7 +1024,7 @@
                         <p class="text-sm text-gray-700 mb-1"><strong>Context:</strong> Move-in day! ...Snap. The key breaks in the lock. The locksmith costs $200.</p>
                         <p class="text-sm text-allgood-primary font-bold"><strong>Instruction:</strong> Unlock your Reserve Fund. If you spent it all on the down payment, you're in debt on Day 1.</p>
                     </div>
-
+                    
                     <div class="bg-white p-6 rounded border border-gray-200 shadow-sm text-center">
                         <i data-lucide="lock" class="w-12 h-12 text-allgood-secondary mx-auto mb-4"></i>
                         
@@ -807,7 +1032,7 @@
                             <span id="lockbox-text">Unlock Reserve Fund</span>
                         </button>
                     </div>
-                     <p id="lockbox-bridge" class="text-center text-xs text-gray-400 mt-6 italic hidden">Crisis averted. You protected your liquidity. You are ready to sign.</p>
+                    <p id="lockbox-bridge" class="text-center text-xs text-gray-400 mt-6 italic hidden">Crisis averted. You protected your liquidity. You are ready to sign.</p>
                 </div>
 
                 <!-- NEW: Phase IV Video Intro -->
@@ -818,7 +1043,7 @@
                     </section>
                     
                     <p class="text-sm text-gray-600 mb-6"><strong>Intel:</strong> You have navigated the gauntlet. It's time to review your performance and receive your credentials.</p>
-
+                    
                     <!-- Video Placeholder -->
                     <div class="aspect-w-16 aspect-h-9 bg-black rounded-lg mb-6 flex items-center justify-center shadow-lg border border-gray-700 relative overflow-hidden group cursor-pointer">
                         <div class="absolute inset-0 bg-gradient-to-tr from-black/80 to-transparent"></div>
@@ -827,7 +1052,7 @@
                             <p class="text-white/80 text-xs uppercase tracking-widest font-bold">Watch Debrief</p>
                         </div>
                     </div>
-
+                    
                     <p class="text-center text-xs text-gray-400 italic">Final Status Check.</p>
                 </div>
 
@@ -838,20 +1063,20 @@
                         <p class="text-sm text-gray-600 mb-6">Final Systems Check.</p>
                         
                         <div class="w-full max-w-md bg-white p-6 rounded-lg shadow-lg border border-gray-200 text-left space-y-4">
-                             <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between">
                                 <span class="font-bold text-gray-700">Credit Verified</span>
                                 <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
-                             <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between">
                                 <span class="font-bold text-gray-700">Property Inspected</span>
                                 <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
-                             <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between">
                                 <span class="font-bold text-gray-700">Cash Wired</span>
                                 <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                             </div>
                         </div>
-                         <p class="text-xs text-gray-400 mt-8 italic">One final look back at what you learned.</p>
+                        <p class="text-xs text-gray-400 mt-8 italic">One final look back at what you learned.</p>
                     </div>
                 </div>
 
@@ -882,7 +1107,7 @@
                             <i data-lucide="calendar" class="w-5 h-5 mr-2"></i>
                             Schedule Priority Consultation
                         </a>
-
+                        
                         <!-- About Us Accordion -->
                         <div class="w-full max-w-lg text-left mx-auto">
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
@@ -952,12 +1177,12 @@
                 osc.frequency.setValueAtTime(freq, now); 
                 osc.connect(gain); 
                 gain.connect(audioCtx.destination);
-                
+            
                 // Template Envelope Logic
                 gain.gain.setValueAtTime(0, now); 
                 gain.gain.linearRampToValueAtTime(vol, now + attack); 
                 gain.gain.exponentialRampToValueAtTime(decay, now + duration);
-                
+            
                 osc.start(now); 
                 osc.stop(now + duration);
             } catch(e) { console.warn("Audio error", e); }
@@ -1028,7 +1253,7 @@
             if (pageIndicator) pageIndicator.textContent = `${idx + 1} / ${totalPages}`;
 
             // Badge Gen on Last Page
-            if (idx === 20) generateBadge();
+            if (idx === 16) generateBadge();
 
             // Nav Button State
             backBtn.disabled = idx === 0;
@@ -1064,14 +1289,14 @@
             rateSlider.addEventListener('input', (e) => {
                 currentRate = e.target.value / 10;
                 document.getElementById('rate-display').textContent = currentRate.toFixed(1) + "%";
-                
+            
                 // Calc P&I: P = L[c(1 + c)^n]/[(1 + c)^n - 1]
                 const r = currentRate / 100 / 12;
                 const n = 360; // 30 years
                 const payment = loanAmount * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-                
+            
                 document.getElementById('payment-display').textContent = "$" + Math.floor(payment).toLocaleString();
-                
+            
                 // Dynamic Narrative Feedback Logic
                 const narrative = document.getElementById('rate-narrative');
                 if(currentRate < 4.5) {
@@ -1095,7 +1320,7 @@
             const estMortgage = 2500;
             const dti = ((debt + estMortgage) / income) * 100;
             const totalDebt = debt + estMortgage;
-            
+
             // Move to results page (Index 6 is now the Approval Page because VID1 is Index 3)
             showPage(6);
             
@@ -1105,7 +1330,7 @@
             const status = document.getElementById('dti-status');
             const icon = document.getElementById('dti-icon');
             const msg = document.getElementById('dti-message');
-
+            
             // --- Update Detailed Breakdown (Page 6) ---
             const resUserDebt = document.getElementById('res-user-debt');
             const resTotalDebt = document.getElementById('res-total-debt');
@@ -1117,7 +1342,7 @@
             if (resUserDebt) resUserDebt.textContent = formatUSD(debt);
             if (resTotalDebt) resTotalDebt.textContent = formatUSD(totalDebt);
             if (resIncome) resIncome.textContent = formatUSD(income);
-
+            
             val.textContent = dti.toFixed(1);
             
             setTimeout(() => {
@@ -1155,20 +1380,85 @@
             }
         }
 
-        // --- Page 8: Property Audit ---
-        window.foundFlag = function(el, name) {
-            if(el.classList.contains('found')) return;
-            el.classList.add('found');
-            auditFound++;
-            document.getElementById('audit-count').textContent = auditFound;
-            document.getElementById('audit-msg').textContent = `Spotted: ${name}`;
-            sfx.click();
-            if(auditFound === 5) {
-                document.getElementById('audit-msg').textContent = "Audit Complete! You have leverage.";
-                document.getElementById('audit-msg').className = "text-center text-xs font-bold text-allgood-primary mt-2 min-h-[20px]";
-                document.getElementById('audit-bridge').classList.remove('hidden');
-                sfx.success();
+        // --- Page 8: Property Audit (Enhanced) ---
+        
+        // Data for the flaws
+        const flawData = {
+            'roof': {
+                title: "Active Roof Leak",
+                cost: "$8,000 - $15,000",
+                desc: "Stains on the ceiling aren't just 'spills.' They usually indicate a failure in the roof flashing or shingles. Water travels, so the leak source might be far from the stain.",
+                action: "Do not accept a 'patch.' Demand a licensed roofer certification on the remaining lifespan of the roof.",
+                icon: "droplets"
+            },
+            'hvac': {
+                title: "Ancient HVAC System",
+                cost: "$7,000 - $12,000",
+                desc: "This unit is likely 15+ years old (R-22 era). Even if it works today, a single part failure will require a full system replacement due to coolant regulations.",
+                action: "Check the manufacture date on the serial sticker. If over 12 years old, budget for immediate replacement.",
+                icon: "wind"
+            },
+            'window': {
+                title: "Exterior Window Rot",
+                cost: "$500 - $2,000 per window",
+                desc: "Fresh paint often hides wood rot on sills. This isn't just cosmetic; it allows moisture into the wall cavity, leading to hidden mold and termite damage.",
+                action: "Poke the sill with a pen. If it's soft, it's rot. Ask for a credit to replace the entire window unit, not just a paint job.",
+                icon: "sun"
+            },
+            'electric': {
+                title: "Unsafe Wiring / Scorch",
+                cost: "$2,000 - $10,000",
+                desc: "A scorch mark suggests arcing or an overloaded circuit. In older homes, this could indicate aluminum wiring or a panel that isn't up to code (fire hazard).",
+                action: "Require a specific electrical inspection. You may need a full panel upgrade (Heavy-up) to handle modern appliances.",
+                icon: "plug"
+            },
+            'foundation': {
+                title: "Foundation Shift",
+                cost: "$5,000 - $30,000+",
+                desc: "A 'step crack' in the basement or a gap between the floor and baseboard signals settlement. Small cracks are normal; widening gaps are structural failure.",
+                action: "Call a structural engineer immediately. Do not rely on a general home inspector for this. This is a deal-breaker issue.",
+                icon: "move-vertical"
             }
+        };
+
+        window.foundFlag = function(el, type) {
+            // Mark as found
+            if(!el.classList.contains('found')) {
+                el.classList.add('found');
+                auditFound++;
+                document.getElementById('audit-count').textContent = auditFound;
+                sfx.click();
+                
+                if(auditFound === 5) {
+                    document.getElementById('audit-bridge').classList.remove('hidden');
+                    sfx.success();
+                }
+            }
+
+            // Open Modal with Data
+            const data = flawData[type];
+            if (data) {
+                document.getElementById('insp-modal-title').textContent = data.title;
+                document.getElementById('insp-modal-cost').textContent = "Est. Repair: " + data.cost;
+                document.getElementById('insp-modal-desc').textContent = data.desc;
+                document.getElementById('insp-modal-action').textContent = data.action;
+                
+                // Update Icon (Fixed: Target the container directly)
+                const iconContainer = document.getElementById('insp-modal-icon-container');
+                iconContainer.innerHTML = `<i data-lucide="${data.icon}" class="w-6 h-6"></i>`;
+                lucide.createIcons();
+
+                // Show Modal
+                const modal = document.getElementById('inspection-modal');
+                modal.classList.remove('hidden-modal');
+                modal.classList.add('visible-modal');
+            }
+        }
+
+        window.closeInspectionModal = function() {
+            const modal = document.getElementById('inspection-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
         }
 
         // --- Page 10: Contingency ---
@@ -1206,7 +1496,7 @@
                 bucketStatus[id] += amt;
                 document.getElementById(`val-${id}`).textContent = "$" + bucketStatus[id].toLocaleString();
                 document.getElementById('cash-display').textContent = "$" + cashAvailable.toLocaleString();
-                
+            
                 // Visuals
                 if ((id === 'down' && bucketStatus[id] >= 30000) ||
                     (id === 'closing' && bucketStatus[id] >= 10000) ||
@@ -1216,8 +1506,8 @@
                 }
                 sfx.click();
             }
-             if (cashAvailable <= 0) {
-                 document.getElementById('bucket-bridge').classList.remove('hidden');
+            if (cashAvailable <= 0) {
+                document.getElementById('bucket-bridge').classList.remove('hidden');
             }
         }
 
@@ -1310,7 +1600,7 @@
                     setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
                 });
             }
-            
+
             // Start Button Logic
             document.getElementById('start-session-btn').addEventListener('click', () => {
                 const nameInput = document.getElementById('user-name-input').value;
@@ -1415,15 +1705,15 @@
 
             // Listener to sync button state if user presses ESC
             document.addEventListener('fullscreenchange', () => {
-                 if (!document.fullscreenElement) {
+                if (!document.fullscreenElement) {
                     // Only remove if we are actually out of fullscreen and the class is still there
                     // This check handles the case where we used CSS-only focus mode
                     // document.querySelector('.tablet-frame').classList.remove('focus-mode');
                     // fullscreenBtn.classList.remove('text-green-300', 'bg-white/10');
-                 }
+                }
             });
-
-
+            
+            
             // --- HOME BUTTON HOLD LOGIC ---
             const homeBtn = document.getElementById('home-button');
             let pressTimer;
