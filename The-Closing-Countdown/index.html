@@ -162,22 +162,23 @@
         .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
         body.is-focused main { padding: 0 !important; }
 
+        /* --- MOBILE LAYOUT LOCK --- */
         @media (max-width: 768px) {
-            /* LOCK VIEWPORT FOR MOBILE */
             html, body {
-                height: 100svh; /* Small Viewport Height locks to the visible area */
+                height: 100dvh; /* Use Dynamic Height to account for mobile browser bars */
                 width: 100%;
                 margin: 0;
                 padding: 0 !important;
                 overflow: hidden !important; /* Lock body scroll */
                 position: fixed; /* Fix body to prevent rubber-banding */
                 top: 0; left: 0; right: 0; bottom: 0;
-                touch-action: none; /* Prevent browser gestures interfering */
+                touch-action: none;
             }
             main { 
                 padding: 0 !important; 
                 height: 100%; 
                 width: 100%;
+                display: flex;
             }
             .tablet-frame {
                 position: absolute !important; inset: 0 !important;
@@ -195,22 +196,26 @@
                 height: 100%; 
                 display: flex; 
                 flex-direction: column;
+                overflow: hidden; /* Ensure only .page scrolls */
             }
             .footer-content { 
-                padding-bottom: max(env(safe-area-inset-bottom), 10px); 
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
                 height: auto; 
                 flex-shrink: 0; /* Never shrink footer */
-                z-index: 50; /* Ensure on top */
+                z-index: 60; /* Ensure on top */
             }
             .navbar-content {
                 flex-shrink: 0; /* Never shrink header */
                 padding-top: max(env(safe-area-inset-top), 0px);
-                z-index: 50;
+                z-index: 60;
             }
-            /* Ensure internal scrolling works smoothly */
+            /* Crucial: Allow content to scroll, but within the bounds */
             .page {
+                flex: 1 1 auto;
+                overflow-y: auto;
+                min-height: 0; /* Allows flex child to shrink properly */
                 -webkit-overflow-scrolling: touch;
-                touch-action: pan-y; /* Allow vertical scroll only inside page */
+                touch-action: pan-y;
             }
         }
 
@@ -1122,8 +1127,6 @@
         // Narrator Text Map
         // Re-mapped to support new page order
         const narratorText = {
-            1: "Welcome to the Countdown to Keys. This 100-day challenge is designed to take you from 'thinking about it' to 'keys in hand'.",
-            2: "Your journey starts now. We're breaking the home buying process into four critical phases, starting with stabilizing your financial foundation.",
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
             5: "Now it’s your turn to apply what you’ve learned. Each decision here mirrors a real-world choice buyers face. Think carefully — the way you answer shows whether your foundation is solid.",
