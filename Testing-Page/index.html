@@ -569,14 +569,20 @@
                 <div class="page" id="page-2">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 1: The Foundation</h2></section>
                     
-                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
-                        <div class="bg-gray-200 h-48 sm:h-64 flex flex-col items-center justify-center rounded-lg mb-3 shadow-inner relative overflow-hidden group cursor-pointer hover:bg-gray-300 transition-colors" onclick="sfx.tick()">
-                            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg text-allgood-primary group-hover:scale-110 transition-transform z-10">
-                                <i data-lucide="play" class="ml-1 w-8 h-8"></i>
+                    <!-- Script Preview Container -->
+                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm relative overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 bg-gray-100 px-3 py-1 rounded-br text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200">Video Script Preview</div>
+                        <div class="mt-4 flex gap-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" alt="Jonathan" class="w-full h-full object-cover">
+                                </div>
                             </div>
-                            <span class="text-sm font-bold text-gray-500 mt-3 z-10">Watch: Phase 1 Briefing</span>
-                            <!-- Decorative bg pattern -->
-                            <div class="absolute inset-0 opacity-5 bg-[radial-gradient(#4C4C4C_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                            <div class="space-y-3">
+                                <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">"Hi, I’m Jonathan Hurtado. Welcome to the Countdown to Keys. You’re here because you want a home, but the process feels heavy. That ends now. This isn't just a course; it's a 100-day strategy.</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">We start right here: <strong>Phase 1, The Foundation.</strong> Before we look at houses, we look at <em>you</em>. We’re going to secure your Three Pillars: Motivation, Credit, and Funding. Without these, a deal falls apart. With them, you are unstoppable. Let's get to work."</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -637,20 +643,20 @@
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: The Three Pillars</h2></section>
                     
                     <!-- Tabs Navigation -->
-                    <div class="flex space-x-1 mb-4 border-b border-gray-200 overflow-x-auto no-scrollbar">
+                    <div class="flex space-x-1 border-b border-gray-200 overflow-x-auto no-scrollbar">
                         <button onclick="openTab('motivation')" id="tab-btn-motivation" class="tab-btn active px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-allgood-primary text-white border-t border-x border-gray-200 transition-colors">Motivation</button>
                         <button onclick="openTab('credit')" id="tab-btn-credit" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Credit</button>
                         <button onclick="openTab('funding')" id="tab-btn-funding" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Funding</button>
                     </div>
 
                     <!-- Content Container -->
-                    <div class="bg-white rounded-b-lg min-h-[300px]">
+                    <div class="bg-white rounded-b-lg min-h-[300px] border border-gray-200 border-t-0 shadow-sm p-6">
                         
                         <!-- Tab 1: Motivation (Refined) -->
                         <div id="tab-content-motivation" class="tab-content animate-pop-in">
                             <div class="bg-orange-50 border border-orange-100 p-5 rounded-lg mb-6">
-                                <p class="text-sm text-orange-900 italic font-body leading-relaxed">
-                                    "Your motivation is your anchor. Tap on these values to see what they really mean for your home buying journey."
+                                <p class="text-sm text-orange-900 font-body leading-relaxed">
+                                    Your motivation is your anchor. Tap on these values to see what they really mean for your home buying journey.
                                 </p>
                             </div>
                             
@@ -676,30 +682,33 @@
                                         <i data-lucide="wind" class="w-4 h-4"></i>
                                         <span class="text-xs font-bold font-heading">Freedom</span>
                                     </div>
+                                    <!-- Tooltip -->
                                     <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
-                                        <p class="text-xs text-gray-700 font-body leading-tight">"Your rules, your space — paint the walls, own a pet, renovate freely."</p>
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"Your rules, your space — renovate, paint, and live freely."</p>
                                         <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
                                     </div>
                                 </div>
 
                                 <!-- Belonging Pill -->
                                 <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Belonging')">
-                                    <div class="px-4 py-2 bg-gradient-to-r from-emerald-100 to-emerald-200 rounded-full flex items-center gap-2 border border-emerald-200 text-emerald-800 shadow-sm">
-                                        <i data-lucide="heart" class="w-4 h-4"></i>
+                                    <div class="px-4 py-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full flex items-center gap-2 border border-purple-200 text-purple-800 shadow-sm">
+                                        <i data-lucide="users" class="w-4 h-4"></i>
                                         <span class="text-xs font-bold font-heading">Belonging</span>
                                     </div>
+                                    <!-- Tooltip -->
                                     <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
-                                        <p class="text-xs text-gray-700 font-body leading-tight">"Community connection — neighbors, schools, and a place to call home."</p>
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"Community connection — neighbors, schools, and roots."</p>
                                         <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
                                     </div>
                                 </div>
 
                                 <!-- Wealth Pill -->
                                 <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Wealth')">
-                                    <div class="px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center gap-2 border border-blue-200 text-blue-800 shadow-sm">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-emerald-100 to-emerald-200 rounded-full flex items-center gap-2 border border-emerald-200 text-emerald-800 shadow-sm">
                                         <i data-lucide="trending-up" class="w-4 h-4"></i>
                                         <span class="text-xs font-bold font-heading">Wealth</span>
                                     </div>
+                                    <!-- Tooltip -->
                                     <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
                                         <p class="text-xs text-gray-700 font-body leading-tight">"Building equity — paying yourself instead of a landlord."</p>
                                         <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
@@ -708,12 +717,13 @@
 
                                 <!-- Expression Pill -->
                                 <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Expression')">
-                                    <div class="px-4 py-2 bg-gradient-to-r from-rose-100 to-rose-200 rounded-full flex items-center gap-2 border border-rose-200 text-rose-800 shadow-sm">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-pink-100 to-pink-200 rounded-full flex items-center gap-2 border border-pink-200 text-pink-800 shadow-sm">
                                         <i data-lucide="palette" class="w-4 h-4"></i>
                                         <span class="text-xs font-bold font-heading">Expression</span>
                                     </div>
+                                    <!-- Tooltip -->
                                     <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
-                                        <p class="text-xs text-gray-700 font-body leading-tight">"A canvas for your life — design and customize without limits."</p>
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"A canvas for your life — design without limits."</p>
                                         <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
                                     </div>
                                 </div>
@@ -724,88 +734,343 @@
                         <!-- Tab 2: Credit -->
                         <div id="tab-content-credit" class="tab-content hidden animate-pop-in">
                             <div class="bg-sky-50 border border-sky-100 p-5 rounded-lg mb-4">
-                                <p class="text-sm text-sky-900 italic font-body leading-relaxed">
-                                    "Lenders reward consistency. Whether your score is 640 or 740, protecting your history and avoiding new debt makes a difference. The path forward is about progress, not perfection."
+                                <p class="text-sm text-sky-900 font-body leading-relaxed">
+                                    Lenders reward consistency. Whether your score is 640 or 740, protecting your history and avoiding new debt makes a difference. The path forward is about progress, not perfection.
                                 </p>
                             </div>
                             <div class="mt-6">
                                 <div class="flex justify-between text-[10px] uppercase font-bold text-gray-400 mb-1">
-                                    <span>Poor</span>
-                                    <span>Fair</span>
-                                    <span>Good</span>
-                                    <span>Excellent</span>
+                                    <span>Poor (580)</span>
+                                    <span>Excellent (800+)</span>
                                 </div>
-                                <div class="h-4 w-full bg-gray-200 rounded-full overflow-hidden flex">
-                                    <div class="h-full bg-red-400 w-1/4"></div>
-                                    <div class="h-full bg-orange-300 w-1/4"></div>
-                                    <div class="h-full bg-blue-400 w-1/4"></div>
-                                    <div class="h-full bg-green-500 w-1/4"></div>
+                                <div class="h-4 bg-gray-200 rounded-full overflow-hidden relative">
+                                    <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-red-400 via-yellow-400 to-green-500 w-full opacity-50"></div>
+                                    <!-- Marker -->
+                                    <div class="absolute top-0 bottom-0 left-[60%] w-1 bg-allgood-dark z-10"></div>
                                 </div>
-                                <div class="relative w-full h-6 mt-1">
-                                    <!-- Indicator Triangle -->
-                                    <div class="absolute left-[65%] transform -translate-x-1/2 flex flex-col items-center">
-                                        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-allgood-dark"></div>
-                                        <span class="text-xs font-bold text-allgood-dark">Goal: 740+</span>
+                                <div class="text-center mt-2 text-xs font-bold text-gray-600">Aim for 640+ for best options</div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Funding (The Golden Formula) -->
+                        <div id="tab-content-funding" class="tab-content hidden animate-pop-in">
+                            <div class="bg-emerald-50 border border-emerald-100 p-5 rounded-lg mb-4">
+                                <p class="text-sm text-emerald-900 font-body leading-relaxed">
+                                    Savings aren’t just for the down payment. Lenders want to see reserves — funds that prove you can weather surprises. Build wisely.
+                                </p>
+                            </div>
+                            
+                            <!-- The Golden Formula: Equation Visual -->
+                            <div class="flex flex-col items-center justify-center mt-8 pb-4">
+                                <div class="flex items-center gap-3 sm:gap-6">
+                                    
+                                    <!-- Part 1: Down Payment -->
+                                    <div class="flex flex-col items-center group">
+                                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center border-2 border-blue-200 mb-2 transition-transform group-hover:scale-110">
+                                            <i data-lucide="dollar-sign" class="w-6 h-6 text-blue-600"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase text-gray-500 text-center leading-tight">Down<br>Payment</span>
+                                    </div>
+
+                                    <!-- Operator -->
+                                    <div class="text-2xl font-bold text-gray-300 mb-6">+</div>
+
+                                    <!-- Part 2: Reserves -->
+                                    <div class="flex flex-col items-center group">
+                                        <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center border-2 border-emerald-200 mb-2 shadow-sm transition-transform group-hover:scale-110">
+                                            <i data-lucide="shield" class="w-6 h-6 text-emerald-600"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase text-gray-500 text-center leading-tight">Reserves</span>
+                                    </div>
+
+                                    <!-- Operator -->
+                                    <div class="text-2xl font-bold text-gray-300 mb-6">=</div>
+
+                                    <!-- Result: Keys -->
+                                    <div class="flex flex-col items-center group">
+                                        <div class="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center border-2 border-orange-200 mb-2 shadow-md transition-transform group-hover:scale-110">
+                                            <i data-lucide="key" class="w-7 h-7 text-allgood-primary"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase text-allgood-primary text-center leading-tight">Secure<br>Keys</span>
+                                    </div>
+
+                                </div>
+                                
+                                <!-- Insight Caption -->
+                                <div class="mt-6 text-center max-w-xs">
+                                    <p class="text-xs text-gray-400 italic">"You can buy a house with just the down payment, but you can only <strong>keep</strong> it with reserves."</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Page 5: Tell (Rules Accordion) - MOVED FROM P7 -->
+                <div class="page" id="page-5">
+                    <section class="mb-6 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Golden Rules of Affordability</h2>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        Lenders use strict formulas to decide how much they will lend you. Knowing these two rules prevents heartbreak later.
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Rule 1: 28/36 -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center gap-3 mb-4 border-b border-gray-100 pb-2">
+                                <div class="bg-blue-50 p-2 rounded text-allgood-secondary"><i data-lucide="percent" class="w-5 h-5"></i></div>
+                                <h3 class="font-bold text-allgood-dark">The 28/36 Rule</h3>
+                            </div>
+                            
+                            <div class="flex justify-center items-end gap-8 h-32 mb-6 border-b border-gray-50 pb-4">
+                                <!-- Bar 1 -->
+                                <div class="flex flex-col items-center group w-12 h-full justify-end">
+                                    <span class="text-xs font-bold text-allgood-secondary mb-1">28%</span>
+                                    <div class="w-full bg-gray-100 rounded-t-lg h-[80%] relative overflow-hidden">
+                                        <div class="absolute bottom-0 w-full bg-allgood-secondary h-[35%] transition-all duration-1000 group-hover:bg-allgood-accent"></div>
+                                    </div>
+                                    <span class="text-[10px] text-gray-500 mt-2 uppercase font-bold text-center leading-tight">Housing<br>Max</span>
+                                </div>
+                                <!-- Bar 2 -->
+                                <div class="flex flex-col items-center group w-12 h-full justify-end">
+                                    <span class="text-xs font-bold text-orange-600 mb-1">36%</span>
+                                    <div class="w-full bg-gray-100 rounded-t-lg h-[80%] relative overflow-hidden">
+                                        <div class="absolute bottom-0 w-full bg-orange-500 h-[45%] transition-all duration-1000 group-hover:bg-orange-600"></div>
+                                    </div>
+                                    <span class="text-[10px] text-gray-500 mt-2 uppercase font-bold text-center leading-tight">Total<br>Debt</span>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-gray-600 leading-relaxed text-center">
+                                Spend max <strong>28%</strong> of gross income on housing, and max <strong>36%</strong> on total debt (including car, student loans, etc).
+                            </p>
+                        </div>
+
+                        <!-- Rule 2: 3x Income -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center gap-3 mb-4 border-b border-gray-100 pb-2">
+                                <div class="bg-green-50 p-2 rounded text-green-600"><i data-lucide="scaling" class="w-5 h-5"></i></div>
+                                <h3 class="font-bold text-allgood-dark">The 3x Income Rule</h3>
+                            </div>
+                            
+                            <div class="flex items-center justify-center h-32 mb-6 gap-2 border-b border-gray-50 pb-4">
+                                <div class="flex flex-col items-center">
+                                    <i data-lucide="briefcase" class="w-8 h-8 text-gray-400 mb-1"></i>
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase">Income</span>
+                                </div>
+                                <div class="text-xl font-bold text-gray-300">×</div>
+                                <div class="text-5xl font-heading font-bold text-green-600">3</div>
+                                <div class="text-xl font-bold text-gray-300">=</div>
+                                <div class="flex flex-col items-center">
+                                    <div class="bg-green-100 p-3 rounded-full mb-1 border border-green-200">
+                                        <i data-lucide="home" class="w-6 h-6 text-green-700"></i>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-green-700 uppercase">Target</span>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-gray-600 leading-relaxed text-center">
+                                Aim for a home price roughly <strong>3x your annual gross income</strong> to ensure you have a comfortable buffer for life's surprises.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Page 6: Simulation (The Lender's Lens) - MOVED FROM P5 -->
+                <div class="page" id="page-6">
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Simulation: The Lender's Lens</h2>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 leading-relaxed">
+                        These are common hurdles, not dead ends. Lenders are trained to see risk, but <strong>I am trained to find solutions.</strong>
+                        <br><br>
+                        Run the analysis to see the "Lender Flag," then see how a pro realtor handles it.
+                    </p>
+
+                    <div class="grid grid-cols-1 gap-6 pb-6">
+                        
+                        <!-- Case 1: Income -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm relative overflow-hidden group">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-sm">Case 1: The Commission Job</h3>
+                                        <p class="text-xs text-gray-500">Income Stability</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Borrower View -->
+                            <div class="mb-4 p-3 bg-gray-50 rounded border-l-4 border-blue-400">
+                                <p class="text-xs text-gray-700 italic">"I just started a new sales job 2 months ago. I'm already making $8k/month in commissions! I can easily afford the mortgage."</p>
+                            </div>
+
+                            <!-- Action Area -->
+                            <div class="lender-action">
+                                <button onclick="runLenderAnalysis(this)" class="w-full py-2 bg-allgood-secondary hover:bg-allgood-accent text-white font-bold rounded text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                    <i data-lucide="search" class="w-4 h-4"></i> Run Lender Check
+                                </button>
+                            </div>
+
+                            <!-- Lender View (Hidden) -->
+                            <div class="lender-result hidden mt-4 pt-4 border-t border-gray-100 animate-pop-in">
+                                <!-- The Flag (Neutral) -->
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="mt-1 text-gray-400 flex-shrink-0"><i data-lucide="flag" class="w-5 h-5"></i></div>
+                                    <div>
+                                        <strong class="text-xs text-gray-500 uppercase tracking-wide">Lender Flag</strong>
+                                        <p class="text-sm text-gray-800 mt-1 font-bold">Variable Income History</p>
+                                        <p class="text-xs text-gray-600 mt-1">Lenders typically require a 2-year history to "average" commission income.</p>
+                                    </div>
+                                </div>
+
+                                <!-- The Solution (Mentor) -->
+                                <div class="bg-orange-50 border border-orange-100 rounded p-3 relative">
+                                    <div class="absolute -top-3 -left-2 bg-allgood-primary text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">Jonathan's Strategy</div>
+                                    <div class="flex gap-3 pt-2">
+                                        <div class="flex-shrink-0 mt-1"><i data-lucide="check-circle-2" class="w-4 h-4 text-allgood-primary"></i></div>
+                                        <p class="text-xs text-gray-800 leading-snug">
+                                            <strong>We pivot.</strong> If we can't wait 2 years, we qualify you based on your <em>base salary</em> alone, or we find a portfolio lender who accepts offer letters as proof of future income.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Tab 3: Funding -->
-                        <div id="tab-content-funding" class="tab-content hidden animate-pop-in">
-                            <div class="bg-emerald-50 border border-emerald-100 p-5 rounded-lg mb-4">
-                                <p class="text-sm text-emerald-900 italic font-body leading-relaxed">
-                                    "Savings aren’t just for the down payment. Lenders want to see reserves — funds that prove you can weather surprises. Build wisely."
-                                </p>
-                            </div>
-                            <div class="flex items-end justify-center h-32 gap-8 mt-6">
-                                <div class="w-16 bg-blue-100 rounded-t-lg relative group flex flex-col justify-end border-b-4 border-blue-300 h-[60%]">
-                                    <div class="absolute -top-6 w-full text-center text-xs font-bold text-blue-800">3.5%</div>
-                                    <div class="text-[10px] text-center w-full pb-2 text-blue-800 font-bold uppercase">Down<br>Pay</div>
+                        <!-- Case 2: Assets -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm relative overflow-hidden group">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-sm">Case 2: Cash Savings</h3>
+                                        <p class="text-xs text-gray-500">Asset Sourcing</p>
+                                    </div>
                                 </div>
-                                <div class="w-16 bg-emerald-100 rounded-t-lg relative group flex flex-col justify-end border-b-4 border-emerald-400 h-full">
-                                    <div class="absolute -top-6 w-full text-center text-xs font-bold text-emerald-800">Wait!</div>
-                                    <div class="absolute top-1/2 w-full text-center text-xs font-bold text-emerald-800 opacity-50">+ Reserves</div>
-                                    <div class="text-[10px] text-center w-full pb-2 text-emerald-800 font-bold uppercase">Total<br>Cash</div>
+                            </div>
+                            
+                            <!-- Borrower View -->
+                            <div class="mb-4 p-3 bg-gray-50 rounded border-l-4 border-emerald-400">
+                                <p class="text-xs text-gray-700 italic">"I have $20,000 in cash saved in my safe at home. I'll just deposit it right before we apply."</p>
+                            </div>
+
+                            <!-- Action Area -->
+                            <div class="lender-action">
+                                <button onclick="runLenderAnalysis(this)" class="w-full py-2 bg-allgood-secondary hover:bg-allgood-accent text-white font-bold rounded text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                    <i data-lucide="search" class="w-4 h-4"></i> Run Lender Check
+                                </button>
+                            </div>
+
+                            <!-- Lender View (Hidden) -->
+                            <div class="lender-result hidden mt-4 pt-4 border-t border-gray-100 animate-pop-in">
+                                <!-- The Flag (Neutral) -->
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="mt-1 text-gray-400 flex-shrink-0"><i data-lucide="flag" class="w-5 h-5"></i></div>
+                                    <div>
+                                        <strong class="text-xs text-gray-500 uppercase tracking-wide">Lender Flag</strong>
+                                        <p class="text-sm text-gray-800 mt-1 font-bold">Unverified Source</p>
+                                        <p class="text-xs text-gray-600 mt-1">Large cash deposits trigger Anti-Money Laundering checks. "Mattress money" is hard to trace.</p>
+                                    </div>
+                                </div>
+
+                                <!-- The Solution (Mentor) -->
+                                <div class="bg-orange-50 border border-orange-100 rounded p-3 relative">
+                                    <div class="absolute -top-3 -left-2 bg-allgood-primary text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">Jonathan's Strategy</div>
+                                    <div class="flex gap-3 pt-2">
+                                        <div class="flex-shrink-0 mt-1"><i data-lucide="check-circle-2" class="w-4 h-4 text-allgood-primary"></i></div>
+                                        <p class="text-xs text-gray-800 leading-snug">
+                                            <strong>We plan ahead.</strong> Deposit the cash now. After 60 days, the funds are considered "seasoned" and the lender won't ask for the source.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Case 3: Credit -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm relative overflow-hidden group">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                                        <i data-lucide="ghost" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-sm">Case 3: The Credit Ghost</h3>
+                                        <p class="text-xs text-gray-500">Credit History</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Borrower View -->
+                            <div class="mb-4 p-3 bg-gray-50 rounded border-l-4 border-purple-400">
+                                <p class="text-xs text-gray-700 italic">"I have zero debt. No credit cards, no loans. I pay everything in cash. My credit should be perfect."</p>
+                            </div>
+
+                            <!-- Action Area -->
+                            <div class="lender-action">
+                                <button onclick="runLenderAnalysis(this)" class="w-full py-2 bg-allgood-secondary hover:bg-allgood-accent text-white font-bold rounded text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                    <i data-lucide="search" class="w-4 h-4"></i> Run Lender Check
+                                </button>
+                            </div>
+
+                            <!-- Lender View (Hidden) -->
+                            <div class="lender-result hidden mt-4 pt-4 border-t border-gray-100 animate-pop-in">
+                                <!-- The Flag (Neutral) -->
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="mt-1 text-gray-400 flex-shrink-0"><i data-lucide="flag" class="w-5 h-5"></i></div>
+                                    <div>
+                                        <strong class="text-xs text-gray-500 uppercase tracking-wide">Lender Flag</strong>
+                                        <p class="text-sm text-gray-800 mt-1 font-bold">Insufficient Credit Depth</p>
+                                        <p class="text-xs text-gray-600 mt-1">"No score" is often treated as "Unknown Risk" by automated systems.</p>
+                                    </div>
+                                </div>
+
+                                <!-- The Solution (Mentor) -->
+                                <div class="bg-orange-50 border border-orange-100 rounded p-3 relative">
+                                    <div class="absolute -top-3 -left-2 bg-allgood-primary text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">Jonathan's Strategy</div>
+                                    <div class="flex gap-3 pt-2">
+                                        <div class="flex-shrink-0 mt-1"><i data-lucide="check-circle-2" class="w-4 h-4 text-allgood-primary"></i></div>
+                                        <p class="text-xs text-gray-800 leading-snug">
+                                            <strong>Manual Underwriting.</strong> We bypass the automated score. I help you build a packet of rent, utility, and phone bills to prove you pay on time, every time.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                     </div>
-                </div>
-
-                <!-- Page 5: Do (Readiness Decisions) -->
-                <div class="page" id="page-5">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Readiness Scenarios</h2></section>
-                    <p class="text-sm text-gray-600 mb-4"><strong>Scenario:</strong> You have $10k saved but just started a commission-only job 1 month ago.</p>
-                    <div class="space-y-3">
-                        <div class="decision-card p-4 rounded bg-white cursor-pointer" onclick="handleReadiness(this, false)"><h3 class="font-bold text-allgood-secondary">Option A: Apply Now</h3><p class="text-xs text-gray-500">Lenders will see my potential income.</p></div>
-                        <div class="decision-card p-4 rounded bg-white cursor-pointer" onclick="handleReadiness(this, true)"><h3 class="font-bold text-allgood-secondary">Option B: Wait</h3><p class="text-xs text-gray-500">I need 2 years of history for variable income.</p></div>
-                    </div>
-                    <div id="readiness-feedback" class="mt-4 hidden p-3 rounded text-sm"></div>
                 </div>
 
                 <!-- PHASE II: FINANCIAL PREPARATION (Days 60-31) -->
 
-                <!-- Page 6: Show (Affordability Video) -->
-                <div class="page" id="page-6">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 2: Financial Prep</h2></section>
-                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
-                        <div class="bg-gray-200 h-48 flex items-center justify-center rounded-lg mb-3 shadow-inner">
-                            <span class="text-sm text-gray-600 font-bold"><i data-lucide="play-circle" class="inline mr-2"></i> Video: Affordability Rules</span>
-                        </div>
-                        <p class="text-sm text-gray-700 italic">"It's not about what the bank says you can afford. It's about what you can actually pay without being 'house poor'. Let's talk DTI."</p>
-                    </div>
-                </div>
-
-                <!-- Page 7: Tell (Rules Accordion) -->
+                <!-- Page 7: Show (Affordability Video) - MOVED FROM P6 -->
                 <div class="page" id="page-7">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Golden Rules of Affordability</h2></section>
-                    <div class="space-y-3">
-                        <button class="accordion-toggle w-full bg-white border p-3 rounded flex justify-between items-center hover:bg-gray-50"><span class="font-bold text-sm">The 28/36 Rule</span><i data-lucide="chevron-down" class="accordion-icon w-4 h-4 text-gray-400"></i></button>
-                        <div class="accordion-content hidden bg-gray-50 p-3 text-xs text-gray-700 border-x border-b rounded-b"><p>Spend no more than 28% of gross income on housing, and 36% on total debt (including housing).</p></div>
-                        <button class="accordion-toggle w-full bg-white border p-3 rounded flex justify-between items-center hover:bg-gray-50"><span class="font-bold text-sm">The 3x Income Rule</span><i data-lucide="chevron-down" class="accordion-icon w-4 h-4 text-gray-400"></i></button>
-                        <div class="accordion-content hidden bg-gray-50 p-3 text-xs text-gray-700 border-x border-b rounded-b"><p>Aim for a home price roughly 3x your annual gross income for a comfortable buffer.</p></div>
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 2: Financial Prep</h2></section>
+                    
+                    <!-- Script Preview Container -->
+                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm relative overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 bg-gray-100 px-3 py-1 rounded-br text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200">Video Script Preview</div>
+                        <div class="mt-4 flex gap-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" alt="Jonathan" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">"Solid work on the foundation. You know your 'Why' and you understand your pillars. Now, we move to <strong>Phase 2: Financial Prep.</strong></p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">Here is the reality: There is a massive difference between what a bank <em>says</em> you can borrow and what you can <em>actually</em> afford. My goal isn't just to get you the keys; it's to keep you from becoming 'house poor.' In this phase, we’re tackling the math—Debt-to-Income ratios and the real cost of closing. Let’s make sure the numbers work for <em>you</em>."</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1175,8 +1440,9 @@
         
         // Page Titles (Updated for New Flow)
         const pageTitles = [
-            "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", "5. Challenge: Scenarios",
-            "6. Show: Financial Prep", "7. Tell: Affordability Rules", "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Do: Closing Wallet",
+            "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", 
+            "5. Tell: Affordability Rules", "6. Simulation: Lender's Lens", "7. Phase 2: Intro Video", 
+            "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Do: Closing Wallet",
             "11. Tell: Credit Power", "12. Do: Credit Quiz", "13. Show: Loan Types", "14. Tell: Conventional", "15. Tell: FHA Loans",
             "16. Do: Doc Checklist", "17. Do: Underwriter Sim", "18. Show: Agent Role", "19. Tell: Search Criteria", "20. Do: Needs vs Wants",
             "21. Tell: Online Tools", "22. Do: Open House", "23. Do: Red Flags", "24. Tell: Title Insurance", "25. Do: The Lowball",
@@ -1188,9 +1454,9 @@
         // Pages 1, 2, 6, 13, and 18 intentionally excluded to silence narrator.
         const narratorText = {
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
-            4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
-            5: "Now it’s your turn to apply what you’ve learned. Each decision here mirrors a real-world choice buyers face. Think carefully — the way you answer shows whether your foundation is solid.",
-            7: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
+            4: "Here’s where we dig deeper. Study each pillar carefully. Before we test your readiness, you need to know the Golden Rules lenders use to judge your application.",
+            5: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
+            6: "Stop guessing and start analyzing. Run these checks to see where the 'system' flags you, and then see how we solve it together.",
             8: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
             9: "Affordability is a puzzle, not a wall. Sometimes, the key to unlocking a home isn't making more money—it's adjusting where your money goes. Select a trade-off to see how it impacts your buying power.",
             10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
@@ -1555,20 +1821,25 @@
         /* --- INTERACTION LOGIC (Global Scope) --- */
 
         // P5: Readiness
-        window.handleReadiness = function(el, isWait) {
-            const fb = document.getElementById('readiness-feedback');
-            fb.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
-            if(isWait) {
-                fb.textContent = "Correct. Lenders need 2 years of history for variable income.";
-                fb.classList.add('bg-green-100', 'text-green-800');
-                el.classList.add('pass');
-                sfx.nav(); // Correct
-            } else {
-                fb.textContent = "Risky. Variable income usually requires a 2-year track record.";
-                fb.classList.add('bg-red-100', 'text-red-800');
-                el.classList.add('fail');
-                sfx.powerOff(); // Incorrect
-            }
+        window.runLenderAnalysis = function(btn) {
+            const parent = btn.closest('.lender-action');
+            const result = parent.parentElement.querySelector('.lender-result');
+            
+            // Hide button
+            btn.classList.add('hidden');
+            
+            // Create a "Done" indicator
+            const doneIndicator = document.createElement('div');
+            doneIndicator.className = "text-center text-xs font-bold text-gray-300 py-1";
+            doneIndicator.innerHTML = '<i data-lucide="check" class="inline w-3 h-3 mr-1"></i>Analysis Complete';
+            parent.appendChild(doneIndicator);
+
+            // Show result
+            result.classList.remove('hidden');
+            
+            // Refresh icons inside the new content
+            lucide.createIcons();
+            sfx.tick();
         }
 
         // Global state for context-aware strategies
