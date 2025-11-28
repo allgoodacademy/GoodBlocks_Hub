@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jonathan Hurtado’s Countdown to Keys: The 100-Day Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -164,12 +164,15 @@
 
         @media (max-width: 768px) {
             /* LOCK VIEWPORT FOR MOBILE */
-            body { 
-                padding: 0 !important; 
-                overflow: hidden !important; /* Prevent browser chrome scrolling */
-                position: fixed; /* Lock body in place */
+            html, body {
+                height: 100svh; /* Small Viewport Height locks to the visible area */
                 width: 100%;
-                height: 100dvh; /* Dynamic height handles address bar resizing */
+                margin: 0;
+                padding: 0 !important;
+                overflow: hidden !important; /* Lock body scroll */
+                position: fixed; /* Fix body to prevent rubber-banding */
+                top: 0; left: 0; right: 0; bottom: 0;
+                touch-action: none; /* Prevent browser gestures interfering */
             }
             main { 
                 padding: 0 !important; 
@@ -197,14 +200,17 @@
                 padding-bottom: max(env(safe-area-inset-bottom), 10px); 
                 height: auto; 
                 flex-shrink: 0; /* Never shrink footer */
+                z-index: 50; /* Ensure on top */
             }
             .navbar-content {
                 flex-shrink: 0; /* Never shrink header */
                 padding-top: max(env(safe-area-inset-top), 0px);
+                z-index: 50;
             }
             /* Ensure internal scrolling works smoothly */
             .page {
                 -webkit-overflow-scrolling: touch;
+                touch-action: pan-y; /* Allow vertical scroll only inside page */
             }
         }
 
