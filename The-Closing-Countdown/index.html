@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Viewport Lock: user-scalable=no helps prevent accidental zooming that breaks layout -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jonathan Hurtado’s Countdown to Keys: The 100-Day Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -162,15 +163,17 @@
         .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
         body.is-focused main { padding: 0 !important; }
 
-        /* --- MOBILE LAYOUT LOCK --- */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS FLEX SANDWICH) --- */
         @media (max-width: 768px) {
             html, body {
-                height: 100dvh; /* Use Dynamic Height to account for mobile browser bars */
+                /* Force body to match viewport EXACTLY, ignoring browser chrome resizing issues */
+                height: 100%;
+                height: 100dvh; /* Dynamic viewport height */
                 width: 100%;
                 margin: 0;
                 padding: 0 !important;
-                overflow: hidden !important; /* Lock body scroll */
-                position: fixed; /* Fix body to prevent rubber-banding */
+                overflow: hidden !important; /* Stop body itself from scrolling */
+                position: fixed; /* Pin body to screen */
                 top: 0; left: 0; right: 0; bottom: 0;
                 touch-action: none;
             }
@@ -179,43 +182,63 @@
                 height: 100%; 
                 width: 100%;
                 display: flex;
+                flex-direction: column;
             }
             .tablet-frame {
-                position: absolute !important; inset: 0 !important;
-                width: 100% !important; height: 100% !important;
+                /* Remove tablet visuals, make it a flex container filling the screen */
+                position: relative !important; 
+                width: 100% !important; 
+                height: 100% !important;
                 max-width: none !important; max-height: none !important;
                 min-height: 0 !important; aspect-ratio: auto !important;
                 margin: 0 !important; padding: 0 !important;
                 border: none !important; border-radius: 0 !important;
                 background-image: none !important; box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
             }
             .tablet-frame::before { display: none; }
             .screen-container { 
+                /* Direct flex child of tablet frame */
+                flex: 1; /* Take all available space */
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
                 border-radius: 0 !important; 
                 box-shadow: none !important; 
-                height: 100%; 
-                display: flex; 
-                flex-direction: column;
-                overflow: hidden; /* Ensure only .page scrolls */
+                overflow: hidden; /* Contain children */
+            }
+            
+            /* THE BUNS: Fixed Height Items */
+            .navbar-content {
+                flex: 0 0 auto; /* No shrink, no grow */
+                width: 100%;
+                z-index: 50;
+                padding-top: max(env(safe-area-inset-top), 0px);
+            }
+            #narrator-strip {
+                flex: 0 0 auto;
+                width: 100%;
+                z-index: 40;
             }
             .footer-content { 
-                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
-                height: auto; 
-                flex-shrink: 0; /* Never shrink footer */
-                z-index: 60; /* Ensure on top */
+                flex: 0 0 auto; /* No shrink, no grow */
+                width: 100%;
+                z-index: 50;
+                padding-bottom: max(env(safe-area-inset-bottom), 20px); 
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
             }
-            .navbar-content {
-                flex-shrink: 0; /* Never shrink header */
-                padding-top: max(env(safe-area-inset-top), 0px);
-                z-index: 60;
-            }
-            /* Crucial: Allow content to scroll, but within the bounds */
+
+            /* THE MEAT: Scrolling Content */
             .page {
-                flex: 1 1 auto;
-                overflow-y: auto;
-                min-height: 0; /* Allows flex child to shrink properly */
-                -webkit-overflow-scrolling: touch;
-                touch-action: pan-y;
+                flex: 1 1 auto; /* Grow to fill space */
+                overflow-y: auto; /* Internal scrollbar */
+                -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+                height: auto; /* Let flex dictate height */
+                min-height: 0; /* Crucial for nested flex scrolling */
+                padding-bottom: 20px;
             }
         }
 
@@ -1125,7 +1148,7 @@
         ];
 
         // Narrator Text Map
-        // Re-mapped to support new page order
+        // Pages 1, 2, 6, 13, and 18 intentionally excluded to silence narrator.
         const narratorText = {
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
