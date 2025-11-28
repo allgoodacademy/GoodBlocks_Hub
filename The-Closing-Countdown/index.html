@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- Viewport Lock: user-scalable=no helps prevent accidental zooming that breaks layout -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Jonathan Hurtado’s Countdown to Keys: The 100-Day Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -163,29 +163,35 @@
         .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
         body.is-focused main { padding: 0 !important; }
 
-        /* --- MOBILE LAYOUT LOCK (RIGOROUS FLEX SANDWICH) --- */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS iOS FIX) --- */
         @media (max-width: 768px) {
             html, body {
-                /* Force body to match viewport EXACTLY, ignoring browser chrome resizing issues */
-                height: 100%;
-                height: 100dvh; /* Dynamic viewport height */
                 width: 100%;
+                height: 100%; /* Fallback */
                 margin: 0;
                 padding: 0 !important;
-                overflow: hidden !important; /* Stop body itself from scrolling */
-                position: fixed; /* Pin body to screen */
-                top: 0; left: 0; right: 0; bottom: 0;
-                touch-action: none;
+                overflow: hidden !important; /* Stop the document itself from scrolling */
+                position: fixed; /* Physically pin the document */
+                inset: 0;
+                overscroll-behavior: none; /* Stop rubber-banding */
             }
+            
             main { 
+                /* The MAIN container now acts as the viewport */
+                width: 100vw; 
+                height: 100dvh; /* Dynamic viewport height */
+                /* Fallback for browsers not supporting dvh */
+                height: -webkit-fill-available; 
+                position: fixed;
+                inset: 0;
                 padding: 0 !important; 
-                height: 100%; 
-                width: 100%;
                 display: flex;
                 flex-direction: column;
+                z-index: 0;
             }
+            
             .tablet-frame {
-                /* Remove tablet visuals, make it a flex container filling the screen */
+                /* Strip away the tablet appearance, become a flex container */
                 position: relative !important; 
                 width: 100% !important; 
                 height: 100% !important;
@@ -197,48 +203,52 @@
                 display: flex;
                 flex-direction: column;
             }
+            
             .tablet-frame::before { display: none; }
+            
             .screen-container { 
-                /* Direct flex child of tablet frame */
-                flex: 1; /* Take all available space */
+                flex: 1; /* Grow to fill all available vertical space */
                 width: 100%;
                 height: 100%;
                 display: flex;
                 flex-direction: column;
                 border-radius: 0 !important; 
                 box-shadow: none !important; 
-                overflow: hidden; /* Contain children */
+                overflow: hidden; /* Don't let this container scroll */
             }
             
             /* THE BUNS: Fixed Height Items */
             .navbar-content {
-                flex: 0 0 auto; /* No shrink, no grow */
+                flex: 0 0 auto; /* Do not grow or shrink */
                 width: 100%;
                 z-index: 50;
-                padding-top: max(env(safe-area-inset-top), 0px);
+                padding-top: max(env(safe-area-inset-top), 5px);
             }
+            
             #narrator-strip {
                 flex: 0 0 auto;
                 width: 100%;
                 z-index: 40;
             }
+            
             .footer-content { 
-                flex: 0 0 auto; /* No shrink, no grow */
+                flex: 0 0 auto; /* Do not grow or shrink */
                 width: 100%;
-                z-index: 50;
-                padding-bottom: max(env(safe-area-inset-bottom), 20px); 
+                z-index: 100; /* Highest Z-index to sit on top */
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
                 background-color: white;
                 border-top: 1px solid #e5e7eb;
+                position: relative; /* Ensure stacking context */
             }
 
             /* THE MEAT: Scrolling Content */
             .page {
-                flex: 1 1 auto; /* Grow to fill space */
-                overflow-y: auto; /* Internal scrollbar */
-                -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
-                height: auto; /* Let flex dictate height */
+                flex: 1 1 auto; /* Grow to occupy remaining space */
+                overflow-y: auto; /* Internal vertical scrollbar */
+                -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+                height: 100%; 
                 min-height: 0; /* Crucial for nested flex scrolling */
-                padding-bottom: 20px;
+                padding-bottom: 40px; /* Extra space for scroll clearance */
             }
         }
 
