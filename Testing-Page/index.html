@@ -295,7 +295,8 @@
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Digital Asset Defense</div>
-                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
+                            <!-- FIX 1: Removed 'hidden sm:' so page indicator shows on mobile -->
+                            <div class="flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 24</span>
                             </div>
@@ -1086,8 +1087,9 @@
 
                 <!-- Page 21: Irreversibility -->
                 <div class="page" id="page-21">
-                    <div class="flex flex-col items-center justify-center h-full text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner relative">
-                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse"></i>
+                    <!-- FIX 2: Mobile Layout Fix for Page 21 -->
+                    <div class="flex flex-col items-center justify-start sm:justify-center min-h-full py-8 text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner relative">
+                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse mt-4 sm:mt-0"></i>
                         <h2 class="text-3xl font-heading font-bold mb-2">Point of No Return</h2>
                         <p class="text-sm max-w-md leading-relaxed text-gray-400 mb-8">
                             Blockchain transactions are immutable. Once you press confirm, no bank, no government, and no admin can reverse it. History is full of regrets.
