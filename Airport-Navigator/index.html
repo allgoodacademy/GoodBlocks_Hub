@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Airport Navigator GoodBlock</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons for interactions -->
@@ -153,31 +153,82 @@
         /* Ensure parent container padding doesn't interfere in focus mode */
         body.is-focused main { padding: 0 !important; }
 
-        /* --- MOBILE RESPONSIVENESS & IFRAME FIXES --- */
-        /* If screen is smaller than 768px */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS FLEX SANDWICH) --- */
         @media (max-width: 768px) {
-            body { padding: 0 !important; overflow: hidden; }
-            main { padding: 0 !important; height: 100vh; }
-            .tablet-frame {
-                position: absolute !important;
-                inset: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                max-width: none !important;
-                max-height: none !important;
-                min-height: 0 !important;
-                aspect-ratio: auto !important;
-                margin: 0 !important;
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
                 padding: 0 !important;
-                border: none !important;
-                border-radius: 0 !important;
-                background-image: none !important;
-                box-shadow: none !important;
+                overflow: hidden !important; /* Stop document scroll */
+                position: fixed; /* Pin document */
+                inset: 0;
+                overscroll-behavior: none;
             }
+            
+            main { 
+                width: 100vw; 
+                height: 100dvh; /* Dynamic Height */
+                height: -webkit-fill-available; 
+                position: fixed;
+                inset: 0;
+                padding: 0 !important; 
+                display: flex;
+                flex-direction: column;
+                z-index: 0;
+            }
+            
+            .tablet-frame {
+                position: relative !important; 
+                width: 100% !important; 
+                height: 100% !important;
+                max-width: none !important; max-height: none !important;
+                min-height: 0 !important; aspect-ratio: auto !important;
+                margin: 0 !important; padding: 0 !important;
+                border: none !important; border-radius: 0 !important;
+                background-image: none !important; box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
+            }
+            
             .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
-            /* Adjust footer for mobile safe areas */
-            .footer-content { padding-bottom: max(env(safe-area-inset-bottom), 20px); height: auto; }
+            
+            .screen-container { 
+                flex: 1; 
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                border-radius: 0 !important; 
+                box-shadow: none !important; 
+                overflow: hidden; 
+            }
+            
+            .navbar-content, .footer-content {
+                flex: 0 0 auto; /* Rigid Buns */
+                width: 100%;
+                z-index: 50;
+            }
+
+            .navbar-content { padding-top: max(env(safe-area-inset-top), 5px); }
+            
+            .footer-content { 
+                z-index: 100;
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
+                position: relative;
+                height: auto;
+            }
+
+            .page {
+                flex: 1 1 auto; /* Scrollable Meat */
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                height: 100%; 
+                min-height: 0;
+                padding-bottom: 40px;
+            }
         }
 
         /* Layout structure */
@@ -391,8 +442,11 @@
                 <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
-                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Airport Navigator</div>
-                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
+                            <!-- FIX: Removed flex-shrink-0 so title truncates instead of pushing counter off -->
+                            <div id="header-welcome-text" class="text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Airport Navigator</div>
+                            
+                            <!-- FIX: Added shrink-0 so counter stays visible -->
+                            <div class="flex shrink-0 items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 31</span>
                             </div>
