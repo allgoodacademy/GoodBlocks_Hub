@@ -39,11 +39,6 @@
            Core styles for the GoodBlock shell, animations, and responsiveness.
            ========================================================================== 
         */
-        /* GLOBAL RESET FOR STABILITY */
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
@@ -168,102 +163,98 @@
         .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
         body.is-focused main { padding: 0 !important; }
 
-        /* --- MOBILE LAYOUT LOCK (ABSOLUTE PINNING) --- */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS iOS FIX) --- */
         @media (max-width: 768px) {
             html, body {
                 width: 100%;
-                height: 100dvh; /* Dynamic viewport height */
+                height: 100%; /* Fallback */
                 margin: 0;
                 padding: 0 !important;
-                overflow: hidden !important; /* Stop body scroll */
-                position: fixed; /* Pin body */
+                overflow: hidden !important; /* Stop the document itself from scrolling */
+                position: fixed; /* Physically pin the document */
                 inset: 0;
+                overscroll-behavior: none; /* Stop rubber-banding */
             }
             
             main { 
-                width: 100%; 
-                height: 100%;
-                position: absolute;
+                /* The MAIN container now acts as the viewport */
+                width: 100vw; 
+                height: 100dvh; /* Dynamic viewport height */
+                /* Fallback for browsers not supporting dvh */
+                height: -webkit-fill-available; 
+                position: fixed;
                 inset: 0;
                 padding: 0 !important; 
+                display: flex;
+                flex-direction: column;
+                z-index: 0;
             }
             
             .tablet-frame {
-                position: absolute !important; 
-                inset: 0 !important;
+                /* Strip away the tablet appearance, become a flex container */
+                position: relative !important; 
                 width: 100% !important; 
                 height: 100% !important;
                 max-width: none !important; max-height: none !important;
-                min-height: 0 !important;
+                min-height: 0 !important; aspect-ratio: auto !important;
                 margin: 0 !important; padding: 0 !important;
                 border: none !important; border-radius: 0 !important;
                 background-image: none !important; box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
             }
             
             .tablet-frame::before { display: none; }
             
             .screen-container { 
+                flex: 1; /* Grow to fill all available vertical space */
                 width: 100%;
                 height: 100%;
-                position: relative; /* Parent for absolute footer */
+                display: flex;
+                flex-direction: column;
                 border-radius: 0 !important; 
                 box-shadow: none !important; 
-                overflow: hidden; 
+                overflow: hidden; /* Don't let this container scroll */
             }
             
-            /* HEADER */
+            /* THE BUNS: Fixed Height Items */
             .navbar-content {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: auto;
-                min-height: 60px;
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
                 z-index: 50;
                 padding-top: max(env(safe-area-inset-top), 5px);
             }
             
-            /* NARRATOR */
             #narrator-strip {
-                position: absolute;
-                top: calc(60px + max(env(safe-area-inset-top), 5px)); /* Push below header */
-                left: 0;
-                right: 0;
+                flex: 0 0 auto;
+                width: 100%;
                 z-index: 40;
             }
             
-            /* FOOTER (PINNED) */
             .footer-content { 
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                z-index: 100;
-                padding-bottom: max(env(safe-area-inset-bottom), 20px); 
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
+                z-index: 100; /* Highest Z-index to sit on top */
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
                 background-color: white;
                 border-top: 1px solid #e5e7eb;
-                height: auto;
+                position: relative; /* Ensure stacking context */
             }
 
-            /* CONTENT AREA */
+            /* THE MEAT: Scrolling Content */
             .page {
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                /* Add padding to prevent content being hidden behind fixed elements */
-                padding-top: 140px; /* Space for Header + Narrator */
-                padding-bottom: 90px; /* Space for Footer */
-                padding-left: 20px;
-                padding-right: 20px;
+                flex: 1 1 auto; /* Grow to occupy remaining space */
+                overflow-y: auto; /* Internal vertical scrollbar */
+                -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+                height: 100%; 
+                min-height: 0; /* Crucial for nested flex scrolling */
+                padding-bottom: 40px; /* Extra space for scroll clearance */
             }
         }
 
-        /* --- LAYOUT (DESKTOP) --- */
+        /* --- LAYOUT --- */
         .navbar-content { flex: 0 0 60px; z-index: 20; }
+        /* Flow: Aim for no scrolling within this element. */
         .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
         .page.active { display: block; }
         .footer-content { flex: 0 0 60px; z-index: 20; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
@@ -319,15 +310,7 @@
             gap: 16px;
             width: 100%;
             z-index: 40;
-            /* UPDATED TRANSITION for Scroll Effect */
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        /* HIDDEN STATE for Scrolling */
-        .narrator-hidden {
-            opacity: 0;
-            transform: translateY(-10px); /* Slide up slightly */
-            pointer-events: none; /* Prevent clicking when invisible */
+            transition: all 0.3s ease;
         }
 
         #narrator-avatar {
@@ -1202,8 +1185,7 @@
         ];
 
         // Narrator Text Map
-        // UPDATED: Added ALL missing keys for non-video pages (11, 14, etc)
-        // Pages 1, 2, 6, 13, and 18 are INTENTIONALLY excluded to silence narrator.
+        // Pages 1, 2, 6, 13, and 18 intentionally excluded to silence narrator.
         const narratorText = {
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
@@ -1212,7 +1194,6 @@
             8: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
             9: "Affordability is a puzzle, not a wall. Sometimes, the key to unlocking a home isn't making more money—it's adjusting where your money goes. Select a trade-off to see how it impacts your buying power.",
             10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
-            11: "Credit is power. A small difference in score can save—or cost—you thousands. Read this briefing to see why.",
             12: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
             14: "Conventional loans are standard. Explore pros and cons to see if it fits.",
             15: "FHA loans help lower credit scores but have trade-offs. Flip to compare.",
@@ -1232,8 +1213,7 @@
             30: "One last check. Use the checklist to ensure nothing is damaged.",
             31: "Closing is risky. Learn to review docs and avoid wire fraud.",
             32: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
-            33: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying.",
-            34: "You have the badge. Now let's get the keys. Click below to schedule your priority consultation."
+            33: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
         };
 
         // State Management
@@ -2177,38 +2157,6 @@
             }
             
             sfx.tick();
-        };
-
-        // --- SCROLL LISTENER for Narrator Bubble ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const pages = document.querySelectorAll('.page');
-            const strip = document.getElementById('narrator-strip');
-
-            if (strip) {
-                pages.forEach(page => {
-                    page.addEventListener('scroll', () => {
-                        // If scrolled down more than 50px, hide the bubble
-                        if (page.scrollTop > 50) {
-                            strip.classList.add('narrator-hidden');
-                        } else {
-                            strip.classList.remove('narrator-hidden');
-                        }
-                    });
-                });
-            }
-        });
-
-        // Update Navigation to Reset Bubble State
-        const originalShowPage = window.showPage;
-        window.showPage = function(idx) {
-            // Call original logic
-            originalShowPage(idx);
-            
-            // Reset Narrator Visibility on Page Turn
-            const strip = document.getElementById('narrator-strip');
-            if (strip) {
-                strip.classList.remove('narrator-hidden');
-            }
         };
 
     </script>
