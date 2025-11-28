@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Viewport Lock for Mobile Stability -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Allgood Academy GoodBlock: Digital Asset Defense</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -135,10 +136,10 @@
         .blueprint-mode .footer-content #back-button { color: #94a3b8 !important; }
         .blueprint-mode .footer-content #back-button:not(:disabled):hover { color: #38bdf8 !important; }
 
-        /* --- FOCUS MODE --- */
+        /* --- FOCUS MODE (Desktop) --- */
         .tablet-frame.focus-mode { 
-            position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; 
-            width: 100% !important; height: 100% !important;
+            position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; 
+            width: 100% !important; height: 100vh !important; 
             aspect-ratio: auto !important; max-width: none !important; max-height: none !important; 
             min-height: 0 !important;
             margin: 0 !important; padding: 0 !important; 
@@ -148,24 +149,89 @@
         }
         .tablet-frame.focus-mode::before { display: none; }
         .tablet-frame.focus-mode .screen-container { border-radius: 0; box-shadow: none; height: 100%; }
-        .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
-        body.is-focused main { padding: 0 !important; }
-
+        .tablet-frame.focus-mode .footer-content { padding-bottom: max(env(safe-area-inset-bottom), 20px); }
+        
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS iOS FIX) --- */
         @media (max-width: 768px) {
-            body { padding: 0 !important; overflow: hidden; }
-            main { padding: 0 !important; height: 100vh; }
+            html, body {
+                width: 100%;
+                height: 100%; /* Fallback */
+                margin: 0;
+                padding: 0 !important;
+                overflow: hidden !important; /* Stop the document itself from scrolling */
+                position: fixed; /* Physically pin the document */
+                inset: 0;
+                overscroll-behavior: none; /* Stop rubber-banding */
+            }
+            
+            main { 
+                /* The MAIN container now acts as the viewport */
+                width: 100vw; 
+                height: 100dvh; /* Dynamic viewport height */
+                /* Fallback for browsers not supporting dvh */
+                height: -webkit-fill-available; 
+                position: fixed;
+                inset: 0;
+                padding: 0 !important; 
+                display: flex;
+                flex-direction: column;
+                z-index: 0;
+            }
+            
             .tablet-frame {
-                position: absolute !important; inset: 0 !important;
-                width: 100% !important; height: 100% !important;
+                /* Strip away the tablet appearance, become a flex container */
+                position: relative !important; 
+                width: 100% !important; 
+                height: 100% !important;
                 max-width: none !important; max-height: none !important;
                 min-height: 0 !important; aspect-ratio: auto !important;
                 margin: 0 !important; padding: 0 !important;
                 border: none !important; border-radius: 0 !important;
                 background-image: none !important; box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
             }
+            
             .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
-            .footer-content { padding-bottom: max(env(safe-area-inset-bottom), 20px); height: auto; }
+            
+            .screen-container { 
+                flex: 1; /* Grow to fill all available vertical space */
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                border-radius: 0 !important; 
+                box-shadow: none !important; 
+                overflow: hidden; /* Don't let this container scroll */
+            }
+            
+            /* THE BUNS: Fixed Height Items */
+            .navbar-content {
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
+                z-index: 50;
+                padding-top: max(env(safe-area-inset-top), 5px);
+            }
+            
+            .footer-content { 
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
+                z-index: 100; /* Highest Z-index to sit on top */
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
+                position: relative; /* Ensure stacking context */
+            }
+
+            /* THE MEAT: Scrolling Content */
+            .page {
+                flex: 1 1 auto; /* Grow to occupy remaining space */
+                overflow-y: auto; /* Internal vertical scrollbar */
+                -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+                height: 100%; 
+                min-height: 0; /* Crucial for nested flex scrolling */
+                padding-bottom: 40px; /* Extra space for scroll clearance */
+            }
         }
 
         /* --- LAYOUT --- */
@@ -229,7 +295,8 @@
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Digital Asset Defense</div>
-                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
+                            <!-- FIX 1: Removed 'hidden sm:' so page indicator shows on mobile -->
+                            <div class="flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 24</span>
                             </div>
@@ -455,7 +522,7 @@
                                 It loses value via inflation. 
                                 We are moving into 
                                 <span class="term" tabindex="0">DeFi
-                                    <span class="term-def">
+                                    <span class="term-def" style="left: 0; transform: translateX(-10%);">
                                         <span class="flex items-center justify-center mb-2 pt-1 text-allgood-secondary opacity-90 relative h-8">
                                             <i data-lucide="user" class="w-4 h-4"></i>
                                             <i data-lucide="arrow-left-right" class="w-4 h-4 mx-2"></i>
@@ -1020,8 +1087,9 @@
 
                 <!-- Page 21: Irreversibility -->
                 <div class="page" id="page-21">
-                    <div class="flex flex-col items-center justify-center h-full text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner relative">
-                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse"></i>
+                    <!-- FIX 2: Mobile Layout Fix for Page 21 -->
+                    <div class="flex flex-col items-center justify-start sm:justify-center min-h-full py-8 text-center bg-gray-900 text-white rounded -m-5 p-8 shadow-inner relative">
+                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse mt-4 sm:mt-0"></i>
                         <h2 class="text-3xl font-heading font-bold mb-2">Point of No Return</h2>
                         <p class="text-sm max-w-md leading-relaxed text-gray-400 mb-8">
                             Blockchain transactions are immutable. Once you press confirm, no bank, no government, and no admin can reverse it. History is full of regrets.
@@ -1539,7 +1607,7 @@
                 sfx.success();
             } else {
                 btn.classList.remove('bg-gray-50', 'border-gray-200');
-                btn.classList.add('bg-red-50', 'border-red-300');
+                btn.classList.add('bg-red-50', 'border-red-500');
                 feedbackEl.textContent = feedbackText;
                 feedbackEl.className = "feedback mt-3 text-xs font-bold text-red-500";
                 feedbackEl.classList.remove('hidden');
