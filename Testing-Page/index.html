@@ -1068,7 +1068,7 @@
                             <div class="space-y-3">
                                 <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
                                 <p class="text-sm text-gray-600 font-body leading-relaxed italic">"Solid work on the foundation. You know your 'Why' and you understand your pillars. Now, we move to <strong>Phase 2: Financial Prep.</strong></p>
-                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">Here is the reality: There is a massive difference between what a bank <em>says</em> you can borrow and what you can <em>actually</em> afford. My goal isn't just to get you the keys; it's to keep you from becoming 'house poor.' In this phase, we’re tackling the math—Debt-to-Income ratios and the real cost of closing. Let’s make sure the numbers work for <em>you</em>."</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">Here is the reality: There is a massive difference between what a bank <em>says</em> you can borrow and what you can <em>actually</em> afford. My goal isn't just to get you the keys; it's to protect your financial stability. In this phase, we’re tackling the math—Debt-to-Income ratios and the real cost of closing. Let’s make sure the numbers work for <em>you</em>."</p>
                             </div>
                         </div>
                     </div>
@@ -1455,9 +1455,9 @@
         const narratorText = {
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully. Before we test your readiness, you need to know the Golden Rules lenders use to judge your application.",
-            5: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
+            5: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and protect your financial stability. Read them closely.",
             6: "Stop guessing and start analyzing. Run these checks to see where the 'system' flags you, and then see how we solve it together.",
-            8: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
+            8: "You know the rules (28/36). Now test the math. Enter your real numbers to see if you fit the 'Comfortable Zone' or if we need to adjust your strategy.",
             9: "Affordability is a puzzle, not a wall. Sometimes, the key to unlocking a home isn't making more money—it's adjusting where your money goes. Select a trade-off to see how it impacts your buying power.",
             10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
             12: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
@@ -1847,11 +1847,12 @@
 
         // P8: Affordability Calc (Redesigned for Mentor Tone + Extreme Case)
         window.calculateAffordability = function() {
-            const inc = parseFloat(document.getElementById('calc-income').value) || 0;
-            const debt = parseFloat(document.getElementById('calc-debt').value) || 0;
-            const mort = parseFloat(document.getElementById('calc-mortgage').value) || 0;
+            // Force number parsing to prevent string concatenation errors
+            const inc = Number(document.getElementById('calc-income').value) || 0;
+            const debt = Number(document.getElementById('calc-debt').value) || 0;
+            const mort = Number(document.getElementById('calc-mortgage').value) || 0;
             
-            // Simple validation visualization if empty
+            // Validation
             if(inc === 0) {
                 document.getElementById('calc-income').classList.add('border-red-300');
                 return;
@@ -1859,7 +1860,11 @@
                 document.getElementById('calc-income').classList.remove('border-red-300');
             }
 
+            // Calculation Logic
+            // Front-End Ratio (Housing) = Mortgage / Income
             const housingRatio = ((mort / inc) * 100).toFixed(1);
+            
+            // Back-End Ratio (Total) = (Mortgage + Monthly Debt) / Income
             const totalRatio = (((mort + debt) / inc) * 100).toFixed(1);
             
             const feedbackEl = document.getElementById('affordability-feedback');
@@ -1873,38 +1878,40 @@
             // Reset logic
             currentAffordabilityZone = '';
 
-            if (housingRatio >= 60 || totalRatio >= 60) {
-                // Extreme Zone (New)
+            // ZONE 1: EXTREME (Typically > 50% DTI is a hard stop for most lenders)
+            if (totalRatio >= 50) {
                 currentAffordabilityZone = 'extreme';
-                message = "Right now, your payments are higher than your income. Lenders won’t approve at this level, but this doesn’t mean homeownership is out of reach. The next step is adjusting debt or income before applying.";
-                colorClasses = "bg-blue-50 border-blue-100 text-blue-900"; // Gentle Sky Blue
-                strategies = ["Reduce Debt", "Increase Income", "Budget Coaching", "Explore Loan Options"];
+                // REFRAMED: Mentor Tone (Proactive & Strategic)
+                message = "Immediate Focus: This DTI ratio (Total Debt) is outside the lending limit for automated approval. <strong>This is our roadmap, not a wall.</strong> We're shifting immediately into <strong>Debt Strategy Mode.</strong> Your first action is clear: Let's aggressively tackle your monthly debt payments to bring that DTI under 45%—a number we can work with.";
+                // VISUAL: Professional Slate (Business Logic) instead of Red (Error)
+                colorClasses = "bg-slate-50 border-slate-300 text-slate-700";
+                strategies = ["Reduce Debt", "Increase Income", "Budget Coaching"];
             
+            // ZONE 2: COMFORTABLE (The Golden Rule: 28/36)
             } else if (housingRatio <= 28 && totalRatio <= 36) {
-                // Comfortable Zone (Sage Green)
                 currentAffordabilityZone = 'comfortable';
-                message = "Your numbers line up well with what lenders usually look for. You’re in a comfortable spot.";
+                message = "Excellent. You are within the 'Golden Rule' (28/36). This is the Sweet Spot for best rates and stress-free approval.";
                 colorClasses = "bg-emerald-50 border-emerald-100 text-emerald-900";
                 strategies = ["Lock Rate", "Pre-Approval"];
             
-            } else if (housingRatio <= 31 && totalRatio <= 43) {
-                // Mindful Zone (Warm Sand/Beige)
+            // ZONE 3: MANAGEABLE / MODERN (Up to 31/43 or slightly higher - common for FHA)
+            } else if (housingRatio <= 35 && totalRatio <= 45) {
                 currentAffordabilityZone = 'mindful';
-                message = "Your numbers are a bit higher than the typical range, but many buyers succeed here. It just means being mindful of trade-offs.";
-                colorClasses = "bg-orange-50 border-orange-100 text-orange-900";
-                strategies = ["Explore Loan Options", "Revisit Debt"];
+                message = "You are slightly above the conservative 'Golden Rule,' but still very approvable. This is common for FHA loans or competitive markets.";
+                colorClasses = "bg-blue-50 border-blue-100 text-blue-900";
+                strategies = ["Explore Loan Options", "Negotiate Concessions", "Revisit Debt"];
             
+            // ZONE 4: STRETCH (High but possible with strong compensating factors)
             } else {
-                // Extra Planning Zone (Sky Blue / Slate)
                 currentAffordabilityZone = 'planning';
-                message = "Your numbers are higher than lenders usually prefer. Buyers do move forward in this situation — it just calls for extra planning and support.";
-                colorClasses = "bg-sky-50 border-sky-100 text-sky-900"; 
-                strategies = ["Negotiate Concessions", "Consider Co-Borrowing", "Explore Loan Options"];
+                message = "You are in the 'Stretch Zone.' Lenders might approve this with high credit scores, but it leaves little room for error.";
+                colorClasses = "bg-orange-50 border-orange-100 text-orange-900"; 
+                strategies = ["Consider Co-Borrowing", "Budget Coaching", "Explore Loan Options"];
             }
 
             // Strategy Buttons Builder
             let strategyHTML = strategies.map(s => 
-                `<button onclick="showStrategy('${s}')" class="strategy-pill px-3 py-1 bg-white border border-black/10 rounded-full text-[10px] font-bold uppercase tracking-wide text-gray-600 hover:text-allgood-primary hover:border-allgood-primary">${s}</button>`
+                `<button onclick="showStrategy('${s}')" class="strategy-pill px-3 py-1 bg-white border border-black/10 rounded-full text-[10px] font-bold uppercase tracking-wide text-gray-600 hover:text-allgood-primary hover:border-allgood-primary transition-colors shadow-sm">${s}</button>`
             ).join('');
 
             // Apply Classes & Content
@@ -1913,13 +1920,13 @@
             feedbackEl.innerHTML = `
                 <div class="mb-3">
                     <p class="font-heading font-bold text-sm mb-2 leading-relaxed">${message}</p>
-                    <div class="flex items-center gap-4 text-xs opacity-80 font-mono mt-2">
-                        <span class="bg-white/50 px-2 py-1 rounded">Housing: <strong>${housingRatio}%</strong></span>
-                        <span class="bg-white/50 px-2 py-1 rounded">Total: <strong>${totalRatio}%</strong></span>
+                    <div class="flex items-center gap-4 text-xs opacity-80 font-mono mt-3">
+                        <span class="bg-white/60 px-2 py-1 rounded border border-black/5 shadow-sm">Housing: <strong>${housingRatio}%</strong> <span class="text-[10px] opacity-60">(Target: <28%)</span></span>
+                        <span class="bg-white/60 px-2 py-1 rounded border border-black/5 shadow-sm">Total: <strong>${totalRatio}%</strong> <span class="text-[10px] opacity-60">(Target: <36%)</span></span>
                     </div>
                 </div>
                 <div class="border-t border-black/5 pt-3 mt-3">
-                    <p class="text-[10px] uppercase font-bold opacity-60 mb-2">Suggested Strategies:</p>
+                    <p class="text-[10px] uppercase font-bold opacity-60 mb-2">Pragmatic Moves:</p>
                     <div class="flex flex-wrap gap-2">
                         ${strategyHTML}
                     </div>
