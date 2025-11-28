@@ -45,6 +45,8 @@
             background-attachment: fixed;
             min-height: 100vh;
             position: relative;
+            margin: 0;
+            padding: 0;
         }
 
         /* Apply Georgia font to headings */
@@ -219,84 +221,86 @@
         }
         .tablet-frame.focus-mode .footer-content { padding-bottom: max(env(safe-area-inset-bottom, 0), 20px); }
         
-        /* --- MOBILE FLEX SANDWICH LAYOUT (The Solution) --- */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS iOS FIX) --- */
         @media (max-width: 768px) {
-            /* 1. LOCK THE VIEWPORT (The Container) */
             html, body {
-                height: 100dvh !important; /* Dynamic viewport height */
-                width: 100% !important;
-                overflow: hidden !important; /* No scroll on body */
-                position: fixed !important; /* Prevent rubber-banding */
-                margin: 0 !important;
+                width: 100%;
+                height: 100%; /* Fallback */
+                margin: 0;
                 padding: 0 !important;
-                inset: 0 !important;
-                overscroll-behavior: none;
+                overflow: hidden !important; /* Stop the document itself from scrolling */
+                position: fixed; /* Physically pin the document */
+                inset: 0;
+                overscroll-behavior: none; /* Stop rubber-banding */
             }
-
-            main {
-                padding: 0 !important;
+            
+            main { 
+                /* The MAIN container now acts as the viewport */
+                width: 100vw; 
+                height: 100dvh; /* Dynamic viewport height */
+                /* Fallback for browsers not supporting dvh */
+                height: -webkit-fill-available; 
+                position: fixed;
+                inset: 0;
+                padding: 0 !important; 
+                display: flex;
+                flex-direction: column;
+                z-index: 0;
+            }
+            
+            .tablet-frame {
+                /* Strip away the tablet appearance, become a flex container */
+                position: relative !important; 
+                width: 100% !important; 
                 height: 100% !important;
-                width: 100% !important;
+                max-width: none !important; max-height: none !important;
+                min-height: 0 !important; aspect-ratio: auto !important;
+                margin: 0 !important; padding: 0 !important;
+                border: none !important; border-radius: 0 !important;
+                background-image: none !important; box-shadow: none !important;
                 display: flex;
                 flex-direction: column;
             }
-
-            /* 2. RESET FRAME TO BE FLEX WRAPPER */
-            .tablet-frame {
-                position: static !important; /* Let it fill main */
-                inset: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                max-width: none !important;
-                max-height: none !important;
-                min-height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-                border-radius: 0 !important;
-                background-image: none !important;
-                box-shadow: none !important;
-                aspect-ratio: auto !important;
-            }
+            
             .tablet-frame::before { display: none; }
-
+            
             .screen-container { 
+                flex: 1; /* Grow to fill all available vertical space */
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
                 border-radius: 0 !important; 
                 box-shadow: none !important; 
-                height: 100% !important;
-                width: 100% !important;
-                display: flex !important;
-                flex-direction: column !important;
+                overflow: hidden; /* Don't let this container scroll */
             }
-
-            /* 3. THE BUNS (Header & Footer) */
-            .navbar-content, 
-            .footer-content {
-                flex: 0 0 auto !important; /* Rigid height, never shrink */
+            
+            /* THE BUNS: Fixed Height Items */
+            .navbar-content {
+                flex: 0 0 auto; /* Do not grow or shrink */
                 width: 100%;
                 z-index: 50;
+                padding-top: max(env(safe-area-inset-top), 5px);
             }
-
-            /* Handle iPhone Notch/Home Bar */
-            .navbar-content {
-                padding-top: env(safe-area-inset-top, 0px);
-                height: auto; 
-                min-height: 60px; /* Ensure clickability */
-            }
-            .footer-content {
-                padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px);
-                height: auto;
-                min-height: 60px;
-            }
-
-            /* 4. THE MEAT (Scrollable Content) */
-            .page {
-                flex: 1 1 auto !important; /* Grow/Shrink to fill space */
-                height: auto !important; /* Remove calculated height */
-                overflow-y: auto !important; /* Internal scrolling */
-                -webkit-overflow-scrolling: touch; /* Smooth iOS scroll */
+            
+            .footer-content { 
+                flex: 0 0 auto; /* Do not grow or shrink */
                 width: 100%;
-                padding-bottom: 80px; /* Extra padding for bottom comfort */
+                z-index: 100; /* Highest Z-index to sit on top */
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
+                position: relative; /* Ensure stacking context */
+            }
+
+            /* THE MEAT: Scrolling Content */
+            .page {
+                flex: 1 1 auto; /* Grow to occupy remaining space */
+                overflow-y: auto; /* Internal vertical scrollbar */
+                -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+                height: 100%; 
+                min-height: 0; /* Crucial for nested flex scrolling */
+                padding-bottom: 40px; /* Extra space for scroll clearance */
             }
         }
 
