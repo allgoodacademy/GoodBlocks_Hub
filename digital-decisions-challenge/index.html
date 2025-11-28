@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <!-- UPDATED TITLE -->
     <title>Digital Decisions Challenge GoodBlock</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,6 +45,8 @@
             background-attachment: fixed;
             min-height: 100vh;
             position: relative;
+            margin: 0;
+            padding: 0;
         }
 
         /* Apply Georgia font to headings */
@@ -184,25 +186,27 @@
         .blueprint-mode .choice-least-effective { background-color: #991b1b !important; border-color: #F87171 !important; color: #FEE2E2 !important; opacity: 0.8; }
         .blueprint-mode .feedback-least { border-left-color: #F87171 !important; }
 
-        /* FIX 1b: Layout structure to ensure visibility of Header and Footer */
+        /* HEADER AND FOOTER BASE STYLES */
         .navbar-content { flex: 0 0 60px; z-index: 20; }
         .footer-content { flex: 0 0 60px; z-index: 20; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        
+        /* PAGE CONTENT BASE STYLES */
         .page { 
-            flex: 1 1 auto; /* Allows page to grow and shrink */
+            /* Default desktop behavior: flex grow, but uses calculated height to fit within container */
+            flex: 1 1 auto; 
             overflow-y: auto; 
             padding: 20px; 
             position: relative; 
             display: none; 
             width: 100%; 
-            /* FIX 3: Ensure page content correctly calculates height */
-            height: calc(100vh - 120px); /* 100% of container height minus header (60px) and footer (60px) */
+            height: calc(100vh - 120px); /* Fallback for desktop/iframe mode */
         }
         .page.active { display: block; }
         
-        /* FIX 2: Fullscreen Mode Overrides */
+        /* FULLSCREEN MODE (Desktop) */
         .tablet-frame.focus-mode { 
             position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; 
-            width: 100% !important; height: 100vh !important; /* Use 100vh for reliable full screen height */
+            width: 100% !important; height: 100vh !important; 
             aspect-ratio: auto !important; max-width: none !important; max-height: none !important; 
             min-height: 0 !important;
             margin: 0 !important; padding: 0 !important; 
@@ -212,30 +216,91 @@
         }
         .tablet-frame.focus-mode::before { display: none; }
         .tablet-frame.focus-mode .screen-container { border-radius: 0; box-shadow: none; height: 100%; }
-        /* Reset page height calc in focus mode */
          .tablet-frame.focus-mode .page {
             height: calc(100vh - 120px);
         }
-        /* Mobile safe area fix for footer in focus mode */
         .tablet-frame.focus-mode .footer-content { padding-bottom: max(env(safe-area-inset-bottom, 0), 20px); }
         
-        /* Mobile responsiveness inherited from original CSS, ensuring full screen on small devices */
+        /* --- MOBILE LAYOUT LOCK (RIGOROUS iOS FIX) --- */
         @media (max-width: 768px) {
-             body { padding: 0 !important; overflow: hidden; }
-             main { padding: 0 !important; height: 100vh; }
-             .tablet-frame {
-                position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
-                max-width: none !important; max-height: none !important; min-height: 0 !important;
-                aspect-ratio: auto !important; margin: 0 !important; padding: 0 !important;
-                border: none !important; border-radius: 0 !important; background-image: none !important;
-                box-shadow: none !important;
+            html, body {
+                width: 100%;
+                height: 100%; /* Fallback */
+                margin: 0;
+                padding: 0 !important;
+                overflow: hidden !important; /* Stop the document itself from scrolling */
+                position: fixed; /* Physically pin the document */
+                inset: 0;
+                overscroll-behavior: none; /* Stop rubber-banding */
             }
+            
+            main { 
+                /* The MAIN container now acts as the viewport */
+                width: 100vw; 
+                height: 100dvh; /* Dynamic viewport height */
+                /* Fallback for browsers not supporting dvh */
+                height: -webkit-fill-available; 
+                position: fixed;
+                inset: 0;
+                padding: 0 !important; 
+                display: flex;
+                flex-direction: column;
+                z-index: 0;
+            }
+            
+            .tablet-frame {
+                /* Strip away the tablet appearance, become a flex container */
+                position: relative !important; 
+                width: 100% !important; 
+                height: 100% !important;
+                max-width: none !important; max-height: none !important;
+                min-height: 0 !important; aspect-ratio: auto !important;
+                margin: 0 !important; padding: 0 !important;
+                border: none !important; border-radius: 0 !important;
+                background-image: none !important; box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
+            }
+            
             .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
-            .footer-content { padding-bottom: max(env(safe-area-inset-bottom, 0), 20px); height: auto; }
-            /* Adjust page height for 100vh - header/footer height on mobile */
-             .page {
-                height: calc(100vh - 120px); /* 100vh minus explicit header/footer size */
+            
+            .screen-container { 
+                flex: 1; /* Grow to fill all available vertical space */
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                border-radius: 0 !important; 
+                box-shadow: none !important; 
+                overflow: hidden; /* Don't let this container scroll */
+            }
+            
+            /* THE BUNS: Fixed Height Items */
+            .navbar-content {
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
+                z-index: 50;
+                padding-top: max(env(safe-area-inset-top), 5px);
+            }
+            
+            .footer-content { 
+                flex: 0 0 auto; /* Do not grow or shrink */
+                width: 100%;
+                z-index: 100; /* Highest Z-index to sit on top */
+                padding-bottom: max(env(safe-area-inset-bottom), 15px); 
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
+                position: relative; /* Ensure stacking context */
+            }
+
+            /* THE MEAT: Scrolling Content */
+            .page {
+                flex: 1 1 auto; /* Grow to occupy remaining space */
+                overflow-y: auto; /* Internal vertical scrollbar */
+                -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+                height: 100%; 
+                min-height: 0; /* Crucial for nested flex scrolling */
+                padding-bottom: 40px; /* Extra space for scroll clearance */
             }
         }
 
@@ -267,7 +332,7 @@
 
                 <!-- 2. Header (Navigation & Controls) -->
                 <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
-                    <div class="w-full px-4 flex items-center justify-between h-full">
+                    <div class="w-full px-4 flex items-center justify-between h-full pt-[env(safe-area-inset-top)]">
                         <div class="flex items-center overflow-hidden">
                             <!-- UPDATED HEADER TEXT -->
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Digital Decisions Challenge</div>
@@ -1419,7 +1484,7 @@
                         <!-- Stylized Footprint Path (Burnt Orange) -->
                         <!-- This path simulates the footprint icon -->
                         <g transform="scale(5) translate(-12, -15)" fill="#D34716">
-                             <path d="M9.58 14.7c-.55-1.55-1.57-2.72-2.44-3.13-.86-.4-1.91.32-2.55 1.75-.64 1.42-.71 2.85.16 3.26.87.4 2.44-.33 2.99 1.22.56 1.56-2.28 4.48-1.96 5.89.22.95 2.35 1.2 4.16-.61 1.46-1.46 1.8-4.5 1.3-6.41-.21-.82-.95-1.34-1.66-1.97zM5.07 10.18c-.28-.57.32-1.09.95-1.39.64-.3 1.24-.18 1.52.39.28.56-.32 1.09-.95 1.39-.63.3-1.24.18-1.52-.39zM7.34 8.88c-.28-.56.32-1.09.95-1.39.63-.3 1.23-.18 1.52.39.28.56-.32 1.08-.95 1.39-.64.3-1.24.18-1.52-.39zM10.18 8.36c-.28-.56.32-1.09.95-1.39.63-.3 1.23-.18 1.52.39.28.57-.32 1.09-.95 1.39-.63.3-1.23.18-1.52-.39zM12.84 8.92c-.28-.57.32-1.09.95-1.39.63-.3 1.24-.18 1.52.39.28.57-.32 1.09-.95 1.39-.63.3-1.24.18-1.52-.39z"/>
+                             <path d="M9.58 14.7c-.55-1.55-1.57-2.72-2.44-3.13-.86-.4-1.91.32-2.55 1.75-.64 1.42-.71 2.85.16 3.26.87.4 2.44-.33 2.99 1.22.56 1.56-2.28 4.48-1.96 5.89.22.95 2.35 1.2 4.16-.61 1.46-1.46 1.8-4.5 1.3-6.41-.21-.82-.95-1.34-1.66-1.97zM5.07 10.18c-.28-.57.32-1.09.95-1.39.63-.3 1.24-.18 1.52.39.28.56-.32 1.09-.95 1.39-.63.3-1.24.18-1.52-.39zM7.34 8.88c-.28-.56.32-1.09.95-1.39.63-.3 1.23-.18 1.52.39.28.56-.32 1.08-.95 1.39-.64.3-1.24.18-1.52-.39zM10.18 8.36c-.28-.56.32-1.09.95-1.39.63-.3 1.23-.18 1.52.39.28.57-.32 1.09-.95 1.39-.63.3-1.23.18-1.52-.39zM12.84 8.92c-.28-.57.32-1.09.95-1.39.63-.3 1.24-.18 1.52.39.28.57-.32 1.09-.95 1.39-.63.3-1.24.18-1.52-.39z"/>
                         </g>
 
                         <!-- Status Nodes (Check & Lock) -->
