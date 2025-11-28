@@ -1,0 +1,28 @@
+{
+  "palette": [
+    {
+      "id": "chime",
+      "file": "https://yourbucket.s3.amazonaws.com/sounds/chime.mp3",
+      "mood": "positive",
+      "description": "Bright notification sound for success or completion."
+    },
+    {
+      "id": "tick",
+      "file": "https://yourbucket.s3.amazonaws.com/sounds/tick.mp3",
+      "mood": "neutral",
+      "description": "Soft tick sound for progress steps or subtle feedback."
+    },
+    {
+      "id": "alert",
+      "file": "https://yourbucket.s3.amazonaws.com/sounds/alert.mp3",
+      "mood": "urgent",
+      "description": "Attention‑grabbing tone for warnings or important actions."
+    },
+    {
+      "id": "ambient",
+      "file": "https://yourbucket.s3.amazonaws.com/sounds/ambient.mp3",
+      "mood": "calm",
+      "description": "Background loop for immersive, relaxed atmosphere."
+    }
+  ]
+}
