@@ -290,16 +290,26 @@
         .drop-zone { transition: all 0.3s; }
         .drop-zone.drag-over { background-color: #e0f2fe; border-color: #357889; transform: scale(1.02); }
 
-        /* --- PERMANENT NARRATOR STRIP --- */
+        /* --- PERMANENT NARRATOR STRIP (GLASS UPDATE) --- */
         #narrator-strip {
-            background-color: #F7F7F7;
-            border-bottom: 1px solid #e5e7eb;
+            /* Glass Effect */
+            background: rgba(255, 255, 255, 0.9); /* High opacity white */
+            backdrop-filter: saturate(120%) blur(10px); /* The "Frost" */
+            -webkit-backdrop-filter: saturate(120%) blur(10px); /* Safari support */
+            
+            /* Depth & Separation */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.6); /* Subtle reflection */
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.02), /* Tiny structural shadow */
+                0 10px 15px -3px rgba(211, 71, 22, 0.08); /* Allgood Orange glow */
+            
+            /* Layout adjustments */
             padding: 12px 16px;
             display: none; /* Hidden by default */
             align-items: center; /* Vertically center */
             gap: 16px;
             width: 100%;
-            z-index: 10;
+            z-index: 40;
             transition: all 0.3s ease;
         }
 
@@ -308,15 +318,21 @@
             height: 40px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            /* AVATAR UPGRADE */
+            border: 2px solid white; /* Inner white definition */
+            box-shadow: 
+                0 0 0 2px #D34716, /* Brand Primary Ring */
+                0 4px 6px rgba(0,0,0,0.1); /* Lift off the glass */
             flex-shrink: 0;
         }
 
         #narrator-message {
             font-family: Verdana, sans-serif;
             font-size: 0.85rem;
-            color: #4C4C4C;
+            /* TEXT UPGRADE */
+            color: #1f2937; /* Darker, richer gray for contrast */
+            font-weight: 500; /* Slightly bolder */
+            text-shadow: 0 1px 0 rgba(255,255,255,0.5); /* Engraved look */
             font-style: italic;
             line-height: 1.4;
             flex-grow: 1;
