@@ -70,6 +70,16 @@
             will-change: transform, text-shadow;
         }
 
+        /* Narrative Pop Animation */
+        @keyframes pop-in {
+            0% { transform: scale(0.98); opacity: 0.9; }
+            50% { transform: scale(1.01); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .narrator-speaking {
+            animation: pop-in 0.3s ease-out forwards;
+        }
+
         /* --- TABLET FRAME (FIXED CHASSIS MANDATE) --- */
         .tablet-frame {
             height: 80vh;
@@ -262,7 +272,15 @@
         }
         .blueprint-mode #narrator-message { color: #94a3b8 !important; }
         .blueprint-mode #narrator-avatar { border-color: #334155 !important; }
-        
+
+        /* --- STRATEGY CARDS (New) --- */
+        .strategy-pill {
+            transition: all 0.2s ease;
+        }
+        .strategy-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -273,7 +291,7 @@
 
                 <!-- 
                     ==========================================================================
-                    FIXED CHASSIS START: Startup Screen (Restored)
+                    FIXED CHASSIS START: Startup Screen
                     ========================================================================== 
                 -->
                 <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-allgood-accent">
@@ -419,7 +437,7 @@
                     <p class="text-sm text-gray-600 mb-6">Success depends on three core strengths. Tap to reveal your mission parameters.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <!-- Card 1 -->
-                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.click()">
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.play('click')">
                             <div class="flip-card-inner">
                                 <div class="flip-card-front bg-blue-50 border-blue-200">
                                     <i data-lucide="anchor" class="w-8 h-8 text-allgood-primary mb-2"></i>
@@ -432,7 +450,7 @@
                             </div>
                         </div>
                         <!-- Card 2 -->
-                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.click()">
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.play('click')">
                             <div class="flip-card-inner">
                                 <div class="flip-card-front bg-blue-50 border-blue-200">
                                     <i data-lucide="credit-card" class="w-8 h-8 text-allgood-secondary mb-2"></i>
@@ -445,7 +463,7 @@
                             </div>
                         </div>
                         <!-- Card 3 -->
-                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.click()">
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.play('click')">
                             <div class="flip-card-inner">
                                 <div class="flip-card-front bg-blue-50 border-blue-200">
                                     <i data-lucide="dollar-sign" class="w-8 h-8 text-green-600 mb-2"></i>
@@ -526,22 +544,27 @@
                 <div class="page" id="page-8">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Can You Afford It?</h2></section>
                     <div class="bg-white p-4 rounded shadow border max-w-md mx-auto">
-                        <label class="block text-xs font-bold mb-1">Monthly Gross Income ($)</label>
-                        <input type="number" id="calc-income" class="w-full border p-2 rounded mb-3" placeholder="5000">
-                        <label class="block text-xs font-bold mb-1">Monthly Debt Payments ($)</label>
-                        <input type="number" id="calc-debt" class="w-full border p-2 rounded mb-3" placeholder="500">
-                        <label class="block text-xs font-bold mb-1">Est. Mortgage Payment ($)</label>
-                        <input type="number" id="calc-mortgage" class="w-full border p-2 rounded mb-4" placeholder="1500">
-                        <button onclick="calculateAffordability()" class="w-full bg-allgood-secondary text-white font-bold py-2 rounded">Check Qualification</button>
+                        <label class="block text-xs font-bold mb-1 text-gray-600">Monthly Gross Income ($)</label>
+                        <input type="number" id="calc-income" class="w-full border p-2 rounded mb-3 font-body text-sm focus:border-allgood-primary outline-none transition-colors" placeholder="e.g. 5000">
+                        
+                        <label class="block text-xs font-bold mb-1 text-gray-600">Monthly Debt Payments ($)</label>
+                        <input type="number" id="calc-debt" class="w-full border p-2 rounded mb-3 font-body text-sm focus:border-allgood-primary outline-none transition-colors" placeholder="e.g. 500">
+                        
+                        <label class="block text-xs font-bold mb-1 text-gray-600">Est. Mortgage Payment ($)</label>
+                        <input type="number" id="calc-mortgage" class="w-full border p-2 rounded mb-4 font-body text-sm focus:border-allgood-primary outline-none transition-colors" placeholder="e.g. 1500">
+                        
+                        <button onclick="calculateAffordability()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow-sm transition-all transform active:scale-[0.98]">Check Qualification</button>
+                        
+                        <!-- Feedback Area -->
+                        <div id="affordability-feedback" class="hidden"></div>
                     </div>
-                    <div id="affordability-result" class="mt-4 hidden p-3 rounded text-center text-sm font-bold border"></div>
                 </div>
 
                 <!-- Page 9: Tell (Down Payment vs PMI) -->
                 <div class="page" id="page-9">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Down Payment Myth</h2></section>
                     <div class="grid grid-cols-1 gap-4">
-                        <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); sfx.click()">
+                        <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); sfx.play('click')">
                             <div class="flip-card-inner">
                                 <div class="flip-card-front bg-gray-50 border"><h3 class="font-bold text-allgood-dark">Myth: "I need 20% down."</h3></div>
                                 <div class="flip-card-back bg-allgood-dark text-white p-4"><p class="text-xs"><strong>Fact:</strong> You can buy with as little as 3-3.5%. But 20% avoids PMI (Private Mortgage Insurance).</p></div>
@@ -557,13 +580,14 @@
                     
                     <div class="flex justify-between gap-2 mb-6">
                         <div id="wallet-items" class="w-1/2 space-y-2">
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab" draggable="true" ondragstart="drag(event)" id="drag-dp">Down Payment</div>
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab" draggable="true" ondragstart="drag(event)" id="drag-netflix">Netflix Sub</div>
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab" draggable="true" ondragstart="drag(event)" id="drag-closing">Closing Costs</div>
+                            <!-- Removed inline handlers, added distinct IDs for logic -->
+                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-dp" draggable="true">Down Payment</div>
+                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-netflix" draggable="true">Netflix Sub</div>
+                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-closing" draggable="true">Closing Costs</div>
                         </div>
-                        <div id="wallet-zone" class="w-1/2 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center p-2 drop-zone" ondrop="dropWallet(event)" ondragover="allowDrop(event)">
-                            <i data-lucide="wallet" class="w-8 h-8 text-gray-400 mb-2"></i>
-                            <span class="text-xs text-gray-400">Drop One-Time Costs Here</span>
+                        <div id="wallet-zone" class="w-1/2 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center p-2 drop-zone transition-all duration-200">
+                            <i data-lucide="wallet" class="w-8 h-8 text-gray-400 mb-2 pointer-events-none"></i>
+                            <span class="text-xs text-gray-400 pointer-events-none">Drop One-Time Costs Here</span>
                         </div>
                     </div>
                     <div id="wallet-feedback" class="text-center text-sm font-bold hidden"></div>
@@ -664,7 +688,7 @@
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">3+ Bedrooms</div>
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Granite Counters</div>
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Safe Neighborhood</div>
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Smart Home Tech</div>
+                        <button onclick="toggleTradeP20(this)" class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white">Smart Home Tech</button>
                     </div>
                     <div id="tradeoff-feedback-p20" class="mt-4 text-center text-sm font-bold text-allgood-primary">Selected: 0/3</div>
                 </div>
@@ -755,9 +779,9 @@
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Final Walkthrough</h2></section>
                     <p class="text-sm text-gray-600 mb-4">Click to verify.</p>
                     <div class="space-y-2">
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.tick()" class="w-full p-3 border rounded text-left">House is empty.</button>
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.tick()" class="w-full p-3 border rounded text-left">No new damage.</button>
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.tick()" class="w-full p-3 border rounded text-left">Repairs completed.</button>
+                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">House is empty.</button>
+                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">No new damage.</button>
+                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">Repairs completed.</button>
                     </div>
                 </div>
 
@@ -856,34 +880,36 @@
         ];
 
         // Narrator Text Map
+        // Shifted keys forward by 1 to align with correct pages. Page 1 (Cover) has a new welcome.
         const narratorText = {
-            1: "Every journey starts with a foundation. Motivation, credit, and funding are the three pillars that carry you through the stress of buying a home. Flip each card to see what they mean — this is your briefing before we move forward.",
-            3: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
-            4: "Now it’s your turn to apply what you’ve learned. Each decision here mirrors a real-world choice buyers face. Think carefully — the way you answer shows whether your foundation is solid.",
-            6: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
-            7: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
-            8: "Down payments change your loan cost. Flip cards to see how 20% down saves you from PMI.",
-            9: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
-            11: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
-            13: "Conventional loans are standard. Explore pros and cons to see if it fits.",
-            14: "FHA loans help lower credit scores but have trade-offs. Flip to compare.",
-            15: "Prove stability. Drag the right documents to the checklist for pre-approval.",
-            16: "Practice run: Pass or fail depends on the numbers. Pre-approval is serious.",
-            18: "Define must-haves vs nice-to-haves. Clear criteria save time and frustration.",
-            19: "Rank needs vs wants to help you and your agent focus on what matters.",
-            20: "Use filters to keep your online search realistic and efficient.",
-            21: "Not all property visits are the same. Flip these cards to see the difference between open houses and private showings.",
-            22: "Looks can be deceiving. Spot the hidden red flags in this property photo — this skill protects you from costly mistakes.",
-            23: "Title insurance and surveys protect you from legal headaches. Read why they’re non-negotiable.",
-            24: "Negotiation is about terms, not just price. See how offers play out.",
-            25: "Emotion can win. Flip to see how a personal letter helps your offer.",
-            26: "Earnest money shows intent. Drag the deposit to see its role in costs.",
-            27: "Negotiate repairs or value. This is where deals are won or lost.",
-            28: "Appraisal lower than offer? Decide: pay gap, renegotiate, or walk.",
-            29: "One last check. Use the checklist to ensure nothing is damaged.",
-            30: "Closing is risky. Learn to review docs and avoid wire fraud.",
-            31: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
-            32: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
+            1: "Welcome to the Countdown to Keys. This 100-day challenge is designed to take you from 'thinking about it' to 'keys in hand'. Let's build your foundation first.",
+            2: "Every journey starts with a foundation. Motivation, credit, and funding are the three pillars that carry you through the stress of buying a home. Flip each card to see what they mean — this is your briefing before we move forward.",
+            4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
+            5: "Now it’s your turn to apply what you’ve learned. Each decision here mirrors a real-world choice buyers face. Think carefully — the way you answer shows whether your foundation is solid.",
+            7: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
+            8: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
+            9: "Down payments change your loan cost. Flip cards to see how 20% down saves you from PMI.",
+            10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
+            12: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
+            14: "Conventional loans are standard. Explore pros and cons to see if it fits.",
+            15: "FHA loans help lower credit scores but have trade-offs. Flip to compare.",
+            16: "Prove stability. Drag the right documents to the checklist for pre-approval.",
+            17: "Practice run: Pass or fail depends on the numbers. Pre-approval is serious.",
+            19: "Define must-haves vs nice-to-haves. Clear criteria save time and frustration.",
+            20: "Rank needs vs wants to help you and your agent focus on what matters.",
+            21: "Use filters to keep your online search realistic and efficient.",
+            22: "Not all property visits are the same. Flip these cards to see the difference between open houses and private showings.",
+            23: "Looks can be deceiving. Spot the hidden red flags in this property photo — this skill protects you from costly mistakes.",
+            24: "Title insurance and surveys protect you from legal headaches. Read why they’re non-negotiable.",
+            25: "Negotiation is about terms, not just price. See how offers play out.",
+            26: "Emotion can win. Flip to see how a personal letter helps your offer.",
+            27: "Earnest money shows intent. Drag the deposit to see its role in costs.",
+            28: "Negotiate repairs or value. This is where deals are won or lost.",
+            29: "Appraisal lower than offer? Decide: pay gap, renegotiate, or walk.",
+            30: "One last check. Use the checklist to ensure nothing is damaged.",
+            31: "Closing is risky. Learn to review docs and avoid wire fraud.",
+            32: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
+            33: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
         };
 
         // State Management
@@ -896,62 +922,73 @@
         */
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        function initAudio() { if (!audioCtx) { audioCtx = new AudioContext(); } if (audioCtx.state === 'suspended') { audioCtx.resume(); } }
-        
-        function playTone(freq, type, duration, vol=0.1, attack=0.01, decay=0.001) {
-            try {
-                initAudio(); 
-                const now = audioCtx.currentTime; 
-                const osc = audioCtx.createOscillator(); 
-                const gain = audioCtx.createGain();
-                osc.type = type; 
-                osc.frequency.setValueAtTime(freq, now); 
-                osc.connect(gain); 
-                gain.connect(audioCtx.destination);
-            
-                gain.gain.setValueAtTime(0, now); 
-                gain.gain.linearRampToValueAtTime(vol, now + attack); 
-                gain.gain.exponentialRampToValueAtTime(decay, now + duration);
-            
-                osc.start(now); 
-                osc.stop(now + duration);
-            } catch(e) { console.warn("Audio error", e); }
+
+        function initAudio() {
+            // Check if audioCtx is defined and its state, attempt to resume if needed.
+            // This is crucial for environments where audio starts muted.
+            if (!audioCtx) {    
+                audioCtx = new AudioContext();    
+            }
+            if (audioCtx.state === 'suspended') {    
+                audioCtx.resume().catch(e => console.error("Audio resume failed:", e));
+            }
+        }
+
+        function playTone(freq, type, duration, vol = 0.1, attack = 0.01, decay = 0.001) {
+            initAudio();    
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(vol, now + attack);    
+            gain.gain.exponentialRampToValueAtTime(decay, now + duration);    
+            osc.start(now);
+            osc.stop(now + duration);
         }
 
         const sfx = {
-            powerOn: () => { 
-                try {
-                    initAudio(); 
-                    const now = audioCtx.currentTime; 
-                    const osc = audioCtx.createOscillator(); 
-                    const gain = audioCtx.createGain(); 
-                    osc.connect(gain); 
-                    gain.connect(audioCtx.destination); 
-                    osc.type = 'triangle'; 
-                    osc.frequency.setValueAtTime(110, now); 
-                    osc.frequency.exponentialRampToValueAtTime(220, now + 0.4); 
-                    gain.gain.setValueAtTime(0, now); 
-                    gain.gain.linearRampToValueAtTime(0.4, now + 0.1); 
-                    gain.gain.linearRampToValueAtTime(0, now + 0.4); 
-                    osc.start(now); 
-                    osc.stop(now + 0.4); 
-                } catch(e) { console.warn("Audio error", e); }
+            // Success/Completion/Startup Sound
+            powerOn: () => {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.4, now + 0.1);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
             },
-            powerOff: () => { try { initAudio(); playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001); } catch(e){} },
-            nav: () => { try { initAudio(); playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01); } catch(e){} },
-            tick: () => { try { initAudio(); playTone(1000, 'sine', 0.01, 0.01); } catch(e){} },
-            success: () => { 
-                try { 
-                    playTone(1200, 'sine', 0.1, 0.1, 0.01, 0.1); 
-                    setTimeout(()=>playTone(1800, 'sine', 0.2, 0.1, 0.01, 0.2), 50); 
-                } catch(e){} 
+            // Error/Fail/Reset Sound
+            powerOff: () => {    
+                initAudio();    
+                playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001);    
             },
-            error: () => { 
-                try { 
-                    playTone(100, 'sawtooth', 0.15, 0.2, 0.01, 0.05); 
-                } catch(e){} 
+            // Page Turn/Correct Nav/Confirmation Sound
+            nav: () => {    
+                initAudio();    
+                playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01);    
             },
-            click: () => { try { initAudio(); playTone(1000, 'sine', 0.01, 0.01); } catch(e){} }
+            // UI Click/Tap/Interaction Sound
+            tick: () => {    
+                initAudio();    
+                playTone(1000, 'sine', 0.01, 0.01);    
+            },
+            // Backward compatibility aliases for existing calls in HTML
+            play: (tag) => {
+                if (tag === 'powerup') sfx.powerOn();
+                else if (tag === 'powerdown' || tag === 'knock') sfx.powerOff();
+                else if (tag === 'thunk') sfx.nav(); // Correct answer maps to Nav sound
+                else if (tag === 'click') sfx.tick(); // Generic interaction maps to Tick
+            }
         };
 
         /* ==========================================================================
@@ -961,6 +998,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             buildExam();
+            initWalletDragDrop(); // Initialize drag and drop logic
 
             const pages = document.querySelectorAll('.page');
             const progressBar = document.getElementById('flex-progress-fill');
@@ -980,12 +1018,22 @@
                 if(pageIndicator) pageIndicator.textContent = `${idx + 1} / ${totalPages}`;
 
                 // Narrator Logic
-                const txt = narratorText[idx];
-                if (txt && narratorStrip && narratorTextEl) {
-                    narratorTextEl.textContent = txt;
-                    narratorStrip.style.display = 'flex';
-                } else if (narratorStrip) {
-                    narratorStrip.style.display = 'none';
+                // idx is 0-based. narratorText keys are 1-based.
+                const txt = narratorText[idx + 1]; 
+                
+                if (narratorStrip && narratorTextEl) {
+                    // Reset styling to neutral gray for new page load
+                    narratorStrip.style.backgroundColor = '#F7F7F7';
+                    narratorStrip.style.borderBottom = '1px solid #e5e7eb';
+                    narratorTextEl.style.color = '#4C4C4C';
+                    narratorStrip.classList.remove('narrator-speaking'); // Remove old animation class
+                    
+                    if (txt) {
+                        narratorTextEl.textContent = txt;
+                        narratorStrip.style.display = 'flex';
+                    } else {
+                        narratorStrip.style.display = 'none';
+                    }
                 }
 
                 if (idx === 32) generateBadge(); 
@@ -1003,7 +1051,7 @@
                         nextBtn.querySelector('span').textContent = 'Next';
                     }
                 }
-                sfx.nav();
+                sfx.nav(); // Use the Nav sound for page transitions
             };
 
             window.nextPage = () => showPage(currentPage + 1);
@@ -1099,7 +1147,7 @@
                         loginModal.classList.add('hidden-modal');
                         loginModal.classList.remove('visible-modal');
                     }
-                    sfx.nav();
+                    // sfx.tick(); // Removed duplicate, handled by showPage(0)
                     showPage(0);
                 });
             }
@@ -1108,7 +1156,7 @@
             const startupScreen = document.getElementById('startup-screen');
             if(startupScreen) {
                 startupScreen.addEventListener('click', () => {
-                    try { sfx.powerOn(); } catch(e) {}
+                    sfx.powerOn();
                     startupScreen.style.opacity = '0';
                     setTimeout(() => { 
                         startupScreen.style.display = 'none'; 
@@ -1124,6 +1172,7 @@
             
             if(menuToggle && menuModal) {
                 menuToggle.addEventListener('click', () => {
+                    sfx.tick(); // Added system click
                     menuModal.classList.remove('hidden-modal');
                     menuModal.classList.add('visible-modal');
                     const toc = document.getElementById('toc-list');
@@ -1142,6 +1191,7 @@
             
             if(closeMenu && menuModal) {
                 closeMenu.addEventListener('click', () => {
+                    sfx.tick(); // Added system click
                     menuModal.classList.add('hidden-modal');
                     menuModal.classList.remove('visible-modal');
                 });
@@ -1200,59 +1250,290 @@
                 fb.textContent = "Correct. Lenders need 2 years of history for variable income.";
                 fb.classList.add('bg-green-100', 'text-green-800');
                 el.classList.add('pass');
-                sfx.success();
+                sfx.nav(); // Correct
             } else {
                 fb.textContent = "Risky. Variable income usually requires a 2-year track record.";
                 fb.classList.add('bg-red-100', 'text-red-800');
                 el.classList.add('fail');
-                sfx.error();
+                sfx.powerOff(); // Incorrect
             }
         }
 
-        // P8: Affordability Calc
+        // Global state for context-aware strategies
+        let currentAffordabilityZone = '';
+
+        // P8: Affordability Calc (Redesigned for Mentor Tone + Extreme Case)
         window.calculateAffordability = function() {
             const inc = parseFloat(document.getElementById('calc-income').value) || 0;
             const debt = parseFloat(document.getElementById('calc-debt').value) || 0;
             const mort = parseFloat(document.getElementById('calc-mortgage').value) || 0;
             
-            if(inc === 0) return;
-
-            const housingRatio = (mort / inc) * 100;
-            const totalRatio = ((mort + debt) / inc) * 100;
-            
-            const res = document.getElementById('affordability-result');
-            res.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
-            
-            if (housingRatio <= 28 && totalRatio <= 36) {
-                res.textContent = `APPROVED. Housing: ${housingRatio.toFixed(1)}% | Total: ${totalRatio.toFixed(1)}%`;
-                res.classList.add('bg-green-100', 'text-green-800');
-                sfx.success();
+            // Simple validation visualization if empty
+            if(inc === 0) {
+                document.getElementById('calc-income').classList.add('border-red-300');
+                return;
             } else {
-                res.textContent = `DENIED. Ratios too high. Housing: ${housingRatio.toFixed(1)}% | Total: ${totalRatio.toFixed(1)}%`;
-                res.classList.add('bg-red-100', 'text-red-800');
-                sfx.error();
+                document.getElementById('calc-income').classList.remove('border-red-300');
             }
+
+            const housingRatio = ((mort / inc) * 100).toFixed(1);
+            const totalRatio = (((mort + debt) / inc) * 100).toFixed(1);
+            
+            const feedbackEl = document.getElementById('affordability-feedback');
+            feedbackEl.classList.remove('hidden');
+            
+            // Logic for Mentor Zones
+            let message = "";
+            let colorClasses = "";
+            let strategies = [];
+
+            // Reset logic
+            currentAffordabilityZone = '';
+
+            if (housingRatio >= 60 || totalRatio >= 60) {
+                // Extreme Zone (New)
+                currentAffordabilityZone = 'extreme';
+                message = "Right now, your payments are higher than your income. Lenders won’t approve at this level, but this doesn’t mean homeownership is out of reach. The next step is adjusting debt or income before applying.";
+                colorClasses = "bg-blue-50 border-blue-100 text-blue-900"; // Gentle Sky Blue
+                strategies = ["Reduce Debt", "Increase Income", "Budget Coaching", "Explore Loan Options"];
+            
+            } else if (housingRatio <= 28 && totalRatio <= 36) {
+                // Comfortable Zone (Sage Green)
+                currentAffordabilityZone = 'comfortable';
+                message = "Your numbers line up well with what lenders usually look for. You’re in a comfortable spot.";
+                colorClasses = "bg-emerald-50 border-emerald-100 text-emerald-900";
+                strategies = ["Lock Rate", "Pre-Approval"];
+            
+            } else if (housingRatio <= 31 && totalRatio <= 43) {
+                // Mindful Zone (Warm Sand/Beige)
+                currentAffordabilityZone = 'mindful';
+                message = "Your numbers are a bit higher than the typical range, but many buyers succeed here. It just means being mindful of trade-offs.";
+                colorClasses = "bg-orange-50 border-orange-100 text-orange-900";
+                strategies = ["Explore Loan Options", "Revisit Debt"];
+            
+            } else {
+                // Extra Planning Zone (Sky Blue / Slate)
+                currentAffordabilityZone = 'planning';
+                message = "Your numbers are higher than lenders usually prefer. Buyers do move forward in this situation — it just calls for extra planning and support.";
+                colorClasses = "bg-sky-50 border-sky-100 text-sky-900"; 
+                strategies = ["Negotiate Concessions", "Consider Co-Borrowing", "Explore Loan Options"];
+            }
+
+            // Strategy Buttons Builder
+            let strategyHTML = strategies.map(s => 
+                `<button onclick="showStrategy('${s}')" class="strategy-pill px-3 py-1 bg-white border border-black/10 rounded-full text-[10px] font-bold uppercase tracking-wide text-gray-600 hover:text-allgood-primary hover:border-allgood-primary">${s}</button>`
+            ).join('');
+
+            // Apply Classes & Content
+            feedbackEl.className = `mt-4 p-5 rounded-lg border ${colorClasses} transition-all duration-700 ease-out opacity-0 transform translate-y-2 shadow-sm`;
+            
+            feedbackEl.innerHTML = `
+                <div class="mb-3">
+                    <p class="font-heading font-bold text-sm mb-2 leading-relaxed">${message}</p>
+                    <div class="flex items-center gap-4 text-xs opacity-80 font-mono mt-2">
+                        <span class="bg-white/50 px-2 py-1 rounded">Housing: <strong>${housingRatio}%</strong></span>
+                        <span class="bg-white/50 px-2 py-1 rounded">Total: <strong>${totalRatio}%</strong></span>
+                    </div>
+                </div>
+                <div class="border-t border-black/5 pt-3 mt-3">
+                    <p class="text-[10px] uppercase font-bold opacity-60 mb-2">Suggested Strategies:</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${strategyHTML}
+                    </div>
+                </div>
+            `;
+
+            // Trigger Animation
+            requestAnimationFrame(() => {
+                feedbackEl.classList.remove('opacity-0', 'translate-y-2');
+            });
+            
+            sfx.nav(); 
         }
 
-        // P10: Drag & Drop Wallet
-        window.allowDrop = (ev) => { ev.preventDefault(); };
-        window.drag = (ev) => { ev.dataTransfer.setData("text", ev.target.id); };
-        window.dropWallet = (ev) => {
-            ev.preventDefault();
-            const data = ev.dataTransfer.getData("text");
-            if(data === 'drag-dp' || data === 'drag-closing') {
-                ev.target.appendChild(document.getElementById(data));
-                walletCount++;
-                sfx.tick();
-                if(walletCount >= 2) {
-                    document.getElementById('wallet-feedback').textContent = "Correct! Subscriptions don't belong in the closing fund.";
-                    document.getElementById('wallet-feedback').classList.remove('hidden');
-                    sfx.success();
+        // Strategy Detail Modal Logic (Enhanced with Extreme Cases)
+        window.showStrategy = function(type) {
+            let text = "";
+
+            const standardStrategies = {
+                "Negotiate Concessions": "Ask the seller to pay 2-3% of closing costs. This keeps cash in your pocket, increasing your liquid reserves.",
+                "Revisit Debt": "Paying down a small car loan or credit card balance can drastically lower your monthly debt obligation, boosting your DTI power.",
+                "Consider Co-Borrowing": "Adding a family member as a non-occupying co-borrower adds their income to yours, balancing out the debt ratio.",
+                "Lock Rate": "Your ratios are solid. Focus on locking in a rate before market fluctuations change your buying power.",
+                "Pre-Approval": "You are ready. Get a formal Verified Approval letter to make your offer as strong as cash."
+            };
+
+            const extremeStrategies = {
+                "Reduce Debt": "Explore ways to lower monthly debt payments, such as refinancing high-interest loans or consolidating debt.",
+                "Increase Income": "Consider co-borrowing or adding a co-signer to bring more qualifying income into the equation.",
+                "Budget Coaching": "Work with an agent or financial advisor to build a 6-12 month plan toward qualification."
+            };
+
+            // Handle Context-Aware "Explore Loan Options"
+            if (type === "Explore Loan Options") {
+                if (currentAffordabilityZone === 'extreme') {
+                    text = "Some loan types allow higher ratios, but not at this level. Revisit this option once debt is reduced or income is increased.";
+                } else {
+                    text = "FHA loans often allow higher debt ratios (up to 50%+) compared to Conventional loans. VA loans are also very flexible if eligible.";
                 }
             } else {
-                sfx.error();
+                // Lookup in standard or extreme maps
+                text = standardStrategies[type] || extremeStrategies[type] || "Talk to your loan officer for specific guidance on this strategy.";
             }
+            
+            // Reusing the modal logic
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-black/40 z-[9999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300";
+            modal.innerHTML = `
+                <div class="bg-white rounded-t-xl sm:rounded-xl shadow-2xl p-6 max-w-sm w-full animate-pop-in border-b-4 border-allgood-secondary">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-heading font-bold text-allgood-secondary">${type}</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed font-body">${text}</p>
+                    <button onclick="this.closest('.fixed').remove()" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded text-xs transition-colors">Got it</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            lucide.createIcons();
+            sfx.tick();
         };
+
+        // P10: Drag & Drop Wallet Logic (Unified Desktop & Mobile)
+        function initWalletDragDrop() {
+            const draggables = document.querySelectorAll('#wallet-items .draggable');
+            const dropZone = document.getElementById('wallet-zone');
+            const feedback = document.getElementById('wallet-feedback');
+            let currentWalletCount = 0;
+
+            if (!dropZone) return;
+
+            // --- Helper: Success Logic ---
+            function handleDropSuccess(elementId) {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+
+                // Move element visually to drop zone
+                dropZone.appendChild(element);
+                element.style.transform = 'none'; 
+                element.style.position = 'relative';
+                element.style.top = '0';
+                element.style.left = '0';
+                element.classList.add('bg-green-50', 'border-green-200'); // Visual cue it's accepted
+
+                if (elementId === 'drag-dp' || elementId === 'drag-closing') {
+                    currentWalletCount++;
+                    sfx.tick(); // Feedback for drop
+                    if (currentWalletCount >= 2) {
+                        feedback.textContent = "Correct! Subscriptions don't belong in the closing fund.";
+                        feedback.classList.remove('hidden', 'text-red-600');
+                        feedback.classList.add('text-green-600');
+                        sfx.nav(); // Success
+                    }
+                } else {
+                    // Wrong item logic (Visual reject or just accept as fail)
+                    feedback.textContent = "Careful! Monthly bills don't go in the closing fund.";
+                    feedback.classList.remove('hidden', 'text-green-600');
+                    feedback.classList.add('text-red-600');
+                    sfx.powerOff(); // Failure
+                    // Optional: Move it back after delay? keeping it simple for now.
+                }
+            }
+
+            // --- Desktop Events ---
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', e.target.id);
+                    e.target.classList.add('opacity-50');
+                });
+                draggable.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('opacity-50');
+                });
+            });
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Necessary to allow dropping
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('text/plain');
+                handleDropSuccess(id);
+            });
+
+            // --- Mobile Touch Events ---
+            let initialX = 0, initialY = 0;
+            let currentX = 0, currentY = 0;
+            let activeItem = null;
+
+            draggables.forEach(item => {
+                item.addEventListener('touchstart', (e) => {
+                    activeItem = item;
+                    const touch = e.touches[0];
+                    initialX = touch.clientX;
+                    initialY = touch.clientY;
+                    
+                    // Get current transform values if any (usually 0)
+                    const style = window.getComputedStyle(activeItem);
+                    const matrix = new WebKitCSSMatrix(style.transform);
+                    currentX = matrix.m41;
+                    currentY = matrix.m42;
+
+                    activeItem.style.zIndex = '1000';
+                    activeItem.style.transition = 'none'; // Remove transition for instant drag
+                }, { passive: false });
+
+                item.addEventListener('touchmove', (e) => {
+                    if (!activeItem) return;
+                    e.preventDefault(); // Prevent scrolling while dragging
+
+                    const touch = e.touches[0];
+                    const dx = touch.clientX - initialX;
+                    const dy = touch.clientY - initialY;
+
+                    activeItem.style.transform = `translate3d(${currentX + dx}px, ${currentY + dy}px, 0)`;
+
+                    // Highlight drop zone if hovering
+                    activeItem.hidden = true; // Hide briefly to check element below
+                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    activeItem.hidden = false;
+
+                    if (elemBelow && elemBelow.closest('#wallet-zone')) {
+                        dropZone.classList.add('drag-over');
+                    } else {
+                        dropZone.classList.remove('drag-over');
+                    }
+                }, { passive: false });
+
+                item.addEventListener('touchend', (e) => {
+                    if (!activeItem) return;
+                    
+                    // Final check for drop
+                    const touch = e.changedTouches[0];
+                    activeItem.hidden = true;
+                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    activeItem.hidden = false;
+
+                    dropZone.classList.remove('drag-over');
+                    activeItem.style.zIndex = '';
+                    activeItem.style.transition = 'transform 0.2s ease'; // Add smooth snap back
+
+                    if (elemBelow && elemBelow.closest('#wallet-zone')) {
+                        handleDropSuccess(activeItem.id);
+                    } else {
+                        // Snap back to original
+                        activeItem.style.transform = 'translate3d(0, 0, 0)';
+                    }
+                    activeItem = null;
+                });
+            });
+        }
 
         // P12: Credit Quiz
         window.checkCreditQuiz = function(el, isHurt) {
@@ -1261,11 +1542,11 @@
             if(isHurt) {
                 fb.textContent = "Correct. Opening new credit lowers average age and adds a hard inquiry.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.success();
+                sfx.nav();
             } else {
                 fb.textContent = "Incorrect. Paying off small balances usually helps.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.error();
+                sfx.powerOff();
             }
         };
 
@@ -1285,11 +1566,11 @@
             if(valid && count === 3) {
                 fb.textContent = "Packet Complete. Ready for Underwriting.";
                 fb.className = "mt-2 text-sm font-bold text-center text-green-600";
-                sfx.success();
+                sfx.nav();
             } else {
                 fb.textContent = "Incomplete or Invalid Documents.";
                 fb.className = "mt-2 text-sm font-bold text-center text-red-600";
-                sfx.error();
+                sfx.powerOff();
             }
         };
 
@@ -1300,11 +1581,11 @@
             if(isLetter) {
                 fb.textContent = "Approved. Sourcing large deposits is mandatory.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.success();
+                sfx.nav();
             } else {
                 fb.textContent = "Flagged. Unexplained cash is a major red flag for money laundering.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.error();
+                sfx.powerOff();
             }
         };
 
@@ -1315,13 +1596,13 @@
                 el.classList.remove('bg-allgood-secondary', 'text-white', 'border-allgood-secondary');
                 el.classList.add('bg-white');
             } else {
-                if (selectedTradesP20.length >= 3) return sfx.error();
+                if (selectedTradesP20.length >= 3) return sfx.powerOff(); // Limit reached
                 selectedTradesP20.push(el.textContent);
                 el.classList.remove('bg-white');
                 el.classList.add('bg-allgood-secondary', 'text-white', 'border-allgood-secondary');
             }
             document.getElementById('tradeoff-feedback-p20').textContent = `Selected: ${selectedTradesP20.length}/3`;
-            sfx.click();
+            sfx.tick();
         };
 
         // P22: Open House
@@ -1331,11 +1612,11 @@
             if(isProtect) {
                 fb.textContent = "Smart. This protects your representation rights.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.success();
+                sfx.nav();
             } else {
                 fb.textContent = "Risky. The hosting agent represents the seller, not you.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.error();
+                sfx.powerOff();
             }
         };
 
@@ -1346,11 +1627,11 @@
             if(isStructural) {
                 fb.textContent = "Correct. Foundation issues are expensive structural failures.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.success();
+                sfx.nav();
             } else {
                 fb.textContent = "Incorrect. Wallpaper is cosmetic and easy to fix.";
                 fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.error();
+                sfx.powerOff();
             }
         };
 
@@ -1361,14 +1642,14 @@
             if(data === 'drag-em') {
                 ev.target.appendChild(document.getElementById(data));
                 document.getElementById('escrow-feedback').classList.remove('hidden');
-                sfx.success();
+                sfx.nav();
             }
         };
 
         // P28: Inspect
         window.handleInspect = function(el) {
             document.getElementById('inspect-feedback').classList.remove('hidden');
-            sfx.click();
+            sfx.tick();
         };
 
         // P32: Final Exam Logic
@@ -1410,16 +1691,35 @@
             examQuestions.forEach((q, i) => {
                 if(examAnswers[i] === q.correct) score++;
             });
+            // Custom UI Modal instead of alert (Mandatory Rule)
+            const resultMessage = score >= 3 ? 
+                `Passed! Score: ${score}/5. You're Buyer Ready.` : 
+                `Score: ${score}/5. Review the material and try again.`;
+            
+            showCustomModal(resultMessage, score >= 3);
+
             if(score >= 3) {
-                sfx.success();
-                // We must replace alert with custom UI, but since this is a copy/paste...
-                alert(`Passed! Score: ${score}/5`);
+                sfx.nav();
                 nextPage();
             } else {
-                sfx.error();
-                alert(`Score: ${score}/5. Review the material and try again.`);
+                sfx.powerOff();
             }
         };
+
+        // Function to replace alert()
+        function showCustomModal(message, isSuccess) {
+            // Create a temporary modal element (since full modal framework is complex)
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4";
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${isSuccess ? 'border-green-500' : 'border-red-500'}">
+                    <h3 class="text-xl font-bold mb-3 ${isSuccess ? 'text-green-700' : 'text-red-700'}">${isSuccess ? 'Success' : 'Attention'}</h3>
+                    <p class="text-gray-600 mb-6 text-sm">${message}</p>
+                    <button onclick="this.closest('.fixed').remove(); sfx.tick();" class="bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-2 px-4 rounded transition-colors">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
         // P33: Badge Generator (FIXED CHASSIS MANDATE)
         function generateBadge() {
@@ -1428,10 +1728,22 @@
             const safeName = (userName || "Learner").toUpperCase();
             // ... (Use existing SVG logic from Master Template, injected here)
             const badgeSVG = `<svg viewBox="0 0 400 400" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="max-width: 300px;">
-                <circle cx="200" cy="200" r="180" fill="#357889" />
-                <text x="200" y="180" text-anchor="middle" fill="white" font-family="Georgia" font-size="24">BUYER READY</text>
-                <text x="200" y="220" text-anchor="middle" fill="white" font-family="Verdana" font-size="18">${safeName}</text>
-                <text x="200" y="350" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-family="Verdana" font-size="10">ALLGOOD ACADEMY</text>
+                <defs>
+                    <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#357889;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#2D6473;stop-opacity:1" />
+                    </linearGradient>
+                    <filter id="shadow">
+                        <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+                    </filter>
+                </defs>
+                <circle cx="200" cy="200" r="180" fill="url(#primaryGradient)" filter="url(#shadow)" />
+                <path d="M200,20 L270,120 L380,120 L300,200 L380,280 L270,280 L200,380 L130,280 L20,280 L100,200 L20,120 L130,120 Z" fill="#D34716" opacity="0.1"/>
+
+                <text x="200" y="160" text-anchor="middle" fill="white" font-family="Georgia" font-size="20">CERTIFIED</text>
+                <text x="200" y="210" text-anchor="middle" fill="white" font-family="Georgia" font-size="36" font-weight="bold">BUYER READY</text>
+                <text x="200" y="245" text-anchor="middle" fill="#EB8D69" font-family="Verdana" font-size="18">${safeName}</text>
+                <text x="200" y="350" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="Verdana" font-size="10">ALLGOOD ACADEMY</text>
             </svg>`;
             container.innerHTML = badgeSVG;
         }
