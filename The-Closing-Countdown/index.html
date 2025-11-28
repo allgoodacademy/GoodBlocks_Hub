@@ -163,8 +163,19 @@
         body.is-focused main { padding: 0 !important; }
 
         @media (max-width: 768px) {
-            body { padding: 0 !important; overflow: hidden; }
-            main { padding: 0 !important; height: 100vh; }
+            /* LOCK VIEWPORT FOR MOBILE */
+            body { 
+                padding: 0 !important; 
+                overflow: hidden !important; /* Prevent browser chrome scrolling */
+                position: fixed; /* Lock body in place */
+                width: 100%;
+                height: 100dvh; /* Dynamic height handles address bar resizing */
+            }
+            main { 
+                padding: 0 !important; 
+                height: 100%; 
+                width: 100%;
+            }
             .tablet-frame {
                 position: absolute !important; inset: 0 !important;
                 width: 100% !important; height: 100% !important;
@@ -175,8 +186,26 @@
                 background-image: none !important; box-shadow: none !important;
             }
             .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
-            .footer-content { padding-bottom: max(env(safe-area-inset-bottom), 20px); height: auto; }
+            .screen-container { 
+                border-radius: 0 !important; 
+                box-shadow: none !important; 
+                height: 100%; 
+                display: flex; 
+                flex-direction: column;
+            }
+            .footer-content { 
+                padding-bottom: max(env(safe-area-inset-bottom), 10px); 
+                height: auto; 
+                flex-shrink: 0; /* Never shrink footer */
+            }
+            .navbar-content {
+                flex-shrink: 0; /* Never shrink header */
+                padding-top: max(env(safe-area-inset-top), 0px);
+            }
+            /* Ensure internal scrolling works smoothly */
+            .page {
+                -webkit-overflow-scrolling: touch;
+            }
         }
 
         /* --- LAYOUT --- */
@@ -292,6 +321,37 @@
             right: 0;
             height: 2px;
             background-color: #D34716; /* match allgood-primary */
+        }
+
+        /* --- MOTIVATION ANCHOR PILLS (New) --- */
+        .anchor-pill {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .anchor-pill:hover, .anchor-pill.active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            filter: brightness(1.02);
+        }
+        .anchor-tooltip {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(8px) translateX(-50%);
+            transition: all 0.2s ease-out;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            z-index: 50;
+            pointer-events: none;
+            width: max-content;
+            max-width: 240px;
+        }
+        /* Show tooltip on hover (desktop) or active class (mobile) */
+        .anchor-pill:hover .anchor-tooltip,
+        .anchor-pill.active .anchor-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-8px) translateX(-50%);
         }
     </style>
 </head>
@@ -515,26 +575,78 @@
                     <!-- Content Container -->
                     <div class="bg-white rounded-b-lg min-h-[300px]">
                         
-                        <!-- Tab 1: Motivation -->
+                        <!-- Tab 1: Motivation (Refined) -->
                         <div id="tab-content-motivation" class="tab-content animate-pop-in">
-                            <div class="bg-orange-50 border border-orange-100 p-5 rounded-lg mb-4">
+                            <div class="bg-orange-50 border border-orange-100 p-5 rounded-lg mb-6">
                                 <p class="text-sm text-orange-900 italic font-body leading-relaxed">
-                                    "Your motivation is your anchor. Some buyers crave stability, others value freedom. Clarify which matters most to you — it will guide every decision."
+                                    "Your motivation is your anchor. Tap on these values to see what they really mean for your home buying journey."
                                 </p>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-white border border-gray-200 p-4 rounded-lg text-center shadow-sm">
-                                    <div class="w-10 h-10 bg-orange-100 text-allgood-primary rounded-full flex items-center justify-center mx-auto mb-2"><i data-lucide="anchor" class="w-5 h-5"></i></div>
-                                    <h4 class="font-bold text-xs uppercase text-gray-500 mb-1">Anchor</h4>
-                                    <p class="font-heading font-bold text-allgood-dark">Stability</p>
-                                    <p class="text-[10px] text-gray-400 mt-1">Roots, Schools, Community</p>
+                            
+                            <!-- Anchor Pills Container -->
+                            <div class="flex flex-wrap justify-center gap-4">
+                                
+                                <!-- Stability Pill -->
+                                <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Stability')">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-orange-100 to-orange-200 rounded-full flex items-center gap-2 border border-orange-200 text-orange-800 shadow-sm">
+                                        <i data-lucide="anchor" class="w-4 h-4"></i>
+                                        <span class="text-xs font-bold font-heading">Stability</span>
+                                    </div>
+                                    <!-- Tooltip -->
+                                    <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"A secure base — predictable costs and long-term roots."</p>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
+                                    </div>
                                 </div>
-                                <div class="bg-white border border-gray-200 p-4 rounded-lg text-center shadow-sm">
-                                    <div class="w-10 h-10 bg-cyan-100 text-allgood-secondary rounded-full flex items-center justify-center mx-auto mb-2"><i data-lucide="wind" class="w-5 h-5"></i></div>
-                                    <h4 class="font-bold text-xs uppercase text-gray-500 mb-1">Sails</h4>
-                                    <p class="font-heading font-bold text-allgood-dark">Freedom</p>
-                                    <p class="text-[10px] text-gray-400 mt-1">Equity, Customization, Pride</p>
+
+                                <!-- Freedom Pill -->
+                                <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Freedom')">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-cyan-100 to-cyan-200 rounded-full flex items-center gap-2 border border-cyan-200 text-cyan-800 shadow-sm">
+                                        <i data-lucide="wind" class="w-4 h-4"></i>
+                                        <span class="text-xs font-bold font-heading">Freedom</span>
+                                    </div>
+                                    <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"Your rules, your space — paint the walls, own a pet, renovate freely."</p>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
+                                    </div>
                                 </div>
+
+                                <!-- Belonging Pill -->
+                                <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Belonging')">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-emerald-100 to-emerald-200 rounded-full flex items-center gap-2 border border-emerald-200 text-emerald-800 shadow-sm">
+                                        <i data-lucide="heart" class="w-4 h-4"></i>
+                                        <span class="text-xs font-bold font-heading">Belonging</span>
+                                    </div>
+                                    <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"Community connection — neighbors, schools, and a place to call home."</p>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Wealth Pill -->
+                                <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Wealth')">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center gap-2 border border-blue-200 text-blue-800 shadow-sm">
+                                        <i data-lucide="trending-up" class="w-4 h-4"></i>
+                                        <span class="text-xs font-bold font-heading">Wealth</span>
+                                    </div>
+                                    <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"Building equity — paying yourself instead of a landlord."</p>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Expression Pill -->
+                                <div class="anchor-pill relative group cursor-pointer" onclick="handleAnchorInteraction(this, 'Expression')">
+                                    <div class="px-4 py-2 bg-gradient-to-r from-rose-100 to-rose-200 rounded-full flex items-center gap-2 border border-rose-200 text-rose-800 shadow-sm">
+                                        <i data-lucide="palette" class="w-4 h-4"></i>
+                                        <span class="text-xs font-bold font-heading">Expression</span>
+                                    </div>
+                                    <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"A canvas for your life — design and customize without limits."</p>
+                                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
 
@@ -1131,6 +1243,14 @@
             const narratorTextEl = document.getElementById('narrator-message');
             const narratorStrip = document.getElementById('narrator-strip');
             
+            // Global click listener to close tooltips/modals when clicking outside
+            document.addEventListener('click', function(e) {
+                // Close Anchor Pills
+                if (!e.target.closest('.anchor-pill')) {
+                    document.querySelectorAll('.anchor-pill').forEach(p => p.classList.remove('active'));
+                }
+            });
+
             // Navigation Function
             window.showPage = function(idx) {
                 if (idx < 0 || idx >= totalPages) return;
@@ -1931,6 +2051,42 @@
                 activeBtn.classList.remove('bg-gray-100', 'text-gray-500', 'border-transparent');
                 activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200');
             }
+            sfx.tick();
+        };
+
+        // Page 4: Anchor Interactions
+        window.handleAnchorInteraction = function(element, type) {
+            // Mobile toggle behavior
+            // Remove 'active' class from all other pills
+            const allPills = document.querySelectorAll('.anchor-pill');
+            allPills.forEach(pill => {
+                if (pill !== element) pill.classList.remove('active');
+            });
+            
+            // Toggle active on clicked element
+            element.classList.toggle('active');
+            
+            // Narrator update
+            const messages = {
+                "Stability": "Stability: A secure base — predictable costs and long-term roots.",
+                "Freedom": "Freedom: Your rules, your space — paint the walls, own a pet, renovate freely.",
+                "Belonging": "Belonging: Community connection — neighbors, schools, and a place to call home.",
+                "Wealth": "Wealth: Building equity — paying yourself instead of a landlord.",
+                "Expression": "Expression: A canvas for your life — design and customize without limits."
+            };
+            
+            const narratorTextEl = document.getElementById('narrator-message');
+            const narratorStrip = document.getElementById('narrator-strip');
+            
+            if (narratorTextEl && messages[type]) {
+                narratorTextEl.textContent = messages[type];
+                narratorStrip.style.display = 'flex';
+                // Trigger pop animation
+                narratorStrip.classList.remove('narrator-speaking');
+                void narratorStrip.offsetWidth; // force reflow
+                narratorStrip.classList.add('narrator-speaking');
+            }
+            
             sfx.tick();
         };
 
