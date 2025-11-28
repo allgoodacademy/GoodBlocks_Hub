@@ -273,13 +273,25 @@
         .blueprint-mode #narrator-message { color: #94a3b8 !important; }
         .blueprint-mode #narrator-avatar { border-color: #334155 !important; }
 
-        /* --- STRATEGY CARDS (New) --- */
+        /* --- STRATEGY CARDS & TABS (New) --- */
         .strategy-pill {
             transition: all 0.2s ease;
         }
         .strategy-pill:hover {
             transform: translateY(-1px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .tab-btn.active {
+            position: relative;
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #D34716; /* match allgood-primary */
         }
     </style>
 </head>
@@ -393,26 +405,17 @@
                     34 Pages - Show, Tell, Do Model (Expanded)
                     ========================================================================== 
                 -->
-
-                <!-- PHASE I: FOUNDATION (Days 100-61) -->
-
-                <!-- Page 1: Cover -->
+                <!-- Page 1: Cover (Launchpad) -->
                 <div class="page active" id="page-1">
-                    <div class="flex flex-col items-center justify-start min-h-full py-10 text-center px-6">
+                    <div class="flex flex-col items-center justify-center min-h-full py-10 text-center px-6">
                         <div class="mb-4"><h2 class="text-xl font-heading font-bold text-allgood-dark">Jonathan Hurtado's Buyer's Guide</h2></div>
-                        <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-4 leading-tight">Countdown to Keys:<br><span class="text-allgood-primary">The 100-Day Challenge</span></h1>
+                        <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-12 leading-tight">Countdown to Keys:<br><span class="text-allgood-primary">The 100-Day Challenge</span></h1>
                         
-                        <div class="inline-block bg-allgood-secondary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
-                            Phase 1: The Foundation
-                        </div>
-                        
-                        <p class="text-lg text-gray-600 mb-8 max-w-md">Your journey starts now. We're breaking the home buying process into four critical phases, starting with stabilizing your financial foundation.</p>
-                        
-                        <button onclick="nextPage()" class="bg-allgood-primary text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-allgood-hover transition-all transform hover:scale-105 animate-pulse mb-12">
+                        <button onclick="nextPage()" class="bg-allgood-primary text-white font-bold py-4 px-10 rounded-full shadow-lg hover:bg-allgood-hover transition-all transform hover:scale-105 animate-pulse mb-12 text-lg">
                             Start Phase 1
                         </button>
 
-                        <!-- FIXED ELEMENT: How To Use Accordion (Restored) -->
+                        <!-- FIXED ELEMENT: How To Use Accordion -->
                         <div class="w-full max-w-lg text-left mx-auto">
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                 <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
@@ -431,10 +434,30 @@
                     </div>
                 </div>
 
-                <!-- Page 2: Scenario Setup (Flip Cards) -->
+                <!-- Page 2: Phase 1 Intro Video (Consistent Style) -->
                 <div class="page" id="page-2">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Mission Setup: The 3 Pillars</h2></section>
-                    <p class="text-sm text-gray-600 mb-6">Success depends on three core strengths. Tap to reveal your mission parameters.</p>
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 1: The Foundation</h2></section>
+                    
+                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
+                        <div class="bg-gray-200 h-48 sm:h-64 flex flex-col items-center justify-center rounded-lg mb-3 shadow-inner relative overflow-hidden group cursor-pointer hover:bg-gray-300 transition-colors" onclick="sfx.tick()">
+                            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg text-allgood-primary group-hover:scale-110 transition-transform z-10">
+                                <i data-lucide="play" class="ml-1 w-8 h-8"></i>
+                            </div>
+                            <span class="text-sm font-bold text-gray-500 mt-3 z-10">Watch: Phase 1 Briefing</span>
+                            <!-- Decorative bg pattern -->
+                            <div class="absolute inset-0 opacity-5 bg-[radial-gradient(#4C4C4C_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 3: Mission Setup (3 Pillars) -->
+                <div class="page" id="page-3">
+                    <section class="mb-6 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Mission Setup: The 3 Pillars</h2></section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        Every journey starts with a foundation. Motivation, credit, and funding are the three pillars that carry you through the stress of buying a home. <strong>Flip each card to see what they mean — this is your briefing before we move forward.</strong>
+                    </p>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <!-- Card 1 -->
                         <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.play('click')">
@@ -471,37 +494,100 @@
                                 </div>
                                 <div class="flip-card-back bg-green-600 text-white p-4">
                                     <h3 class="font-bold text-sm mb-2">The Fuel</h3>
-                                    <p class="text-xs leading-snug">Stable income and liquid cash reserves are non-negotiable.</p>
+                                    <p class="text-xs leading-snug">Your savings and loan options fuel the purchase. Build wisely.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Page 3: Show (Video Intro) -->
-                <div class="page" id="page-3">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Jonathan's Intro</h2></section>
-                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
-                        <div class="bg-gray-200 h-48 flex items-center justify-center rounded-lg mb-3 shadow-inner">
-                            <span class="text-sm text-gray-600 font-bold"><i data-lucide="play-circle" class="inline mr-2"></i> Video Placeholder: Welcome Briefing</span>
-                        </div>
-                        <p class="text-sm text-gray-700 italic">"We aren't just looking for a house; we are building a strategy. Watch this briefing to understand the road ahead."</p>
-                    </div>
-                </div>
-
-                <!-- Page 4: Tell (Readiness Accordion) -->
+                <!-- Page 4: Deep Dive (Tabs) -->
                 <div class="page" id="page-4">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: 3 Pillars of Readiness</h2></section>
-                    <p class="text-sm text-gray-600 mb-6">Study the details. You will be tested on these concepts next.</p>
-                    <div class="space-y-3">
-                        <button class="accordion-toggle w-full bg-white border p-3 rounded flex justify-between items-center hover:bg-gray-50"><span class="font-bold text-sm">Motivation: Stability vs. Freedom</span><i data-lucide="chevron-down" class="accordion-icon w-4 h-4 text-gray-400"></i></button>
-                        <div class="accordion-content hidden bg-gray-50 p-3 text-xs text-gray-700 border-x border-b rounded-b"><p>Are you buying for long-term wealth building or immediate stability? Knowing this helps us filter properties effectively.</p></div>
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: The Three Pillars</h2></section>
+                    
+                    <!-- Tabs Navigation -->
+                    <div class="flex space-x-1 mb-4 border-b border-gray-200 overflow-x-auto no-scrollbar">
+                        <button onclick="openTab('motivation')" id="tab-btn-motivation" class="tab-btn active px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-allgood-primary text-white border-t border-x border-gray-200 transition-colors">Motivation</button>
+                        <button onclick="openTab('credit')" id="tab-btn-credit" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Credit</button>
+                        <button onclick="openTab('funding')" id="tab-btn-funding" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Funding</button>
+                    </div>
+
+                    <!-- Content Container -->
+                    <div class="bg-white rounded-b-lg min-h-[300px]">
                         
-                        <button class="accordion-toggle w-full bg-white border p-3 rounded flex justify-between items-center hover:bg-gray-50"><span class="font-bold text-sm">Credit: The 740+ Goal</span><i data-lucide="chevron-down" class="accordion-icon w-4 h-4 text-gray-400"></i></button>
-                        <div class="accordion-content hidden bg-gray-50 p-3 text-xs text-gray-700 border-x border-b rounded-b"><p>Credit scores above 740 unlock the best interest rates. Keep utilization under 30% and pay every bill on time.</p></div>
-                        
-                        <button class="accordion-toggle w-full bg-white border p-3 rounded flex justify-between items-center hover:bg-gray-50"><span class="font-bold text-sm">Funding: Reserves Matter</span><i data-lucide="chevron-down" class="accordion-icon w-4 h-4 text-gray-400"></i></button>
-                        <div class="accordion-content hidden bg-gray-50 p-3 text-xs text-gray-700 border-x border-b rounded-b"><p>Lenders look for 'seasoned' funds. Cash must be in your account for 60+ days to be counted.</p></div>
+                        <!-- Tab 1: Motivation -->
+                        <div id="tab-content-motivation" class="tab-content animate-pop-in">
+                            <div class="bg-orange-50 border border-orange-100 p-5 rounded-lg mb-4">
+                                <p class="text-sm text-orange-900 italic font-body leading-relaxed">
+                                    "Your motivation is your anchor. Some buyers crave stability, others value freedom. Clarify which matters most to you — it will guide every decision."
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-white border border-gray-200 p-4 rounded-lg text-center shadow-sm">
+                                    <div class="w-10 h-10 bg-orange-100 text-allgood-primary rounded-full flex items-center justify-center mx-auto mb-2"><i data-lucide="anchor" class="w-5 h-5"></i></div>
+                                    <h4 class="font-bold text-xs uppercase text-gray-500 mb-1">Anchor</h4>
+                                    <p class="font-heading font-bold text-allgood-dark">Stability</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">Roots, Schools, Community</p>
+                                </div>
+                                <div class="bg-white border border-gray-200 p-4 rounded-lg text-center shadow-sm">
+                                    <div class="w-10 h-10 bg-cyan-100 text-allgood-secondary rounded-full flex items-center justify-center mx-auto mb-2"><i data-lucide="wind" class="w-5 h-5"></i></div>
+                                    <h4 class="font-bold text-xs uppercase text-gray-500 mb-1">Sails</h4>
+                                    <p class="font-heading font-bold text-allgood-dark">Freedom</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">Equity, Customization, Pride</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Credit -->
+                        <div id="tab-content-credit" class="tab-content hidden animate-pop-in">
+                            <div class="bg-sky-50 border border-sky-100 p-5 rounded-lg mb-4">
+                                <p class="text-sm text-sky-900 italic font-body leading-relaxed">
+                                    "Lenders reward consistency. Whether your score is 640 or 740, protecting your history and avoiding new debt makes a difference. The path forward is about progress, not perfection."
+                                </p>
+                            </div>
+                            <div class="mt-6">
+                                <div class="flex justify-between text-[10px] uppercase font-bold text-gray-400 mb-1">
+                                    <span>Poor</span>
+                                    <span>Fair</span>
+                                    <span>Good</span>
+                                    <span>Excellent</span>
+                                </div>
+                                <div class="h-4 w-full bg-gray-200 rounded-full overflow-hidden flex">
+                                    <div class="h-full bg-red-400 w-1/4"></div>
+                                    <div class="h-full bg-orange-300 w-1/4"></div>
+                                    <div class="h-full bg-blue-400 w-1/4"></div>
+                                    <div class="h-full bg-green-500 w-1/4"></div>
+                                </div>
+                                <div class="relative w-full h-6 mt-1">
+                                    <!-- Indicator Triangle -->
+                                    <div class="absolute left-[65%] transform -translate-x-1/2 flex flex-col items-center">
+                                        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-allgood-dark"></div>
+                                        <span class="text-xs font-bold text-allgood-dark">Goal: 740+</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Funding -->
+                        <div id="tab-content-funding" class="tab-content hidden animate-pop-in">
+                            <div class="bg-emerald-50 border border-emerald-100 p-5 rounded-lg mb-4">
+                                <p class="text-sm text-emerald-900 italic font-body leading-relaxed">
+                                    "Savings aren’t just for the down payment. Lenders want to see reserves — funds that prove you can weather surprises. Build wisely."
+                                </p>
+                            </div>
+                            <div class="flex items-end justify-center h-32 gap-8 mt-6">
+                                <div class="w-16 bg-blue-100 rounded-t-lg relative group flex flex-col justify-end border-b-4 border-blue-300 h-[60%]">
+                                    <div class="absolute -top-6 w-full text-center text-xs font-bold text-blue-800">3.5%</div>
+                                    <div class="text-[10px] text-center w-full pb-2 text-blue-800 font-bold uppercase">Down<br>Pay</div>
+                                </div>
+                                <div class="w-16 bg-emerald-100 rounded-t-lg relative group flex flex-col justify-end border-b-4 border-emerald-400 h-full">
+                                    <div class="absolute -top-6 w-full text-center text-xs font-bold text-emerald-800">Wait!</div>
+                                    <div class="absolute top-1/2 w-full text-center text-xs font-bold text-emerald-800 opacity-50">+ Reserves</div>
+                                    <div class="text-[10px] text-center w-full pb-2 text-emerald-800 font-bold uppercase">Total<br>Cash</div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -560,16 +646,52 @@
                     </div>
                 </div>
 
-                <!-- Page 9: Tell (Down Payment vs PMI) -->
+                <!-- Page 9: Do (Trade-Offs Reflection) -->
                 <div class="page" id="page-9">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Down Payment Myth</h2></section>
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); sfx.play('click')">
-                            <div class="flip-card-inner">
-                                <div class="flip-card-front bg-gray-50 border"><h3 class="font-bold text-allgood-dark">Myth: "I need 20% down."</h3></div>
-                                <div class="flip-card-back bg-allgood-dark text-white p-4"><p class="text-xs"><strong>Fact:</strong> You can buy with as little as 3-3.5%. But 20% avoids PMI (Private Mortgage Insurance).</p></div>
+                    <section class="mb-6 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: What Trade-Offs Could You Make?</h2></section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 leading-relaxed">
+                        Affordability isn't just math—it's about choices. If the numbers are tight, adjusting your lifestyle can sometimes bridge the gap. <br><br>
+                        <strong>Select the trade-offs you would genuinely consider:</strong>
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Card 1 -->
+                        <div onclick="handleTradeOff('Dining')" class="group cursor-pointer bg-orange-50 border border-orange-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-primary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
+                            <div class="flex items-center gap-3 relative z-10">
+                                <div class="bg-white p-2 rounded-full text-orange-600 shadow-sm"><i data-lucide="coffee" class="w-5 h-5"></i></div>
+                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Cut back on dining out</h3>
+                            </div>
+                            <div class="absolute inset-0 bg-white/50 opacity-0 group-hover:opacity-10 opacity-transition"></div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div onclick="handleTradeOff('Car')" class="group cursor-pointer bg-cyan-50 border border-cyan-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-secondary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
+                            <div class="flex items-center gap-3 relative z-10">
+                                <div class="bg-white p-2 rounded-full text-cyan-700 shadow-sm"><i data-lucide="car" class="w-5 h-5"></i></div>
+                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Delay buying a new car</h3>
                             </div>
                         </div>
+
+                        <!-- Card 3 -->
+                        <div onclick="handleTradeOff('Roommate')" class="group cursor-pointer bg-orange-50 border border-orange-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-primary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
+                            <div class="flex items-center gap-3 relative z-10">
+                                <div class="bg-white p-2 rounded-full text-orange-600 shadow-sm"><i data-lucide="users" class="w-5 h-5"></i></div>
+                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Take on a roommate</h3>
+                            </div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div onclick="handleTradeOff('Vacation')" class="group cursor-pointer bg-cyan-50 border border-cyan-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-secondary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
+                            <div class="flex items-center gap-3 relative z-10">
+                                <div class="bg-white p-2 rounded-full text-cyan-700 shadow-sm"><i data-lucide="plane" class="w-5 h-5"></i></div>
+                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Adjust vacation spending</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="tradeoff-feedback-area" class="mt-6 text-center text-sm text-gray-400 italic min-h-[40px]">
+                        Select an option above to see Jonathan's take.
                     </div>
                 </div>
 
@@ -868,10 +990,10 @@
         let currentPage = 0;
         let userName = "Learner";
         
-        // Page Titles
+        // Page Titles (Updated for New Flow)
         const pageTitles = [
-            "1. Cover: The Foundation", "2. Mission Setup: 3 Pillars", "3. Briefing: Intro Video", "4. Deep Dive: Readiness", "5. Challenge: Scenarios",
-            "6. Show: Financial Prep", "7. Tell: Affordability Rules", "8. Do: Affordability Calc", "9. Tell: Down Payment Myth", "10. Do: Closing Wallet",
+            "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", "5. Challenge: Scenarios",
+            "6. Show: Financial Prep", "7. Tell: Affordability Rules", "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Do: Closing Wallet",
             "11. Tell: Credit Power", "12. Do: Credit Quiz", "13. Show: Loan Types", "14. Tell: Conventional", "15. Tell: FHA Loans",
             "16. Do: Doc Checklist", "17. Do: Underwriter Sim", "18. Show: Agent Role", "19. Tell: Search Criteria", "20. Do: Needs vs Wants",
             "21. Tell: Online Tools", "22. Do: Open House", "23. Do: Red Flags", "24. Tell: Title Insurance", "25. Do: The Lowball",
@@ -880,15 +1002,16 @@
         ];
 
         // Narrator Text Map
-        // Shifted keys forward by 1 to align with correct pages. Page 1 (Cover) has a new welcome.
+        // Re-mapped to support new page order
         const narratorText = {
-            1: "Welcome to the Countdown to Keys. This 100-day challenge is designed to take you from 'thinking about it' to 'keys in hand'. Let's build your foundation first.",
-            2: "Every journey starts with a foundation. Motivation, credit, and funding are the three pillars that carry you through the stress of buying a home. Flip each card to see what they mean — this is your briefing before we move forward.",
+            1: "Welcome to the Countdown to Keys. This 100-day challenge is designed to take you from 'thinking about it' to 'keys in hand'.",
+            2: "Your journey starts now. We're breaking the home buying process into four critical phases, starting with stabilizing your financial foundation.",
+            3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully — lenders and sellers will expect you to understand these concepts. Don’t worry, you’ll be tested after this so you can see how ready you are.",
             5: "Now it’s your turn to apply what you’ve learned. Each decision here mirrors a real-world choice buyers face. Think carefully — the way you answer shows whether your foundation is solid.",
             7: "Affordability isn’t just about what you want — it’s about what lenders allow. These rules help you stay safe and avoid becoming ‘house poor.’ Read them closely.",
             8: "Let’s put the rules into practice. Enter your income and debts to see how lenders calculate your buying power. This exercise shows you the math behind qualification.",
-            9: "Down payments change your loan cost. Flip cards to see how 20% down saves you from PMI.",
+            9: "Affordability is a puzzle, not a wall. Sometimes, the key to unlocking a home isn't making more money—it's adjusting where your money goes. Select a trade-off to see how it impacts your buying power.",
             10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
             12: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
             14: "Conventional loans are standard. Explore pros and cons to see if it fits.",
@@ -1399,6 +1522,43 @@
             sfx.tick();
         };
 
+        // P9: Trade-Offs Reflection (New)
+        window.handleTradeOff = function(key) {
+            const messages = {
+                "Dining": "Reducing discretionary spending can free up cash flow for housing costs.",
+                "Car": "Holding off on a new loan keeps your debt-to-income ratio lower.",
+                "Roommate": "Sharing housing costs can make a higher mortgage more manageable.",
+                "Vacation": "Scaling back on travel helps balance monthly obligations."
+            };
+            
+            const titles = {
+                "Dining": "Dining Out",
+                "Car": "New Vehicle",
+                "Roommate": "House Hacking",
+                "Vacation": "Travel Budget"
+            };
+
+            const text = messages[key];
+            const title = titles[key];
+
+            // Trigger Modal with Feedback
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-black/40 z-[9999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300";
+            modal.innerHTML = `
+                <div class="bg-white rounded-t-xl sm:rounded-xl shadow-2xl p-6 max-w-sm w-full animate-pop-in border-b-4 border-allgood-primary">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-heading font-bold text-allgood-primary">${title}</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed font-body italic">"${text}"</p>
+                    <button onclick="this.closest('.fixed').remove()" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded text-xs transition-colors">Reflect & Continue</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            lucide.createIcons();
+            sfx.nav();
+        }
+
         // P10: Drag & Drop Wallet Logic (Unified Desktop & Mobile)
         function initWalletDragDrop() {
             const draggables = document.querySelectorAll('#wallet-items .draggable');
@@ -1747,6 +1907,32 @@
             </svg>`;
             container.innerHTML = badgeSVG;
         }
+
+        // Page 4: Deep Dive Tabs Logic
+        window.openTab = function(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('#page-4 .tab-content');
+            contents.forEach(content => content.classList.add('hidden'));
+
+            // Show specific tab content
+            const activeContent = document.getElementById(`tab-content-${tabName}`);
+            if(activeContent) activeContent.classList.remove('hidden');
+
+            // Reset all tab buttons
+            const buttons = document.querySelectorAll('#page-4 .tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-allgood-primary', 'text-white', 'border-gray-200'); // Remove active styles
+                btn.classList.add('bg-gray-100', 'text-gray-500', 'border-transparent'); // Add inactive styles
+            });
+
+            // Set active tab button
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-gray-100', 'text-gray-500', 'border-transparent');
+                activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200');
+            }
+            sfx.tick();
+        };
 
     </script>
 </body>
