@@ -383,7 +383,7 @@
             background-color: #D34716; /* match allgood-primary */
         }
 
-        /* --- MOTIVATION ANCHOR PILLS (New) --- */
+        /* --- MOTIVATION ANCHOR PILLS (Fixed for Mobile Clipping) --- */
         .anchor-pill {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -392,26 +392,53 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             filter: brightness(1.02);
+            z-index: 50; /* Critical Fix: Lift active pill above siblings to prevent clipping */
         }
         .anchor-tooltip {
             opacity: 0;
             visibility: hidden;
+            /* Default: Float above */
             transform: translateY(8px) translateX(-50%);
             transition: all 0.2s ease-out;
             position: absolute;
             bottom: 100%;
             left: 50%;
-            z-index: 50;
+            z-index: 999; /* Boosted z-index */
             pointer-events: none;
             width: max-content;
             max-width: 240px;
         }
+        
         /* Show tooltip on hover (desktop) or active class (mobile) */
         .anchor-pill:hover .anchor-tooltip,
         .anchor-pill.active .anchor-tooltip {
             opacity: 1;
             visibility: visible;
             transform: translateY(-8px) translateX(-50%);
+        }
+
+        /* MOBILE FIX: Force tooltip below the pill on small screens to prevent top-clipping */
+        @media (max-width: 768px) {
+            .anchor-tooltip {
+                bottom: auto; /* Reset bottom */
+                top: 100%; /* Push below pill */
+                margin-top: 8px; /* Add spacing */
+                transform: translateY(-8px) translateX(-50%); /* Initial state for animation */
+            }
+            /* Adjusted animation target for mobile */
+            .anchor-pill:hover .anchor-tooltip,
+            .anchor-pill.active .anchor-tooltip {
+                transform: translateY(0) translateX(-50%);
+            }
+            /* Point the arrow up instead of down on mobile if needed, or remove for simplicity */
+            .anchor-tooltip .absolute {
+                top: -4px; /* Move arrow to top */
+                bottom: auto;
+                border-top: 1px solid #e5e7eb;
+                border-left: 1px solid #e5e7eb;
+                border-right: none;
+                border-bottom: none;
+            }
         }
     </style>
 </head>
@@ -457,7 +484,7 @@
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Learner</div>
                             <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 34</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 28</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
@@ -522,7 +549,6 @@
                 <!-- 
                     ==========================================================================
                     VARIABLE CONTENT ZONE START
-                    34 Pages - Show, Tell, Do Model (Expanded)
                     ========================================================================== 
                 -->
                 <!-- Page 1: Cover (Launchpad) -->
@@ -723,7 +749,7 @@
                                     </div>
                                     <!-- Tooltip -->
                                     <div class="anchor-tooltip bg-white p-3 rounded-lg shadow-xl border border-gray-100 text-center">
-                                        <p class="text-xs text-gray-700 font-body leading-tight">"A canvas for your life — design without limits."</p>
+                                        <p class="text-xs text-gray-700 font-body leading-tight">"A canvas for your life — design and customize without limits."</p>
                                         <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-gray-100"></div>
                                     </div>
                                 </div>
@@ -1100,108 +1126,451 @@
                     
                     <p class="text-sm text-gray-600 mb-6 leading-relaxed">
                         Affordability isn't just math—it's about choices. If the numbers are tight, adjusting your lifestyle can sometimes bridge the gap. <br><br>
-                        <strong>Select the trade-offs you would genuinely consider:</strong>
+                        <strong>Flip the cards to see the impact of these common trade-offs:</strong>
                     </p>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <!-- Card 1 -->
-                        <div onclick="handleTradeOff('Dining')" class="group cursor-pointer bg-orange-50 border border-orange-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-primary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
-                            <div class="flex items-center gap-3 relative z-10">
-                                <div class="bg-white p-2 rounded-full text-orange-600 shadow-sm"><i data-lucide="coffee" class="w-5 h-5"></i></div>
-                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Cut back on dining out</h3>
-                            </div>
-                            <div class="absolute inset-0 bg-white/50 opacity-0 group-hover:opacity-10 opacity-transition"></div>
-                        </div>
-
-                        <!-- Card 2 -->
-                        <div onclick="handleTradeOff('Car')" class="group cursor-pointer bg-cyan-50 border border-cyan-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-secondary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
-                            <div class="flex items-center gap-3 relative z-10">
-                                <div class="bg-white p-2 rounded-full text-cyan-700 shadow-sm"><i data-lucide="car" class="w-5 h-5"></i></div>
-                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Delay buying a new car</h3>
+                        <!-- Card 1: Dining -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.nav()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front bg-orange-50 border-orange-100">
+                                    <div class="bg-white p-3 rounded-full text-orange-600 shadow-sm mb-3"><i data-lucide="coffee" class="w-6 h-6"></i></div>
+                                    <h3 class="font-heading font-bold text-allgood-dark text-sm">Dining Out</h3>
+                                </div>
+                                <div class="flip-card-back bg-allgood-primary text-white p-4">
+                                    <h3 class="font-bold text-sm mb-2 opacity-90">Cash Flow</h3>
+                                    <p class="text-xs leading-snug font-body">Reducing discretionary spending can free up cash flow for housing costs.</p>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Card 3 -->
-                        <div onclick="handleTradeOff('Roommate')" class="group cursor-pointer bg-orange-50 border border-orange-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-primary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
-                            <div class="flex items-center gap-3 relative z-10">
-                                <div class="bg-white p-2 rounded-full text-orange-600 shadow-sm"><i data-lucide="users" class="w-5 h-5"></i></div>
-                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Take on a roommate</h3>
+                        <!-- Card 2: Car -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.nav()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front bg-cyan-50 border-cyan-100">
+                                    <div class="bg-white p-3 rounded-full text-cyan-700 shadow-sm mb-3"><i data-lucide="car" class="w-6 h-6"></i></div>
+                                    <h3 class="font-heading font-bold text-allgood-dark text-sm">New Vehicle</h3>
+                                </div>
+                                <div class="flip-card-back bg-allgood-secondary text-white p-4">
+                                    <h3 class="font-bold text-sm mb-2 opacity-90">Debt Ratio</h3>
+                                    <p class="text-xs leading-snug font-body">Holding off on a new loan keeps your debt-to-income ratio lower.</p>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Card 4 -->
-                        <div onclick="handleTradeOff('Vacation')" class="group cursor-pointer bg-cyan-50 border border-cyan-100 p-5 rounded-lg hover:shadow-md hover:border-allgood-secondary transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden">
-                            <div class="flex items-center gap-3 relative z-10">
-                                <div class="bg-white p-2 rounded-full text-cyan-700 shadow-sm"><i data-lucide="plane" class="w-5 h-5"></i></div>
-                                <h3 class="font-heading font-bold text-allgood-dark text-sm">Adjust vacation spending</h3>
+                        <!-- Card 3: Roommate -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.nav()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front bg-orange-50 border-orange-100">
+                                    <div class="bg-white p-3 rounded-full text-orange-600 shadow-sm mb-3"><i data-lucide="users" class="w-6 h-6"></i></div>
+                                    <h3 class="font-heading font-bold text-allgood-dark text-sm">House Hacking</h3>
+                                </div>
+                                <div class="flip-card-back bg-allgood-primary text-white p-4">
+                                    <h3 class="font-bold text-sm mb-2 opacity-90">Income Boost</h3>
+                                    <p class="text-xs leading-snug font-body">Sharing housing costs can make a higher mortgage more manageable.</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div id="tradeoff-feedback-area" class="mt-6 text-center text-sm text-gray-400 italic min-h-[40px]">
-                        Select an option above to see Jonathan's take.
+
+                        <!-- Card 4: Vacation (Restored) -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.nav()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front bg-cyan-50 border-cyan-100">
+                                    <div class="bg-white p-3 rounded-full text-cyan-700 shadow-sm mb-3"><i data-lucide="plane" class="w-6 h-6"></i></div>
+                                    <h3 class="font-heading font-bold text-allgood-dark text-sm">Travel Budget</h3>
+                                </div>
+                                <div class="flip-card-back bg-allgood-secondary text-white p-4">
+                                    <h3 class="font-bold text-sm mb-2 opacity-90">Obligations</h3>
+                                    <p class="text-xs leading-snug font-body">Scaling back on travel helps balance monthly obligations.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Page 10: Do (Closing Wallet Drag-and-Drop) -->
+                <!-- Page 10: Do (Protect Your Loan - CONSOLIDATED CHALLENGE) -->
                 <div class="page" id="page-10">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Closing Wallet</h2></section>
-                    <p class="text-xs text-gray-600 mb-4">Drag the correct costs into the Wallet. Ignore the "Monthly" costs.</p>
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Protect Your Loan</h2></section>
+                    <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                        You are "Conditionally Approved." This is the danger zone. <br>Drag <strong>Approved Moves</strong> into the <strong>Safe</strong>. Drag <strong>Risky Moves</strong> into the <strong>Trash</strong> to protect your closing.
+                    </p>
                     
-                    <div class="flex justify-between gap-2 mb-6">
-                        <div id="wallet-items" class="w-1/2 space-y-2">
-                            <!-- Removed inline handlers, added distinct IDs for logic -->
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-dp" draggable="true">Down Payment</div>
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-netflix" draggable="true">Netflix Sub</div>
-                            <div class="draggable bg-white border p-2 rounded text-xs font-bold text-center cursor-grab touch-none select-none" id="drag-closing" draggable="true">Closing Costs</div>
+                    <!-- Draggables Source (Merged Items) -->
+                    <div id="gauntlet-source" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6 min-h-[80px]">
+                        <!-- Financial Items -->
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-allgood-primary transition-colors" id="drag-dp" draggable="true" data-type="safe">Down Payment</div>
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-allgood-primary transition-colors" id="drag-closing" draggable="true" data-type="safe">Closing Costs</div>
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-allgood-primary transition-colors" id="drag-save" draggable="true" data-type="safe">Boost Savings</div>
+                        
+                        <!-- Behavioral/Credit Risks -->
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-red-500 transition-colors" id="drag-car" draggable="true" data-type="trap">New Car Loan</div>
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-red-500 transition-colors" id="drag-furniture" draggable="true" data-type="trap">Furniture Credit</div>
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-red-500 transition-colors" id="drag-job" draggable="true" data-type="trap">Change Jobs</div>
+                        <div class="draggable bg-white border border-gray-300 p-2 rounded shadow-sm text-xs font-bold text-center cursor-grab touch-none select-none hover:border-red-500 transition-colors" id="drag-late" draggable="true" data-type="trap">Miss Payment</div>
+                    </div>
+
+                    <!-- Drop Zones -->
+                    <div class="flex gap-4 h-36">
+                        <!-- The Safe (Approved) -->
+                        <div id="zone-safe" class="w-1/2 bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-lg flex flex-col items-center justify-center p-2 drop-zone transition-all duration-200 relative group">
+                            <i data-lucide="shield-check" class="w-8 h-8 text-emerald-400 mb-2 pointer-events-none group-hover:scale-110 transition-transform"></i>
+                            <span class="text-xs text-emerald-600 font-bold pointer-events-none text-center">Approved Move<br>(Safe)</span>
                         </div>
-                        <div id="wallet-zone" class="w-1/2 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center p-2 drop-zone transition-all duration-200">
-                            <i data-lucide="wallet" class="w-8 h-8 text-gray-400 mb-2 pointer-events-none"></i>
-                            <span class="text-xs text-gray-400 pointer-events-none">Drop One-Time Costs Here</span>
+
+                        <!-- The Trash (Risk) -->
+                        <div id="zone-trap" class="w-1/2 bg-red-50 border-2 border-dashed border-red-300 rounded-lg flex flex-col items-center justify-center p-2 drop-zone transition-all duration-200 relative group">
+                            <i data-lucide="alert-triangle" class="w-8 h-8 text-red-400 mb-2 pointer-events-none group-hover:scale-110 transition-transform"></i>
+                            <span class="text-xs text-red-600 font-bold pointer-events-none text-center">Loan Risk<br>(Trash It)</span>
                         </div>
                     </div>
-                    <div id="wallet-feedback" class="text-center text-sm font-bold hidden"></div>
+                    
+                    <!-- Feedback Area -->
+                    <div id="gauntlet-feedback" class="mt-4 hidden p-4 rounded-lg text-sm border shadow-sm animate-pop-in leading-relaxed font-body"></div>
                 </div>
 
                 <!-- Page 11: Tell (Credit Score) -->
                 <div class="page" id="page-11">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Credit Score Power</h2></section>
-                    <p class="text-sm text-gray-600">A 1% difference in interest rate can cost you $30,000+ over the life of a loan. Your score drives that rate.</p>
-                </div>
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The $100,000 Difference</h2>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 text-center">
+                        Two buyers. Same house. Same price ($400k). <br><strong>One pays $96,000 more.</strong> Why?
+                    </p>
 
-                <!-- Page 12: Do (Credit Scenario Quiz) -->
-                <div class="page" id="page-12">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Boost Your Score</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Which action <strong>hurts</strong> your score right before closing?</p>
-                    <div class="space-y-3">
-                        <button onclick="checkCreditQuiz(this, true)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Opening a new Home Depot card for appliances.</button>
-                        <button onclick="checkCreditQuiz(this, false)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Paying off a small credit card balance.</button>
+                    <!-- The Comparison Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        
+                        <!-- Buyer A (High Score) -->
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 bg-emerald-200 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-bl">Approved</div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="p-2 bg-white rounded-full text-emerald-600 shadow-sm"><i data-lucide="user-check" class="w-5 h-5"></i></div>
+                                <div>
+                                    <h3 class="font-bold text-emerald-900 text-sm">Buyer A</h3>
+                                    <p class="text-xs text-emerald-700">Score: <strong>760+</strong></p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs border-b border-emerald-200 pb-1">
+                                    <span class="text-emerald-700">Interest Rate</span>
+                                    <span class="font-bold text-emerald-900">6.5%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-emerald-700">Monthly Payment</span>
+                                    <span class="font-bold text-emerald-900">$2,528</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buyer B (Low Score) -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 bg-orange-200 text-orange-800 text-[10px] font-bold px-2 py-1 rounded-bl">Costly</div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="p-2 bg-white rounded-full text-orange-600 shadow-sm"><i data-lucide="user-x" class="w-5 h-5"></i></div>
+                                <div>
+                                    <h3 class="font-bold text-orange-900 text-sm">Buyer B</h3>
+                                    <p class="text-xs text-orange-700">Score: <strong>620</strong></p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs border-b border-orange-200 pb-1">
+                                    <span class="text-orange-700">Interest Rate</span>
+                                    <span class="font-bold text-orange-900">7.5%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-orange-700">Monthly Payment</span>
+                                    <span class="font-bold text-orange-900">$2,796</span>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
-                    <div id="credit-quiz-feedback" class="mt-4 hidden p-3 rounded text-sm"></div>
+
+                    <!-- The Sticker Shock (Footer) -->
+                    <div class="bg-allgood-dark text-white p-4 rounded-lg shadow-md text-center transform scale-100 hover:scale-[1.02] transition-transform duration-300">
+                        <div class="flex items-center justify-center gap-3 mb-1">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-orange-400"></i>
+                            <h3 class="font-heading font-bold text-lg">The "Bad Credit" Tax</h3>
+                        </div>
+                        <p class="text-sm font-body text-gray-300 mb-2">Buyer B pays an extra <strong>$268/mo</strong>.</p>
+                        <div class="inline-block bg-white/10 px-4 py-1 rounded border border-white/20">
+                            <span class="text-xs uppercase tracking-wide opacity-80 mr-2">30-Year Cost:</span>
+                            <span class="font-bold text-orange-400">+$96,480 Interest</span>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- PHASE III: LOAN TYPES (Days 30-15) -->
+                <!-- Page 12: Tell (Buyer Broker Agreement Briefing) - NEW CONTENT -->
+                <div class="page" id="page-12">
+                    <section class="mb-4 border-b border-gray-200 pb-2">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The B.B.A.</h2>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        The <strong>Buyer Broker Agreement</strong> is no longer optional—it is your protection. Before we tour a single home, we formalize our team.
+                    </p>
 
-                <!-- Page 13: Show (Loans Video) -->
-                <div class="page" id="page-13">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 3: Loan Types</h2></section>
-                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
-                        <div class="bg-gray-200 h-48 flex items-center justify-center rounded-lg mb-3 shadow-inner">
-                            <span class="text-sm text-gray-600 font-bold"><i data-lucide="play-circle" class="inline mr-2"></i> Video: FHA vs Conventional</span>
+                    <div class="bg-white border border-gray-300 rounded-lg p-6 shadow-sm relative max-w-lg mx-auto">
+                        <!-- Paper Effect -->
+                        <div class="absolute top-0 right-0 w-8 h-8 bg-gray-100 border-l border-b border-gray-300 rounded-bl-lg"></div>
+                        
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="bg-allgood-primary text-white p-2 rounded-lg shadow-sm"><i data-lucide="file-signature" class="w-6 h-6"></i></div>
+                            <h3 class="font-bold text-allgood-dark font-heading text-lg">Buyer Representation Agreement</h3>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex gap-3 items-start">
+                                <div class="mt-1 text-emerald-500 flex-shrink-0"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                                <div>
+                                    <strong class="text-xs font-bold text-allgood-dark uppercase block">Fiduciary Duty</strong>
+                                    <p class="text-xs text-gray-600">I am legally bound to act in <em>your</em> best interest, not the seller's. I keep your secrets and negotiate for your wallet.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3 items-start">
+                                <div class="mt-1 text-emerald-500 flex-shrink-0"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                                <div>
+                                    <strong class="text-xs font-bold text-allgood-dark uppercase block">Transparency</strong>
+                                    <p class="text-xs text-gray-600">We define my compensation upfront. No hidden fees. If the seller pays my fee (which is common), you pay nothing extra.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3 items-start">
+                                <div class="mt-1 text-emerald-500 flex-shrink-0"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                                <div>
+                                    <strong class="text-xs font-bold text-allgood-dark uppercase block">Commitment</strong>
+                                    <p class="text-xs text-gray-600">This agreement unlocks my ability to show you homes, draft offers, and fight for you in inspections.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-gray-100 text-center">
+                            <p class="text-[10px] text-gray-400 italic">"Without this agreement, I am just a tour guide. With it, I am your advocate."</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Page 14: Tell (Conventional) -->
-                <div class="page" id="page-14">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Conventional Loans</h2></section>
-                    <p class="text-sm text-gray-600">The standard. Harder to qualify for (higher credit score needed), but often cheaper long-term as PMI drops off automatically.</p>
+                <!-- PHASE III: LOAN TYPES (Days 30-15) -->
+
+                <!-- Page 13: Show (Loans Video - Script Preview) -->
+                <div class="page" id="page-13">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 3: Financing</h2></section>
+                    
+                    <!-- Script Preview Container -->
+                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm relative overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 bg-gray-100 px-3 py-1 rounded-br text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200">Video Script Preview</div>
+                        <div class="mt-4 flex gap-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" alt="Jonathan" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">"Financing isn't one-size-fits-all. It's a tool, not just a transaction. In <strong>Phase 3</strong>, we explore the different loan types—FHA, Conventional, VA, USDA. Each has a specific purpose.</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">We need to find the one that fits <em>your</em> blueprint, not just the one a bank tries to sell you. Let's dig into the details so you can choose your weapon wisely."</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Page 15: Tell (FHA) -->
+                <!-- Page 14: Tell (Loan Types Accordion) -->
+                <div class="page" id="page-14">
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+                        <div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Loan Explorer</h2>
+                            <p class="text-xs text-gray-500 mt-1">Explore all 4 options to unlock the next step.</p>
+                        </div>
+                        <!-- Progress Cue -->
+                        <div class="flex flex-col items-end w-24">
+                             <div class="text-[10px] font-bold text-allgood-primary mb-1" id="loan-progress-text">0/4 Explored</div>
+                             <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                 <div id="loan-progress-bar" class="h-full bg-allgood-primary w-0 transition-all duration-500"></div>
+                             </div>
+                        </div>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        Financing isn't one-size-fits-all. Click to expand each card and find the strategy that fits your blueprint.
+                    </p>
+
+                    <div class="space-y-4" id="loan-accordion">
+                        
+                        <!-- FHA -->
+                        <div class="border border-orange-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md group loan-card" data-type="fha">
+                            <button onclick="toggleLoanAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-orange-50/50 text-left transition-colors relative">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🏠</div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-base">FHA Loan</h3>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 uppercase tracking-wide mt-1">Low Down Payment</span>
+                                    </div>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-orange-50 border-t border-orange-100 p-5 animate-pop-in">
+                                <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                    Backed by the government, FHA loans help first‑time buyers with smaller savings. You can qualify with a credit score as low as 580 and 3.5% down.
+                                </p>
+                                <!-- Mentor Bubble -->
+                                <div class="flex gap-3 bg-white p-3 rounded-lg border border-orange-200 shadow-sm relative">
+                                    <div class="absolute -left-1 top-4 w-2 h-2 bg-white border-l border-b border-orange-200 transform rotate-45"></div>
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-orange-200 object-cover flex-shrink-0">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-orange-800 uppercase mb-0.5">Jonathan's Tip</p>
+                                        <p class="text-xs text-gray-600 italic">"Best if you’re starting out and need flexibility. It's a great launchpad."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conventional -->
+                        <div class="border border-blue-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md group loan-card" data-type="conv">
+                            <button onclick="toggleLoanAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-50/50 text-left transition-colors relative">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">📈</div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-base">Conventional Loan</h3>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wide mt-1">Flexible Terms</span>
+                                    </div>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-blue-50 border-t border-blue-100 p-5 animate-pop-in">
+                                <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                    Private lenders offer these loans — strong credit scores (680+) unlock better rates. Plus, you can remove PMI once you hit 20% equity.
+                                </p>
+                                <!-- Mentor Bubble -->
+                                <div class="flex gap-3 bg-white p-3 rounded-lg border border-blue-200 shadow-sm relative">
+                                    <div class="absolute -left-1 top-4 w-2 h-2 bg-white border-l border-b border-blue-200 transform rotate-45"></div>
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-blue-200 object-cover flex-shrink-0">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-blue-800 uppercase mb-0.5">Jonathan's Tip</p>
+                                        <p class="text-xs text-gray-600 italic">"Best if you have solid credit and want options. It's the standard for a reason."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- VA -->
+                        <div class="border border-emerald-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md group loan-card" data-type="va">
+                            <button onclick="toggleLoanAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-emerald-50/50 text-left transition-colors relative">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🎖️</div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-base">VA Loan</h3>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide mt-1">No Down Payment</span>
+                                    </div>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-emerald-50 border-t border-emerald-100 p-5 animate-pop-in">
+                                <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                    Exclusive to veterans and service members. Offers 0% down payment, competitive rates, and no monthly mortgage insurance.
+                                </p>
+                                <!-- Mentor Bubble -->
+                                <div class="flex gap-3 bg-white p-3 rounded-lg border border-emerald-200 shadow-sm relative">
+                                    <div class="absolute -left-1 top-4 w-2 h-2 bg-white border-l border-b border-emerald-200 transform rotate-45"></div>
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-emerald-200 object-cover flex-shrink-0">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-emerald-800 uppercase mb-0.5">Jonathan's Tip</p>
+                                        <p class="text-xs text-gray-600 italic">"Best if you’ve served and want maximum benefits. It is unbeatable."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- USDA -->
+                        <div class="border border-amber-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md group loan-card" data-type="usda">
+                            <button onclick="toggleLoanAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-amber-50/50 text-left transition-colors relative">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🌾</div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-base">USDA Loan</h3>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-wide mt-1">Rural Focus</span>
+                                    </div>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-amber-50 border-t border-amber-100 p-5 animate-pop-in">
+                                <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                    Designed for rural buyers. Income limits apply, but it offers 0% down payment options for eligible properties outside major cities.
+                                </p>
+                                <!-- Mentor Bubble -->
+                                <div class="flex gap-3 bg-white p-3 rounded-lg border border-amber-200 shadow-sm relative">
+                                    <div class="absolute -left-1 top-4 w-2 h-2 bg-white border-l border-b border-amber-200 transform rotate-45"></div>
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-amber-200 object-cover flex-shrink-0">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-amber-800 uppercase mb-0.5">Jonathan's Tip</p>
+                                        <p class="text-xs text-gray-600 italic">"Best if you’re buying outside the city. Great for expanding your search map."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Page 15: Do (Loan Quiz) -->
                 <div class="page" id="page-15">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: FHA Loans</h2></section>
-                    <p class="text-sm text-gray-600">Government-backed. Great for lower credit scores or higher debt ratios. Downside: PMI stays for the life of the loan.</p>
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-center">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Matchmaker</h2>
+                        <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded border border-yellow-200" id="key-counter">
+                            <i data-lucide="key" class="w-4 h-4 text-yellow-500 fill-current"></i>
+                            <span class="text-xs font-bold text-yellow-700">0/3</span>
+                        </div>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6">
+                        Match the buyer to the correct loan type to earn your keys.
+                    </p>
+
+                    <div id="loan-quiz-container" class="space-y-6">
+                        <!-- Question 1 -->
+                        <div class="quiz-item" data-id="1">
+                            <p class="text-sm font-bold text-allgood-dark mb-3">1. "I have a 620 credit score and only 3.5% saved for a down payment."</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="checkLoanQuiz(this, 'FHA', 1)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">FHA Loan</button>
+                                <button onclick="checkLoanQuiz(this, 'Conv', 1)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">Conventional</button>
+                            </div>
+                        </div>
+
+                        <!-- Question 2 -->
+                        <div class="quiz-item opacity-50 pointer-events-none transition-opacity" data-id="2">
+                            <p class="text-sm font-bold text-allgood-dark mb-3">2. "I am an Army Veteran and want to buy a home with $0 down."</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="checkLoanQuiz(this, 'USDA', 2)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">USDA Loan</button>
+                                <button onclick="checkLoanQuiz(this, 'VA', 2)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">VA Loan</button>
+                            </div>
+                        </div>
+
+                        <!-- Question 3 -->
+                        <div class="quiz-item opacity-50 pointer-events-none transition-opacity" data-id="3">
+                            <p class="text-sm font-bold text-allgood-dark mb-3">3. "I have excellent credit (760) and want to avoid PMI in the long run."</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="checkLoanQuiz(this, 'Conv', 3)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">Conventional</button>
+                                <button onclick="checkLoanQuiz(this, 'FHA', 3)" class="p-3 border rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors text-center">FHA Loan</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="loan-quiz-feedback" class="mt-6 hidden text-center animate-pop-in">
+                        <div class="inline-block p-4 bg-emerald-50 border border-emerald-200 rounded-full shadow-sm mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">🎉</span>
+                                <span class="font-heading font-bold text-emerald-800">Keys Secured!</span>
+                                <span class="text-2xl">🔑</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500">You know your funding options.</p>
+                        <button onclick="nextPage()" class="mt-4 text-allgood-primary font-bold text-sm hover:underline">Continue Journey &rarr;</button>
+                    </div>
+
                 </div>
 
                 <!-- Page 16: Do (Doc Checklist) -->
@@ -1218,156 +1587,357 @@
                     <div id="doc-feedback" class="mt-2 hidden text-sm font-bold text-center"></div>
                 </div>
 
-                <!-- Page 17: Do (Lender Sim) -->
+                <!-- PHASE IV: THE SEARCH (Days 14-7) -->
+
+                <!-- Page 17: Show (Search Hero - Script Preview) -->
                 <div class="page" id="page-17">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Underwriter</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">The underwriter found a $5,000 cash deposit from "unknown source." What do you do?</p>
-                    <div class="space-y-3">
-                        <button onclick="handleUnderwriter(this, false)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Ignore it.</button>
-                        <button onclick="handleUnderwriter(this, true)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Provide a signed gift letter from the donor.</button>
-                    </div>
-                    <div id="underwriter-feedback" class="mt-4 hidden p-3 rounded text-sm"></div>
-                </div>
-
-                <!-- PHASE IV: THE PROCESS (Days 14-1) -->
-
-                <!-- Page 18: Show (Agent Video) -->
-                <div class="page" id="page-18">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 4: The Search</h2></section>
-                    <div class="p-4 bg-allgood-secondary/10 rounded-lg border border-allgood-secondary/30 mb-6 text-center">
-                        <div class="bg-gray-200 h-48 flex items-center justify-center rounded-lg mb-3 shadow-inner">
-                            <span class="text-sm text-gray-600 font-bold"><i data-lucide="play-circle" class="inline mr-2"></i> Video: Your Agent's Role</span>
+                    
+                    <!-- Script Preview Container -->
+                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm relative overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 bg-gray-100 px-3 py-1 rounded-br text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200">Video Script Preview</div>
+                        <div class="mt-4 flex gap-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" alt="Jonathan" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">"The market is noisy. Everyone has an opinion. In <strong>Phase 4</strong>, we filter the signal from the noise. We aren't looking for 'perfect'—that doesn't exist. We are hunting for <em>value</em>.</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">We'll define your criteria, spot the red flags inspection reports miss, and learn how to see a house like an investor, not just a resident. Let's go hunting."</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Page 19: Tell (Criteria) -->
-                <div class="page" id="page-19">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Search Criteria</h2></section>
-                    <p class="text-sm text-gray-600">Define your box. Location, Price, Condition. You can usually only pick two.</p>
+                <!-- Page 18: Tell (Criteria) - Moved from P19 -->
+                <div class="page" id="page-18">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The "Unicorn" Problem</h2></section>
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        In real estate, you can usually pick <strong>two</strong> of these three. You rarely get all three.
+                    </p>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-center gap-4">
+                            <div class="bg-white p-2 rounded-full text-blue-600 shadow-sm"><i data-lucide="map-pin" class="w-6 h-6"></i></div>
+                            <div>
+                                <strong class="text-allgood-dark block">Location</strong>
+                                <span class="text-xs text-gray-600">The specific neighborhood or school district.</span>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 p-4 rounded-lg flex items-center gap-4">
+                            <div class="bg-white p-2 rounded-full text-green-600 shadow-sm"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div>
+                            <div>
+                                <strong class="text-allgood-dark block">Price</strong>
+                                <span class="text-xs text-gray-600">Fitting your budget comfortably.</span>
+                            </div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-200 p-4 rounded-lg flex items-center gap-4">
+                            <div class="bg-white p-2 rounded-full text-orange-600 shadow-sm"><i data-lucide="sparkles" class="w-6 h-6"></i></div>
+                            <div>
+                                <strong class="text-allgood-dark block">Condition</strong>
+                                <span class="text-xs text-gray-600">Move-in ready vs. fixer-upper.</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Page 20: Do (Needs vs Wants) -->
-                <div class="page" id="page-20">
+                <!-- Page 19: Do (Needs vs Wants) - Moved from P20 -->
+                <div class="page" id="page-19">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Needs vs. Wants</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Select your top 3 <strong>Non-Negotiables</strong>.</p>
+                    <p class="text-sm text-gray-600 mb-4">Select your top 3 <strong>Non-Negotiables</strong>. Everything else is a bonus.</p>
                     <div class="grid grid-cols-2 gap-3" id="tradeoff-grid-p20">
-                        <!-- Populated by JS -->
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Good Schools</div>
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Pool</div>
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">3+ Bedrooms</div>
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Granite Counters</div>
-                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white" onclick="toggleTradeP20(this)">Safe Neighborhood</div>
-                        <button onclick="toggleTradeP20(this)" class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white">Smart Home Tech</button>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Good Schools</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Pool</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">3+ Bedrooms</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Granite Counters</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Safe Neighborhood</div>
+                        <button onclick="toggleTradeP20(this)" class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors">Smart Home Tech</button>
                     </div>
                     <div id="tradeoff-feedback-p20" class="mt-4 text-center text-sm font-bold text-allgood-primary">Selected: 0/3</div>
                 </div>
 
-                <!-- Page 21: Tell (Online Tools) -->
-                <div class="page" id="page-21">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Zillow vs. Reality</h2></section>
-                    <p class="text-sm text-gray-600">Online estimates (Zestimates) are algorithms, not appraisals. They often miss local nuances or interior conditions.</p>
-                </div>
+                <!-- Page 20: Tell (Online Tools) - Visual Overhaul -->
+                <div class="page" id="page-20">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Speed vs. Truth</h2></section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        Online estimates are fast, but lenders don't trust them. Here is why the bank ignores the Zestimate® and why you should too when making an offer.
+                    </p>
 
-                <!-- Page 22: Do (Open House) -->
-                <div class="page" id="page-22">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Open House</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">You are at an open house. The hosting agent asks, "Do you have an agent?"</p>
-                    <div class="space-y-3">
-                        <button onclick="handleOpenHouse(this, true)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">"Yes, I am working with Jonathan Hurtado."</button>
-                        <button onclick="handleOpenHouse(this, false)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">"No, not really."</button>
-                    </div>
-                    <div id="openhouse-feedback" class="mt-4 hidden p-3 rounded text-sm"></div>
-                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- The Algorithm -->
+                        <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-5 flex flex-col items-center text-center relative overflow-hidden transition-transform hover:shadow-md">
+                            <div class="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold px-2 py-1 rounded-bl uppercase tracking-wide">Fast but Blind</div>
+                            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center border border-gray-200 mb-3 shadow-sm">
+                                <i data-lucide="clock" class="w-6 h-6 text-gray-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-gray-700 mb-1">The Algorithm</h3>
+                            <p class="text-xs text-gray-500 mb-4">(Zestimate®, Redfin Est)</p>
+                            
+                            <ul class="text-xs text-left space-y-2 w-full bg-white p-3 rounded border border-gray-100 shadow-inner mb-3">
+                                <li class="flex items-start gap-2"><i data-lucide="x-circle" class="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0"></i> <span class="text-gray-600">Never saw the kitchen</span></li>
+                                <li class="flex items-start gap-2"><i data-lucide="x-circle" class="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0"></i> <span class="text-gray-600">Misses structural issues</span></li>
+                                <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0"></i> <span class="text-gray-600">Good for rough sorting</span></li>
+                            </ul>
+                            
+                            <div class="w-full py-2 bg-gray-200 text-gray-600 font-bold text-xs rounded uppercase tracking-wide">
+                                Accuracy: Low
+                            </div>
+                        </div>
 
-                <!-- PHASE V: OFFER & CLOSING (Day 0) -->
-
-                <!-- Page 23: Do (Red Flags) -->
-                <div class="page" id="page-23">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Spot the Red Flag</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Which of these is a major inspection red flag?</p>
-                    <div class="space-y-3">
-                        <button onclick="handleRedFlag(this, false)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Ugly wallpaper in the kitchen.</button>
-                        <button onclick="handleRedFlag(this, true)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Horizontal cracks in the foundation.</button>
-                    </div>
-                    <div id="redflag-feedback" class="mt-4 hidden p-3 rounded text-sm"></div>
-                </div>
-
-                <!-- Page 24: Tell (Title) -->
-                <div class="page" id="page-24">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: Title Insurance</h2></section>
-                    <p class="text-sm text-gray-600">Protects you from hidden heirs or liens from previous owners. Essential for ownership security.</p>
-                </div>
-
-                <!-- Page 25: Do (Negotiation) -->
-                <div class="page" id="page-25">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Lowball</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">The house is listed for $400k. It's been on market 2 days. You offer $350k.</p>
-                    <div class="bg-red-50 border border-red-200 p-4 rounded text-sm text-red-800 font-bold text-center">Outcome: Offer Rejected & Seller Offended.</div>
-                    <p class="text-xs text-gray-500 mt-2 text-center">In a hot market, realistic offers win.</p>
-                </div>
-
-                <!-- Page 26: Tell (Offer Letter) -->
-                <div class="page" id="page-26">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The "Love Letter"</h2></section>
-                    <p class="text-sm text-gray-600">Personal letters can sometimes sway a seller, but be careful of Fair Housing laws. Focus on the house features, not your family.</p>
-                </div>
-
-                <!-- Page 27: Do (Earnest Money) -->
-                <div class="page" id="page-27">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Earnest Money</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Drag the Earnest Money bag to the Escrow Account within 3 days!</p>
-                    <div class="flex justify-between gap-4">
-                        <div class="draggable bg-green-100 border-green-500 border-2 p-4 rounded-full text-center cursor-grab w-24 h-24 flex items-center justify-center font-bold text-green-800" draggable="true" ondragstart="drag(event)" id="drag-em">$5k</div>
-                        <div class="drop-zone bg-gray-200 border-2 border-dashed border-gray-400 rounded w-32 h-32 flex flex-col items-center justify-center" ondrop="dropEscrow(event)" ondragover="allowDrop(event)">
-                            <span class="text-xs font-bold">Escrow</span>
+                        <!-- The Appraisal -->
+                        <div class="bg-emerald-50 border-2 border-emerald-200 rounded-lg p-5 flex flex-col items-center text-center relative overflow-hidden shadow-sm transform md:scale-[1.05] z-10 hover:shadow-lg transition-shadow">
+                            <div class="absolute top-0 right-0 bg-emerald-200 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-bl uppercase tracking-wide">The Gold Standard</div>
+                            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center border border-emerald-100 mb-3 shadow-sm">
+                                <i data-lucide="scale" class="w-6 h-6 text-emerald-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-emerald-900 mb-1">The Appraisal</h3>
+                            <p class="text-xs text-emerald-700 mb-4">(Licensed Human Expert)</p>
+                            
+                            <ul class="text-xs text-left space-y-2 w-full bg-white p-3 rounded border border-emerald-100 shadow-inner mb-3">
+                                <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0"></i> <span class="text-gray-700">Inspects inside & out</span></li>
+                                <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0"></i> <span class="text-gray-700">Verifies recent sold comps</span></li>
+                                <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0"></i> <span class="text-gray-700">Required by Lender</span></li>
+                            </ul>
+                            
+                            <div class="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded uppercase tracking-wide shadow-md">
+                                Accuracy: High
+                            </div>
                         </div>
                     </div>
-                    <div id="escrow-feedback" class="mt-4 hidden font-bold text-center text-green-600">Deposit Confirmed!</div>
                 </div>
 
-                <!-- Page 28: Do (Inspection) -->
-                <div class="page" id="page-28">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Inspection Report</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Inspection found a broken water heater. What do you ask for?</p>
-                    <button onclick="handleInspect(this)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold mb-2">Credit at Closing ($1500)</button>
-                    <button onclick="handleInspect(this)" class="w-full p-3 bg-white border rounded text-left hover:bg-gray-50 text-sm font-bold">Seller Fixes It</button>
-                    <div id="inspect-feedback" class="mt-2 hidden text-sm">Credits are safer; you control the repair quality!</div>
-                </div>
+                <!-- Page 21: Do (The Buyer's Field Test) - CONSOLIDATED -->
+                <div class="page" id="page-21">
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-center">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Field Test</h2>
+                        <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded border border-yellow-200" id="field-score">
+                            <i data-lucide="shield" class="w-4 h-4 text-yellow-600 fill-current"></i>
+                            <span class="text-xs font-bold text-yellow-800">0/3</span>
+                        </div>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6">
+                        Due diligence is a 3-part defense system. Pass all three checks to clear the property for an offer.
+                    </p>
 
-                <!-- Page 29: Do (Appraisal) -->
-                <div class="page" id="page-29">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Appraisal Gap</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">House price: $400k. Appraisal: $390k. Who pays the $10k gap?</p>
-                    <div class="bg-white border p-4 rounded text-sm">
-                        <p><strong>You do</strong>, or the seller lowers the price, or you walk away. Cash is king here.</p>
+                    <div class="space-y-4">
+                        
+                        <!-- Check 1: Legal (Open House) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm" id="check-legal">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="bg-blue-100 p-2 rounded text-blue-600"><i data-lucide="users" class="w-5 h-5"></i></div>
+                                <h3 class="font-bold text-allgood-dark text-sm">1. Legal Check</h3>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3 italic">"You are at an open house. The hosting agent asks: 'Are you working with an agent?'"</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="runFieldTest(this, 'legal', true)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">"Yes, I have a rep."</button>
+                                <button onclick="runFieldTest(this, 'legal', false)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">"No, not really."</button>
+                            </div>
+                            <div class="feedback hidden mt-2 text-xs font-bold"></div>
+                        </div>
+
+                        <!-- Check 2: Structural (Red Flags) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm opacity-50 pointer-events-none transition-all" id="check-structural">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="bg-orange-100 p-2 rounded text-orange-600"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div>
+                                <h3 class="font-bold text-allgood-dark text-sm">2. Structural Check</h3>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3 italic">"You see two issues. Which one is the expensive deal-breaker?"</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="runFieldTest(this, 'structural', false)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">Ugly Wallpaper</button>
+                                <button onclick="runFieldTest(this, 'structural', true)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">Foundation Cracks</button>
+                            </div>
+                            <div class="feedback hidden mt-2 text-xs font-bold"></div>
+                        </div>
+
+                        <!-- Check 3: Financial (Title) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm opacity-50 pointer-events-none transition-all" id="check-financial">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="bg-emerald-100 p-2 rounded text-emerald-600"><i data-lucide="file-check" class="w-5 h-5"></i></div>
+                                <h3 class="font-bold text-allgood-dark text-sm">3. Financial Check</h3>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3 italic">"A stranger knocks and claims they inherited this land 10 years ago. What protects you?"</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="runFieldTest(this, 'financial', false)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">Home Insurance</button>
+                                <button onclick="runFieldTest(this, 'financial', true)" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors">Title Insurance</button>
+                            </div>
+                            <div class="feedback hidden mt-2 text-xs font-bold"></div>
+                        </div>
+
+                    </div>
+                    
+                    <div id="field-test-complete" class="mt-6 hidden text-center animate-pop-in">
+                        <div class="inline-block px-4 py-2 bg-emerald-600 text-white rounded-full text-sm font-bold shadow-md">
+                            <i data-lucide="check-circle-2" class="inline w-4 h-4 mr-1"></i> Due Diligence Passed
+                        </div>
+                        <button onclick="nextPage()" class="block w-full mt-4 text-allgood-primary font-bold text-sm hover:underline">Proceed to Offer &rarr;</button>
                     </div>
                 </div>
 
-                <!-- Page 30: Do (Walkthrough) -->
-                <div class="page" id="page-30">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Final Walkthrough</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Click to verify.</p>
-                    <div class="space-y-2">
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">House is empty.</button>
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">No new damage.</button>
-                        <button onclick="this.classList.add('bg-green-100', 'border-green-500'); sfx.play('click')" class="w-full p-3 border rounded text-left">Repairs completed.</button>
+                <!-- PHASE V: OFFER & CLOSING (Days 7-0) -->
+
+                <!-- Page 22: Show (Offer Strategy Hero - Script Preview) -->
+                <div class="page" id="page-22">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Phase 5: The Offer</h2></section>
+                    
+                    <!-- Script Preview Container -->
+                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm relative overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 bg-gray-100 px-3 py-1 rounded-br text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200">Video Script Preview</div>
+                        <div class="mt-4 flex gap-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" alt="Jonathan" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-sm font-heading font-bold text-allgood-dark">Jonathan:</p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">"We've built the foundation. We've crunched the numbers. We've filtered the market. Now, we execute. Welcome to <strong>Phase 5: The Offer.</strong></p>
+                                <p class="text-sm text-gray-600 font-body leading-relaxed italic">Most people think the highest price wins. They're wrong. An offer is a strategy made of three levers: <strong>Price, Terms, and Speed.</strong> I’m going to teach you how to pull them to win the deal without overpaying. Let's get you those keys."</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Page 31: Tell (Wire Fraud) -->
-                <div class="page" id="page-31">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">CRITICAL: Wire Fraud</h2></section>
-                    <div class="bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
-                        <p class="font-bold">NEVER wire money based on an email.</p>
-                        <p class="text-sm">Always call the title company on a verified number.</p>
+                <!-- Page 23: Do (The Cash Equation - CONSOLIDATED CHALLENGE) -->
+                <div class="page" id="page-23">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Cash Equation</h2></section>
+                    <p class="text-sm text-gray-600 mb-6 leading-relaxed">
+                        Negotiation isn't just about the price tag—it's about "Net Proceeds" and "Certainty." <br><strong>Scenario:</strong> House listed at $400k. Market is HOT (Multiple Offers).
+                    </p>
+
+                    <!-- Step 1: The Offer -->
+                    <div id="cash-step-1" class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+                        <h3 class="font-bold text-allgood-dark text-sm mb-3 flex items-center gap-2">
+                            <span class="bg-allgood-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">1</span>
+                            Make Your Move
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="runCashSim(this, 'lowball')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Offer $380k<br><span class="font-normal text-gray-500">(Save Money)</span></button>
+                            <button onclick="runCashSim(this, 'competitive')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Offer $405k<br><span class="font-normal text-gray-500">(Win the Deal)</span></button>
+                        </div>
+                        <div id="cash-feedback-1" class="hidden mt-3 text-xs font-bold"></div>
+                    </div>
+
+                    <!-- Step 2: The Gap (Hidden initially) -->
+                    <div id="cash-step-2" class="bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-sm opacity-50 pointer-events-none transition-all">
+                        <h3 class="font-bold text-allgood-dark text-sm mb-3 flex items-center gap-2">
+                            <span class="bg-allgood-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">2</span>
+                            The Appraisal Problem
+                        </h3>
+                        <p class="text-xs text-gray-600 mb-3 italic">"Offer Accepted! But the bank Appraisal came in at <strong>$395k</strong>. There is a $10,000 Gap."</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="runCashSim(this, 'demand')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Demand Price Drop<br><span class="font-normal text-gray-500">(Seller pays gap)</span></button>
+                            <button onclick="runCashSim(this, 'cover')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Cover Gap in Cash<br><span class="font-normal text-gray-500">(Buyer pays gap)</span></button>
+                        </div>
+                        <div id="cash-feedback-2" class="hidden mt-3 text-xs font-bold"></div>
+                    </div>
+                </div>
+
+                <!-- Page 24: Tell (Contracts) -->
+                <div class="page" id="page-24">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Safety Net</h2></section>
+                    <p class="text-sm text-gray-600 mb-6">Your offer is a legal contract. It includes "Contingencies"—trap doors that let you walk away with your deposit if things go wrong.</p>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
+                            <div class="bg-orange-100 p-2 rounded text-orange-600"><i data-lucide="search" class="w-4 h-4"></i></div>
+                            <div class="text-xs"><strong>Inspection Contingency:</strong> Walk away if the house is broken.</div>
+                        </div>
+                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
+                            <div class="bg-blue-100 p-2 rounded text-blue-600"><i data-lucide="scale" class="w-4 h-4"></i></div>
+                            <div class="text-xs"><strong>Appraisal Contingency:</strong> Walk away if it's not worth the price.</div>
+                        </div>
+                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
+                            <div class="bg-green-100 p-2 rounded text-green-600"><i data-lucide="dollar-sign" class="w-4 h-4"></i></div>
+                            <div class="text-xs"><strong>Finance Contingency:</strong> Walk away if the loan is denied.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 25: Do (The Closing Gauntlet - CONSOLIDATED) -->
+                <div class="page" id="page-25">
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-center">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Closing Gauntlet</h2>
+                        <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded border border-yellow-200" id="gauntlet-score">
+                            <i data-lucide="flag" class="w-4 h-4 text-yellow-600 fill-current"></i>
+                            <span class="text-xs font-bold text-yellow-800">0/4</span>
+                        </div>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6">
+                        Closing is a sprint. Clear these 4 hurdles to secure the keys.
+                    </p>
+
+                    <div class="space-y-4">
+                        
+                        <!-- Step 1: Earnest Money -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm" id="gauntlet-step-1">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-allgood-dark text-sm flex items-center gap-2"><i data-lucide="dollar-sign" class="w-4 h-4 text-green-600"></i> 1. Earnest Money</h3>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">Day 1-3</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3">Deposit shows intent. Miss the deadline, lose the house.</p>
+                            <button onclick="runGauntlet(this, 1)" class="w-full py-2 bg-green-50 hover:bg-green-100 border border-green-200 text-green-800 font-bold rounded text-xs transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="send" class="w-3 h-3"></i> Wire Deposit to Title Company
+                            </button>
+                        </div>
+
+                        <!-- Step 2: Inspection (Locked) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm opacity-50 pointer-events-none transition-all" id="gauntlet-step-2">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-allgood-dark text-sm flex items-center gap-2"><i data-lucide="search" class="w-4 h-4 text-orange-600"></i> 2. Inspection</h3>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">Day 7-10</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3">Report found a broken AC unit. What is your move?</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="runGauntlet(this, 2, 'repair')" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Ask Seller to Fix</button>
+                                <button onclick="runGauntlet(this, 2, 'credit')" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Ask for Credit ($)</button>
+                            </div>
+                            <div class="feedback hidden mt-2 text-xs font-bold"></div>
+                        </div>
+
+                        <!-- Step 3: Walkthrough (Locked) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm opacity-50 pointer-events-none transition-all" id="gauntlet-step-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-allgood-dark text-sm flex items-center gap-2"><i data-lucide="footprints" class="w-4 h-4 text-blue-600"></i> 3. Final Walkthrough</h3>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">Closing Day</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3">Verify the house is empty and repairs are done.</p>
+                            <button onclick="runGauntlet(this, 3)" class="w-full py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded text-xs transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="check-circle" class="w-3 h-3"></i> Verify Condition
+                            </button>
+                        </div>
+
+                        <!-- Step 4: Security (Locked) -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm opacity-50 pointer-events-none transition-all" id="gauntlet-step-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-allgood-dark text-sm flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4 text-red-600"></i> 4. Wire Fraud Check</h3>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">CRITICAL</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-3">You received an email with "Updated Wiring Instructions." Do you send the money?</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="runGauntlet(this, 4, 'fail')" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Yes, Send It</button>
+                                <button onclick="runGauntlet(this, 4, 'pass')" class="p-2 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">No, Call to Verify</button>
+                            </div>
+                            <div class="feedback hidden mt-2 text-xs font-bold"></div>
+                        </div>
+
+                    </div>
+                    
+                    <div id="gauntlet-complete" class="mt-6 hidden text-center animate-pop-in">
+                        <div class="inline-block px-4 py-2 bg-emerald-600 text-white rounded-full text-sm font-bold shadow-md">
+                            <i data-lucide="key" class="inline w-4 h-4 mr-1"></i> Keys Secured!
+                        </div>
+                        <button onclick="nextPage()" class="block w-full mt-4 text-allgood-primary font-bold text-sm hover:underline">Take Final Exam &rarr;</button>
                     </div>
                 </div>
 
                 <!-- PHASE VI: CERTIFICATION & CTA -->
 
-                <!-- Page 32: Final Exam -->
-                <div class="page" id="page-32">
+                <!-- Page 26: Final Exam - Renumbered (Was P29/30) -->
+                <div class="page" id="page-26">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Final Exam</h2></section>
                     <p class="text-sm text-gray-600 mb-4">Pass 3/5 to certify.</p>
                     <div id="final-exam-container" class="space-y-4">
@@ -1376,8 +1946,8 @@
                     <button onclick="submitFinalExam()" class="mt-6 w-full bg-allgood-primary text-white font-bold py-3 rounded shadow-lg">Submit Exam</button>
                 </div>
 
-                <!-- Page 33: Certification -->
-                <div class="page" id="page-33">
+                <!-- Page 27: Certification - Renumbered (Was P30/31) -->
+                <div class="page" id="page-27">
                     <div class="flex flex-col items-center justify-center min-h-full text-center">
                         <div id="badge-container" class="mb-6 transform scale-110"></div>
                         <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Certified Buyer Ready</h2>
@@ -1386,11 +1956,15 @@
                     </div>
                 </div>
 
-                <!-- Page 34: CTA -->
-                <div class="page" id="page-34">
+                <!-- Page 28: CTA - Renumbered (Was P31/32) -->
+                <div class="page" id="page-28">
                     <div class="flex flex-col items-center justify-center min-h-full text-center px-6">
                         <div class="w-24 h-24 bg-gray-200 rounded-full mb-4 flex items-center justify-center shadow-md overflow-hidden">
-                            <span class="text-xs text-gray-500">Jonathan's Photo</span>
+                            <img 
+                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
+                                alt="Jonathan Hurtado" 
+                                class="w-full h-full object-cover"
+                            >
                         </div>
                         <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-4">Let's Find Your Home.</h2>
                         <p class="text-base text-gray-600 mb-8 max-w-md">You've done the work. You know the process. Now, let's execute the strategy.</p>
@@ -1434,7 +2008,7 @@
     <!-- Logic -->
     <script>
         // --- Global State ---
-        const totalPages = 34; 
+        const totalPages = 28; 
         let currentPage = 0;
         let userName = "Learner";
         
@@ -1442,16 +2016,16 @@
         const pageTitles = [
             "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", 
             "5. Tell: Affordability Rules", "6. Simulation: Lender's Lens", "7. Phase 2: Intro Video", 
-            "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Do: Closing Wallet",
-            "11. Tell: Credit Power", "12. Do: Credit Quiz", "13. Show: Loan Types", "14. Tell: Conventional", "15. Tell: FHA Loans",
-            "16. Do: Doc Checklist", "17. Do: Underwriter Sim", "18. Show: Agent Role", "19. Tell: Search Criteria", "20. Do: Needs vs Wants",
-            "21. Tell: Online Tools", "22. Do: Open House", "23. Do: Red Flags", "24. Tell: Title Insurance", "25. Do: The Lowball",
-            "26. Tell: Offer Letter", "27. Do: Earnest Money", "28. Do: Inspection", "29. Do: Appraisal Gap", "30. Do: Final Walkthrough",
-            "31. Tell: Wire Fraud", "32. Final Exam", "33. Certification", "34. Priority Access"
+            "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Challenge: Protect Loan",
+            "11. Tell: Credit Power", "12. Briefing: The BBA", "13. Show: Loan Types", "14. Tell: Loan Explorer", "15. Do: Loan Quiz",
+            "16. Do: Doc Checklist", "17. Phase 4: Search Hero", "18. Tell: Criteria", "19. Challenge: Needs/Wants", "20. Tell: Online Tools", 
+            "21. Challenge: Field Test", "22. Phase 5: Offer Strategy", "23. Challenge: Cash Equation", "24. Tell: Contracts",
+            "25. Challenge: Closing Gauntlet",
+            "26. Final Exam", "27. Certification", "28. Priority Access"
         ];
 
         // Narrator Text Map
-        // Pages 1, 2, 6, 13, and 18 intentionally excluded to silence narrator.
+        // Pages 1, 2, 6, 7, 13, 17, and 22 intentionally excluded to silence narrator for hero/video pages.
         const narratorText = {
             3: "Motivation, Credit, Funding. These are your pillars. Flip the cards to understand your mission parameters.",
             4: "Here’s where we dig deeper. Study each pillar carefully. Before we test your readiness, you need to know the Golden Rules lenders use to judge your application.",
@@ -1459,27 +2033,21 @@
             6: "Stop guessing and start analyzing. Run these checks to see where the 'system' flags you, and then see how we solve it together.",
             8: "You know the rules (28/36). Now test the math. Enter your real numbers to see if you fit the 'Comfortable Zone' or if we need to adjust your strategy.",
             9: "Affordability is a puzzle, not a wall. Sometimes, the key to unlocking a home isn't making more money—it's adjusting where your money goes. Select a trade-off to see how it impacts your buying power.",
-            10: "Cash to Close adds up fast. Drag expenses into the bucket to see the real cost.",
-            12: "Credit scores dictate terms. See which actions strengthen or hurt your score.",
-            14: "Conventional loans are standard. Explore pros and cons to see if it fits.",
-            15: "FHA loans help lower credit scores but have trade-offs. Flip to compare.",
-            16: "Prove stability. Drag the right documents to the checklist for pre-approval.",
-            17: "Practice run: Pass or fail depends on the numbers. Pre-approval is serious.",
-            19: "Define must-haves vs nice-to-haves. Clear criteria save time and frustration.",
-            20: "Rank needs vs wants to help you and your agent focus on what matters.",
-            21: "Use filters to keep your online search realistic and efficient.",
-            22: "Not all property visits are the same. Flip these cards to see the difference between open houses and private showings.",
-            23: "Looks can be deceiving. Spot the hidden red flags in this property photo — this skill protects you from costly mistakes.",
-            24: "Title insurance and surveys protect you from legal headaches. Read why they’re non-negotiable.",
-            25: "Negotiation is about terms, not just price. See how offers play out.",
-            26: "Emotion can win. Flip to see how a personal letter helps your offer.",
-            27: "Earnest money shows intent. Drag the deposit to see its role in costs.",
-            28: "Negotiate repairs or value. This is where deals are won or lost.",
-            29: "Appraisal lower than offer? Decide: pay gap, renegotiate, or walk.",
-            30: "One last check. Use the checklist to ensure nothing is damaged.",
-            31: "Closing is risky. Learn to review docs and avoid wire fraud.",
-            32: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
-            33: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
+            10: "You are approved, but not safe. Every financial move you make is being watched. Sort the actions to keep your loan alive.",
+            11: "Numbers don't lie. That $96,000 difference is real money leaving your pocket. The good news? You can influence this number before we apply. Let's see if you can spot the traps.",
+            12: "We are a team. This agreement makes it official. It legally binds me to fight for your best interests, not the seller's. It's your protection.",
+            14: "Don't just pick a loan—pick a strategy. Expand the cards to see which option aligns with your financial profile.",
+            15: "You’re mastering the financing landscape. Every right answer brings you closer to the keys.",
+            16: "Prove stability. Select the right documents for pre-approval. Make sure you only select the required three.",
+            18: "Location, Price, Condition. You usually only get two. Which trade-off are you willing to make.",
+            19: "Define must-haves vs nice-to-haves. Clear criteria save time and frustration. Only select your top three.",
+            20: "Speed vs. Truth. Algorithms are fast but blind. We trust the Appraisal—it takes longer, but it's the only number the bank cares about.",
+            21: "Protect yourself at every turn. Representation, Inspection, and Title. Pass all three checks to safely move to the offer phase.",
+            23: "In a hot market, the contract price is just a number. The *appraisal* is the reality. Managing that gap with cash is how you win against higher offers.",
+            24: "Contingencies are your safety net. Understand exactly when you can walk away with your deposit intact.",
+            25: "This is the final sprint. Every day counts. Clear the contingencies, verify the condition, and watch out for fraudsters. Finish strong.",
+            26: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
+            27: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
         };
 
         // State Management
@@ -1494,8 +2062,6 @@
         let audioCtx;
 
         function initAudio() {
-            // Check if audioCtx is defined and its state, attempt to resume if needed.
-            // This is crucial for environments where audio starts muted.
             if (!audioCtx) {    
                 audioCtx = new AudioContext();    
             }
@@ -1521,7 +2087,6 @@
         }
 
         const sfx = {
-            // Success/Completion/Startup Sound
             powerOn: () => {
                 initAudio();
                 const now = audioCtx.currentTime;
@@ -1537,27 +2102,14 @@
                 gain.gain.linearRampToValueAtTime(0, now + 0.4);
                 osc.start(now); osc.stop(now + 0.4);
             },
-            // Error/Fail/Reset Sound
-            powerOff: () => {    
-                initAudio();    
-                playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001);    
-            },
-            // Page Turn/Correct Nav/Confirmation Sound
-            nav: () => {    
-                initAudio();    
-                playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01);    
-            },
-            // UI Click/Tap/Interaction Sound
-            tick: () => {    
-                initAudio();    
-                playTone(1000, 'sine', 0.01, 0.01);    
-            },
-            // Backward compatibility aliases for existing calls in HTML
+            powerOff: () => { initAudio(); playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001); },
+            nav: () => { initAudio(); playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01); },
+            tick: () => { initAudio(); playTone(1000, 'sine', 0.01, 0.01); },
             play: (tag) => {
                 if (tag === 'powerup') sfx.powerOn();
                 else if (tag === 'powerdown' || tag === 'knock') sfx.powerOff();
-                else if (tag === 'thunk') sfx.nav(); // Correct answer maps to Nav sound
-                else if (tag === 'click') sfx.tick(); // Generic interaction maps to Tick
+                else if (tag === 'thunk') sfx.nav(); 
+                else if (tag === 'click') sfx.tick(); 
             }
         };
 
@@ -1568,7 +2120,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             buildExam();
-            initWalletDragDrop(); // Initialize drag and drop logic
+            initWalletDragDrop(); 
+            initBuyerChoicesDragDrop(); 
 
             const pages = document.querySelectorAll('.page');
             const progressBar = document.getElementById('flex-progress-fill');
@@ -1578,15 +2131,12 @@
             const narratorTextEl = document.getElementById('narrator-message');
             const narratorStrip = document.getElementById('narrator-strip');
             
-            // Global click listener to close tooltips/modals when clicking outside
             document.addEventListener('click', function(e) {
-                // Close Anchor Pills
                 if (!e.target.closest('.anchor-pill')) {
                     document.querySelectorAll('.anchor-pill').forEach(p => p.classList.remove('active'));
                 }
             });
 
-            // Navigation Function
             window.showPage = function(idx) {
                 if (idx < 0 || idx >= totalPages) return;
                 pages.forEach(p => p.classList.remove('active'));
@@ -1595,16 +2145,13 @@
                 if(progressBar) progressBar.style.width = `${((idx + 1) / totalPages) * 100}%`;
                 if(pageIndicator) pageIndicator.textContent = `${idx + 1} / ${totalPages}`;
 
-                // Narrator Logic
-                // idx is 0-based. narratorText keys are 1-based.
                 const txt = narratorText[idx + 1]; 
                 
                 if (narratorStrip && narratorTextEl) {
-                    // Reset styling to neutral gray for new page load
                     narratorStrip.style.backgroundColor = '#F7F7F7';
                     narratorStrip.style.borderBottom = '1px solid #e5e7eb';
                     narratorTextEl.style.color = '#4C4C4C';
-                    narratorStrip.classList.remove('narrator-speaking'); // Remove old animation class
+                    narratorStrip.classList.remove('narrator-speaking'); 
                     
                     if (txt) {
                         narratorTextEl.textContent = txt;
@@ -1614,9 +2161,8 @@
                     }
                 }
 
-                if (idx === 32) generateBadge(); 
+                if (idx === 26) generateBadge(); 
                 
-                // Button State
                 if(backBtn) {
                     backBtn.disabled = idx === 0;
                     backBtn.classList.toggle('opacity-0', idx === 0);
@@ -1629,50 +2175,40 @@
                         nextBtn.querySelector('span').textContent = 'Next';
                     }
                 }
-                sfx.nav(); // Use the Nav sound for page transitions
+                sfx.nav(); 
             };
 
             window.nextPage = () => showPage(currentPage + 1);
 
-            // Event Listeners (Safely Attached)
             if(nextBtn) nextBtn.addEventListener('click', () => showPage(currentPage + 1));
             if(backBtn) backBtn.addEventListener('click', () => showPage(currentPage - 1));
             
-            // --- HOME BUTTON LONG PRESS LOGIC ---
             const homeBtn = document.getElementById('home-button');
             let pressTimer;
             let isResetting = false;
 
             function resetSession() {
                 isResetting = true;
-                sfx.powerOff(); // Play power down sound
-                
-                // Reset State
+                sfx.powerOff(); 
                 currentPage = 0;
-                userName = "Learner"; // Optional: Keep name or reset? Resetting for full restart.
+                userName = "Learner"; 
                 if(document.getElementById('user-name-input')) document.getElementById('user-name-input').value = "";
                 if(document.getElementById('header-welcome-text')) document.getElementById('header-welcome-text').textContent = "Welcome: Learner";
                 
-                // UI Reset
                 if(progressBar) progressBar.style.width = '0%';
                 if(pageIndicator) pageIndicator.textContent = `1 / ${totalPages}`;
                 
-                // Hide all pages
                 pages.forEach(p => p.classList.remove('active'));
-                document.getElementById('page-1').classList.add('active'); // Prep page 1 underneath
+                document.getElementById('page-1').classList.add('active'); 
                 
-                // Hide Narrator
                 if(narratorStrip) narratorStrip.style.display = 'none';
 
-                // Show Startup Screen
                 if(startupScreen) {
                     startupScreen.style.display = 'flex';
-                    // Force reflow
                     void startupScreen.offsetWidth; 
                     startupScreen.style.opacity = '1';
                 }
 
-                // Show Login Modal
                 const loginModal = document.getElementById('login-modal');
                 if(loginModal) {
                     loginModal.classList.remove('hidden-modal');
@@ -1681,37 +2217,25 @@
             }
 
             if(homeBtn) {
-                // Mouse Events
                 homeBtn.addEventListener('mousedown', () => {
                     isResetting = false;
                     pressTimer = setTimeout(resetSession, 2000);
                 });
-                
                 homeBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
                 homeBtn.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-
-                // Touch Events
                 homeBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // Prevent ghost clicks
+                    e.preventDefault(); 
                     isResetting = false;
                     pressTimer = setTimeout(resetSession, 2000);
                 });
-
                 homeBtn.addEventListener('touchend', () => {
                     clearTimeout(pressTimer);
-                    if (!isResetting) {
-                        showPage(0); // Regular click behavior
-                    }
+                    if (!isResetting) showPage(0); 
                 });
-
-                // Click Handler (for mouse)
                 homeBtn.addEventListener('click', (e) => {
-                    if (!isResetting) {
-                        showPage(0);
-                    }
+                    if (!isResetting) showPage(0);
                 });
             }
-            // -------------------------------------
 
             const startSessionBtn = document.getElementById('start-session-btn');
             if(startSessionBtn) {
@@ -1725,12 +2249,10 @@
                         loginModal.classList.add('hidden-modal');
                         loginModal.classList.remove('visible-modal');
                     }
-                    // sfx.tick(); // Removed duplicate, handled by showPage(0)
                     showPage(0);
                 });
             }
 
-            // Logic for Startup Screen Fade Out
             const startupScreen = document.getElementById('startup-screen');
             if(startupScreen) {
                 startupScreen.addEventListener('click', () => {
@@ -1738,7 +2260,6 @@
                     startupScreen.style.opacity = '0';
                     setTimeout(() => { 
                         startupScreen.style.display = 'none'; 
-                        // Ensure page 1 is visible after startup fades
                         showPage(0); 
                     }, 700);
                 });
@@ -1750,7 +2271,7 @@
             
             if(menuToggle && menuModal) {
                 menuToggle.addEventListener('click', () => {
-                    sfx.tick(); // Added system click
+                    sfx.tick(); 
                     menuModal.classList.remove('hidden-modal');
                     menuModal.classList.add('visible-modal');
                     const toc = document.getElementById('toc-list');
@@ -1769,13 +2290,12 @@
             
             if(closeMenu && menuModal) {
                 closeMenu.addEventListener('click', () => {
-                    sfx.tick(); // Added system click
+                    sfx.tick(); 
                     menuModal.classList.add('hidden-modal');
                     menuModal.classList.remove('visible-modal');
                 });
             }
 
-            // Fullscreen Logic
             const fullscreenBtn = document.getElementById('fullscreen-toggle');
             if(fullscreenBtn) {
                 fullscreenBtn.addEventListener('click', () => {
@@ -1797,7 +2317,6 @@
                 });
             }
 
-            // Accordion & Blueprint (Global Delegation)
             document.body.addEventListener('click', (e) => {
                 const accBtn = e.target.closest('.accordion-toggle');
                 const bpToggle = e.target.closest('#blueprint-toggle');
@@ -1820,39 +2339,26 @@
 
         /* --- INTERACTION LOGIC (Global Scope) --- */
 
-        // P5: Readiness
         window.runLenderAnalysis = function(btn) {
             const parent = btn.closest('.lender-action');
             const result = parent.parentElement.querySelector('.lender-result');
-            
-            // Hide button
             btn.classList.add('hidden');
-            
-            // Create a "Done" indicator
             const doneIndicator = document.createElement('div');
             doneIndicator.className = "text-center text-xs font-bold text-gray-300 py-1";
             doneIndicator.innerHTML = '<i data-lucide="check" class="inline w-3 h-3 mr-1"></i>Analysis Complete';
             parent.appendChild(doneIndicator);
-
-            // Show result
             result.classList.remove('hidden');
-            
-            // Refresh icons inside the new content
             lucide.createIcons();
             sfx.tick();
         }
 
-        // Global state for context-aware strategies
         let currentAffordabilityZone = '';
 
-        // P8: Affordability Calc (Redesigned for Mentor Tone + Extreme Case)
         window.calculateAffordability = function() {
-            // Force number parsing to prevent string concatenation errors
             const inc = Number(document.getElementById('calc-income').value) || 0;
             const debt = Number(document.getElementById('calc-debt').value) || 0;
             const mort = Number(document.getElementById('calc-mortgage').value) || 0;
             
-            // Validation
             if(inc === 0) {
                 document.getElementById('calc-income').classList.add('border-red-300');
                 return;
@@ -1860,48 +2366,33 @@
                 document.getElementById('calc-income').classList.remove('border-red-300');
             }
 
-            // Calculation Logic
-            // Front-End Ratio (Housing) = Mortgage / Income
             const housingRatio = ((mort / inc) * 100).toFixed(1);
-            
-            // Back-End Ratio (Total) = (Mortgage + Monthly Debt) / Income
             const totalRatio = (((mort + debt) / inc) * 100).toFixed(1);
             
             const feedbackEl = document.getElementById('affordability-feedback');
             feedbackEl.classList.remove('hidden');
             
-            // Logic for Mentor Zones
             let message = "";
             let colorClasses = "";
             let strategies = [];
 
-            // Reset logic
             currentAffordabilityZone = '';
 
-            // ZONE 1: EXTREME (Typically > 50% DTI is a hard stop for most lenders)
             if (totalRatio >= 50) {
                 currentAffordabilityZone = 'extreme';
-                // REFRAMED: Mentor Tone (Proactive & Strategic)
                 message = "Immediate Focus: This DTI ratio (Total Debt) is outside the lending limit for automated approval. <strong>This is our roadmap, not a wall.</strong> We're shifting immediately into <strong>Debt Strategy Mode.</strong> Your first action is clear: Let's aggressively tackle your monthly debt payments to bring that DTI under 45%—a number we can work with.";
-                // VISUAL: Professional Slate (Business Logic) instead of Red (Error)
                 colorClasses = "bg-slate-50 border-slate-300 text-slate-700";
                 strategies = ["Reduce Debt", "Increase Income", "Budget Coaching"];
-            
-            // ZONE 2: COMFORTABLE (The Golden Rule: 28/36)
             } else if (housingRatio <= 28 && totalRatio <= 36) {
                 currentAffordabilityZone = 'comfortable';
                 message = "Excellent. You are within the 'Golden Rule' (28/36). This is the Sweet Spot for best rates and stress-free approval.";
                 colorClasses = "bg-emerald-50 border-emerald-100 text-emerald-900";
                 strategies = ["Lock Rate", "Pre-Approval"];
-            
-            // ZONE 3: MANAGEABLE / MODERN (Up to 31/43 or slightly higher - common for FHA)
             } else if (housingRatio <= 35 && totalRatio <= 45) {
                 currentAffordabilityZone = 'mindful';
                 message = "You are slightly above the conservative 'Golden Rule,' but still very approvable. This is common for FHA loans or competitive markets.";
                 colorClasses = "bg-blue-50 border-blue-100 text-blue-900";
                 strategies = ["Explore Loan Options", "Negotiate Concessions", "Revisit Debt"];
-            
-            // ZONE 4: STRETCH (High but possible with strong compensating factors)
             } else {
                 currentAffordabilityZone = 'planning';
                 message = "You are in the 'Stretch Zone.' Lenders might approve this with high credit scores, but it leaves little room for error.";
@@ -1909,12 +2400,10 @@
                 strategies = ["Consider Co-Borrowing", "Budget Coaching", "Explore Loan Options"];
             }
 
-            // Strategy Buttons Builder
             let strategyHTML = strategies.map(s => 
                 `<button onclick="showStrategy('${s}')" class="strategy-pill px-3 py-1 bg-white border border-black/10 rounded-full text-[10px] font-bold uppercase tracking-wide text-gray-600 hover:text-allgood-primary hover:border-allgood-primary transition-colors shadow-sm">${s}</button>`
             ).join('');
 
-            // Apply Classes & Content
             feedbackEl.className = `mt-4 p-5 rounded-lg border ${colorClasses} transition-all duration-700 ease-out opacity-0 transform translate-y-2 shadow-sm`;
             
             feedbackEl.innerHTML = `
@@ -1933,7 +2422,6 @@
                 </div>
             `;
 
-            // Trigger Animation
             requestAnimationFrame(() => {
                 feedbackEl.classList.remove('opacity-0', 'translate-y-2');
             });
@@ -1941,7 +2429,6 @@
             sfx.nav(); 
         }
 
-        // Strategy Detail Modal Logic (Enhanced with Extreme Cases)
         window.showStrategy = function(type) {
             let text = "";
 
@@ -1959,7 +2446,6 @@
                 "Budget Coaching": "Work with an agent or financial advisor to build a 6-12 month plan toward qualification."
             };
 
-            // Handle Context-Aware "Explore Loan Options"
             if (type === "Explore Loan Options") {
                 if (currentAffordabilityZone === 'extreme') {
                     text = "Some loan types allow higher ratios, but not at this level. Revisit this option once debt is reduced or income is increased.";
@@ -1967,11 +2453,9 @@
                     text = "FHA loans often allow higher debt ratios (up to 50%+) compared to Conventional loans. VA loans are also very flexible if eligible.";
                 }
             } else {
-                // Lookup in standard or extreme maps
                 text = standardStrategies[type] || extremeStrategies[type] || "Talk to your loan officer for specific guidance on this strategy.";
             }
             
-            // Reusing the modal logic
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 bg-black/40 z-[9999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300";
             modal.innerHTML = `
@@ -1989,195 +2473,84 @@
             sfx.tick();
         };
 
-        // P9: Trade-Offs Reflection (New)
-        window.handleTradeOff = function(key) {
-            const messages = {
-                "Dining": "Reducing discretionary spending can free up cash flow for housing costs.",
-                "Car": "Holding off on a new loan keeps your debt-to-income ratio lower.",
-                "Roommate": "Sharing housing costs can make a higher mortgage more manageable.",
-                "Vacation": "Scaling back on travel helps balance monthly obligations."
-            };
-            
-            const titles = {
-                "Dining": "Dining Out",
-                "Car": "New Vehicle",
-                "Roommate": "House Hacking",
-                "Vacation": "Travel Budget"
-            };
-
-            const text = messages[key];
-            const title = titles[key];
-
-            // Trigger Modal with Feedback
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 bg-black/40 z-[9999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300";
-            modal.innerHTML = `
-                <div class="bg-white rounded-t-xl sm:rounded-xl shadow-2xl p-6 max-w-sm w-full animate-pop-in border-b-4 border-allgood-primary">
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="text-lg font-heading font-bold text-allgood-primary">${title}</h3>
-                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
-                    </div>
-                    <p class="text-gray-600 text-sm leading-relaxed font-body italic">"${text}"</p>
-                    <button onclick="this.closest('.fixed').remove()" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded text-xs transition-colors">Reflect & Continue</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            lucide.createIcons();
-            sfx.nav();
-        }
-
-        // P10: Drag & Drop Wallet Logic (Unified Desktop & Mobile)
         function initWalletDragDrop() {
-            const draggables = document.querySelectorAll('#wallet-items .draggable');
-            const dropZone = document.getElementById('wallet-zone');
-            const feedback = document.getElementById('wallet-feedback');
-            let currentWalletCount = 0;
+            const draggables = document.querySelectorAll('#gauntlet-source .draggable');
+            const zoneSafe = document.getElementById('zone-safe');
+            const zoneTrap = document.getElementById('zone-trap');
+            const feedback = document.getElementById('gauntlet-feedback');
+            
+            const feedbackMap = {
+                'drag-dp': { safe: "Correct. Typically 3-20% required upfront.", trap: "Wait! You cannot close without a down payment." },
+                'drag-closing': { safe: "Correct. 2-5% of the loan amount for taxes and title fees.", trap: "Hold on. These are mandatory fees required to sign." },
+                'drag-save': { safe: "Smart Move. Boosting reserves strengthens your application.", trap: "Incorrect. Cash reserves are critical for stability." },
+                'drag-car': { safe: "STOP! Buyer Beware #2: Do not buy a vehicle. New debt ruins your DTI.", trap: "Smart. Buying a car changes your ratios. Wait until you have the keys." },
+                'drag-furniture': { safe: "STOP! Buyer Beware #6: Do not buy furniture on credit. Hard inquiries drop your score.", trap: "Good. Don't open new credit lines just before closing." },
+                'drag-job': { safe: "STOP! Buyer Beware #1: Do not change jobs. Probation periods can pause your loan.", trap: "Excellent. Stability is key. Keep your employment status rock solid." },
+                'drag-late': { safe: "CRITICAL STOP! A late payment can drop your score 50+ points instantly.", trap: "Correct. Always pay on time to protect your rate." }
+            };
 
-            if (!dropZone) return;
-
-            // --- Helper: Success Logic ---
-            function handleDropSuccess(elementId) {
-                const element = document.getElementById(elementId);
-                if (!element) return;
-
-                // Move element visually to drop zone
-                dropZone.appendChild(element);
-                element.style.transform = 'none'; 
-                element.style.position = 'relative';
-                element.style.top = '0';
-                element.style.left = '0';
-                element.classList.add('bg-green-50', 'border-green-200'); // Visual cue it's accepted
-
-                if (elementId === 'drag-dp' || elementId === 'drag-closing') {
-                    currentWalletCount++;
-                    sfx.tick(); // Feedback for drop
-                    if (currentWalletCount >= 2) {
-                        feedback.textContent = "Correct! Subscriptions don't belong in the closing fund.";
-                        feedback.classList.remove('hidden', 'text-red-600');
-                        feedback.classList.add('text-green-600');
-                        sfx.nav(); // Success
-                    }
-                } else {
-                    // Wrong item logic (Visual reject or just accept as fail)
-                    feedback.textContent = "Careful! Monthly bills don't go in the closing fund.";
-                    feedback.classList.remove('hidden', 'text-green-600');
-                    feedback.classList.add('text-red-600');
-                    sfx.powerOff(); // Failure
-                    // Optional: Move it back after delay? keeping it simple for now.
-                }
-            }
-
-            // --- Desktop Events ---
-            draggables.forEach(draggable => {
-                draggable.addEventListener('dragstart', (e) => {
+            draggables.forEach(drag => {
+                drag.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', e.target.id);
-                    e.target.classList.add('opacity-50');
-                });
-                draggable.addEventListener('dragend', (e) => {
-                    e.target.classList.remove('opacity-50');
+                    e.dataTransfer.effectAllowed = "move";
+                    sfx.tick();
                 });
             });
 
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault(); // Necessary to allow dropping
-                dropZone.classList.add('drag-over');
-            });
+            if(zoneSafe && zoneTrap) {
+                [zoneSafe, zoneTrap].forEach(zone => {
+                    zone.addEventListener('dragover', (e) => {
+                        e.preventDefault(); 
+                        e.dataTransfer.dropEffect = "move";
+                        zone.classList.add('drag-over');
+                    });
 
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('drag-over');
-            });
+                    zone.addEventListener('dragleave', () => {
+                        zone.classList.remove('drag-over');
+                    });
 
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('drag-over');
-                const id = e.dataTransfer.getData('text/plain');
-                handleDropSuccess(id);
-            });
+                    zone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        zone.classList.remove('drag-over');
+                        const id = e.dataTransfer.getData('text/plain');
+                        const draggable = document.getElementById(id);
+                        if(!draggable) return;
 
-            // --- Mobile Touch Events ---
-            let initialX = 0, initialY = 0;
-            let currentX = 0, currentY = 0;
-            let activeItem = null;
+                        zone.appendChild(draggable);
+                        
+                        const isSafeZone = zone.id === 'zone-safe';
+                        const data = feedbackMap[id];
+                        
+                        if(feedback && data) {
+                            feedback.classList.remove('hidden');
+                            feedback.style.display = 'block';
 
-            draggables.forEach(item => {
-                item.addEventListener('touchstart', (e) => {
-                    activeItem = item;
-                    const touch = e.touches[0];
-                    initialX = touch.clientX;
-                    initialY = touch.clientY;
-                    
-                    // Get current transform values if any (usually 0)
-                    const style = window.getComputedStyle(activeItem);
-                    const matrix = new WebKitCSSMatrix(style.transform);
-                    currentX = matrix.m41;
-                    currentY = matrix.m42;
-
-                    activeItem.style.zIndex = '1000';
-                    activeItem.style.transition = 'none'; // Remove transition for instant drag
-                }, { passive: false });
-
-                item.addEventListener('touchmove', (e) => {
-                    if (!activeItem) return;
-                    e.preventDefault(); // Prevent scrolling while dragging
-
-                    const touch = e.touches[0];
-                    const dx = touch.clientX - initialX;
-                    const dy = touch.clientY - initialY;
-
-                    activeItem.style.transform = `translate3d(${currentX + dx}px, ${currentY + dy}px, 0)`;
-
-                    // Highlight drop zone if hovering
-                    activeItem.hidden = true; // Hide briefly to check element below
-                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-                    activeItem.hidden = false;
-
-                    if (elemBelow && elemBelow.closest('#wallet-zone')) {
-                        dropZone.classList.add('drag-over');
-                    } else {
-                        dropZone.classList.remove('drag-over');
-                    }
-                }, { passive: false });
-
-                item.addEventListener('touchend', (e) => {
-                    if (!activeItem) return;
-                    
-                    // Final check for drop
-                    const touch = e.changedTouches[0];
-                    activeItem.hidden = true;
-                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-                    activeItem.hidden = false;
-
-                    dropZone.classList.remove('drag-over');
-                    activeItem.style.zIndex = '';
-                    activeItem.style.transition = 'transform 0.2s ease'; // Add smooth snap back
-
-                    if (elemBelow && elemBelow.closest('#wallet-zone')) {
-                        handleDropSuccess(activeItem.id);
-                    } else {
-                        // Snap back to original
-                        activeItem.style.transform = 'translate3d(0, 0, 0)';
-                    }
-                    activeItem = null;
+                            // Determine if the action was correctly placed (a "safe" item in "safe" zone OR a "trap" item in "trap" zone)
+                            const isCorrectPlacement = (draggable.getAttribute('data-type') === 'safe' && isSafeZone) || 
+                                                       (draggable.getAttribute('data-type') === 'trap' && zone.id === 'zone-trap');
+                            
+                            // Determine the narrative message based on the zone
+                            let narrativeMsg = isSafeZone ? data.safe : data.trap;
+                            
+                            if (isCorrectPlacement) {
+                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
+                                sfx.nav();
+                            } else {
+                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
+                                sfx.powerOff();
+                            }
+                            feedback.textContent = narrativeMsg;
+                        }
+                    });
                 });
-            });
+            }
         }
 
-        // P12: Credit Quiz
-        window.checkCreditQuiz = function(el, isHurt) {
-            const fb = document.getElementById('credit-quiz-feedback');
-            fb.classList.remove('hidden');
-            if(isHurt) {
-                fb.textContent = "Correct. Opening new credit lowers average age and adds a hard inquiry.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.nav();
-            } else {
-                fb.textContent = "Incorrect. Paying off small balances usually helps.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.powerOff();
-            }
-        };
 
-        // P16: Doc Checklist
+        function initBuyerChoicesDragDrop() { return; }
+
+        window.updateUtilization = function() { return; };
+
         window.toggleDoc = function(el) {
             el.classList.toggle('bg-green-100');
             el.classList.toggle('border-green-500');
@@ -2195,35 +2568,19 @@
                 fb.className = "mt-2 text-sm font-bold text-center text-green-600";
                 sfx.nav();
             } else {
-                fb.textContent = "Incomplete or Invalid Documents.";
+                fb.textContent = "Incomplete or Invalid Documents. Select exactly the 3 required documents.";
                 fb.className = "mt-2 text-sm font-bold text-center text-red-600";
                 sfx.powerOff();
             }
         };
 
-        // P17: Underwriter
-        window.handleUnderwriter = function(el, isLetter) {
-            const fb = document.getElementById('underwriter-feedback');
-            fb.classList.remove('hidden');
-            if(isLetter) {
-                fb.textContent = "Approved. Sourcing large deposits is mandatory.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.nav();
-            } else {
-                fb.textContent = "Flagged. Unexplained cash is a major red flag for money laundering.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.powerOff();
-            }
-        };
-
-        // P20: Needs vs Wants
         window.toggleTradeP20 = function(el) {
             if (el.classList.contains('bg-allgood-secondary')) {
                 selectedTradesP20 = selectedTradesP20.filter(i => i !== el.textContent);
                 el.classList.remove('bg-allgood-secondary', 'text-white', 'border-allgood-secondary');
                 el.classList.add('bg-white');
             } else {
-                if (selectedTradesP20.length >= 3) return sfx.powerOff(); // Limit reached
+                if (selectedTradesP20.length >= 3) return sfx.powerOff(); 
                 selectedTradesP20.push(el.textContent);
                 el.classList.remove('bg-white');
                 el.classList.add('bg-allgood-secondary', 'text-white', 'border-allgood-secondary');
@@ -2232,54 +2589,187 @@
             sfx.tick();
         };
 
-        // P22: Open House
-        window.handleOpenHouse = function(el, isProtect) {
-            const fb = document.getElementById('openhouse-feedback');
-            fb.classList.remove('hidden');
-            if(isProtect) {
-                fb.textContent = "Smart. This protects your representation rights.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
-                sfx.nav();
-            } else {
-                fb.textContent = "Risky. The hosting agent represents the seller, not you.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.powerOff();
+        let fieldTestScore = 0;
+        window.runFieldTest = function(btn, type, isCorrect) {
+            const parent = btn.parentElement;
+            const feedbackContainer = parent.nextElementSibling;
+            
+            parent.querySelectorAll('button').forEach(b => b.disabled = true);
+
+            let feedbackTitle = "";
+            let feedbackMsg = "";
+            let isCoaching = !isCorrect; 
+
+            if (type === 'legal') {
+                if (isCorrect) {
+                    feedbackTitle = "Smart Move";
+                    feedbackMsg = "Perfect. This protects your right to representation. Remember: The hosting agent works for the <em>Seller</em>, not you.";
+                } else {
+                    feedbackTitle = "Coaching Moment";
+                    feedbackMsg = "Careful. By saying 'No', you imply the hosting agent can represent you (Dual Agency). They maximize the seller's profit, not yours. Always declare you have a rep.";
+                }
+            } else if (type === 'structural') {
+                if (isCorrect) {
+                    feedbackTitle = "Good Eye";
+                    feedbackMsg = "Spot on. Foundation cracks are a structural failure ($15,000+). Ugly wallpaper is just a cosmetic fix ($200). Never let 'pretty' hide 'broken'.";
+                } else {
+                    feedbackTitle = "Look Deeper";
+                    feedbackMsg = "That's just cosmetic. Wallpaper is cheap to fix. Foundation cracks signal structural failure ($15k+). Don't let ugly decor scare you away from good bones.";
+                }
+            } else if (type === 'financial') {
+                if (isCorrect) {
+                    feedbackTitle = "Secure";
+                    feedbackMsg = "Exactly. Title Insurance protects your <em>past</em> ownership rights. It stops hidden heirs or liens from taking your home years later.";
+                } else {
+                    feedbackTitle = "Critical Distinction";
+                    feedbackMsg = "Not quite. Home Insurance covers future damage (fire, theft). <em>Title</em> Insurance covers the past (hidden liens, lost heirs). You need both.";
+                }
+            }
+
+            const avatarUrl = "https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true";
+            const colorClass = isCoaching ? "border-blue-200 bg-blue-50" : "border-emerald-200 bg-emerald-50";
+            const textClass = isCoaching ? "text-blue-900" : "text-emerald-900";
+            const titleClass = isCoaching ? "text-allgood-secondary" : "text-emerald-700";
+
+            feedbackContainer.innerHTML = `
+                <div class="flex gap-3 p-3 rounded-lg border ${colorClass} mt-3 animate-pop-in shadow-sm">
+                    <div class="flex-shrink-0">
+                        <img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-white shadow-sm object-cover">
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-wide ${titleClass} mb-1">${feedbackTitle}</p>
+                        <p class="text-xs ${textClass} leading-relaxed font-body">${feedbackMsg}</p>
+                    </div>
+                </div>
+            `;
+            feedbackContainer.classList.remove('hidden');
+
+            sfx.nav(); 
+            
+            if (isCorrect) {
+                fieldTestScore++;
+                document.querySelector('#field-score span').textContent = `${fieldTestScore}/3`;
+            }
+
+            if (type === 'legal') {
+                document.getElementById('check-structural').classList.remove('opacity-50', 'pointer-events-none');
+            } else if (type === 'structural') {
+                document.getElementById('check-financial').classList.remove('opacity-50', 'pointer-events-none');
+            }
+
+            if (fieldTestScore === 3) {
+                document.getElementById('field-test-complete').classList.remove('hidden');
+                setTimeout(() => sfx.play('powerup'), 500);
+            } else if (type === 'financial') {
+                document.getElementById('field-test-complete').classList.remove('hidden');
+                document.querySelector('#field-test-complete .inline-block').className = "hidden"; 
+                document.querySelector('#field-test-complete button').textContent = "Review Notes & Proceed ->";
             }
         };
 
-        // P23: Red Flag
-        window.handleRedFlag = function(el, isStructural) {
-            const fb = document.getElementById('redflag-feedback');
-            fb.classList.remove('hidden');
-            if(isStructural) {
-                fb.textContent = "Correct. Foundation issues are expensive structural failures.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-green-100 text-green-800";
+        window.runCashSim = function(btn, choice) {
+            const fb1 = document.getElementById('cash-feedback-1');
+            const fb2 = document.getElementById('cash-feedback-2');
+            const step2 = document.getElementById('cash-step-2');
+            
+            if (choice === 'lowball') {
+                fb1.innerHTML = `<span class="text-blue-900"><strong>Coach's Note:</strong> In a multiple-offer scenario, a lowball offer ($380k) usually gets rejected immediately. You need to be competitive to even get a seat at the table.</span>`;
+                fb1.className = "mt-3 text-xs p-3 bg-blue-50 border border-blue-200 rounded";
+                fb1.classList.remove('hidden');
+                sfx.nav(); 
+            } else if (choice === 'competitive') {
+                fb1.innerHTML = `<span class="text-emerald-900"><strong>Smart.</strong> $405k gets the seller's attention. Offer Accepted! Now deal with the consequence below...</span>`;
+                fb1.className = "mt-3 text-xs p-3 bg-emerald-50 border border-emerald-200 rounded";
+                fb1.classList.remove('hidden');
+                
+                btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+                btn.classList.add('bg-emerald-100', 'border-emerald-500');
+                
+                step2.classList.remove('opacity-50', 'pointer-events-none');
+                step2.classList.add('bg-white');
                 sfx.nav();
-            } else {
-                fb.textContent = "Incorrect. Wallpaper is cosmetic and easy to fix.";
-                fb.className = "mt-4 p-3 rounded text-sm bg-red-100 text-red-800";
-                sfx.powerOff();
+            } else if (choice === 'demand') {
+                fb2.innerHTML = `<span class="text-blue-900"><strong>Coach's Note:</strong> Risky. In a hot market, the seller often has backup offers. If you demand they lower the price to $395k, they might just cancel and go with Buyer #2.</span>`;
+                fb2.className = "mt-3 text-xs p-3 bg-blue-50 border border-blue-200 rounded";
+                fb2.classList.remove('hidden');
+                sfx.nav();
+            } else if (choice === 'cover') {
+                fb2.innerHTML = `<span class="text-emerald-900"><strong>Deal Saved!</strong> By covering the $10k gap in cash, you keep the house and the seller gets their number. This is how pros win in hot markets.</span>`;
+                fb2.className = "mt-3 text-xs p-3 bg-emerald-50 border border-emerald-200 rounded";
+                fb2.classList.remove('hidden');
+                
+                btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+                btn.classList.add('bg-emerald-100', 'border-emerald-500');
+                sfx.play('powerup');
             }
         };
 
-        // P27: Earnest Money
-        window.dropEscrow = (ev) => {
-            ev.preventDefault();
-            const data = ev.dataTransfer.getData("text");
-            if(data === 'drag-em') {
-                ev.target.appendChild(document.getElementById(data));
-                document.getElementById('escrow-feedback').classList.remove('hidden');
+        let gauntletScore = 0;
+        window.runGauntlet = function(btn, step, choice) {
+            const parent = btn.closest('.bg-white'); // Use closest to ensure correct parent element
+            const feedback = parent.querySelector('.feedback');
+            
+            if (step === 1 || step === 3) {
+                btn.classList.remove('bg-green-50', 'bg-blue-50', 'hover:bg-green-100', 'hover:bg-blue-100', 'border-green-200', 'border-blue-200');
+                btn.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-500');
+                btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Completed`;
+                btn.disabled = true;
+                
+                gauntletScore++;
+                unlockNextGauntlet(step);
                 sfx.nav();
+            } else if (step === 2) {
+                const btns = btn.parentElement.querySelectorAll('button');
+                btns.forEach(b => b.disabled = true);
+                
+                // Show feedback container if hidden
+                if (feedback) feedback.classList.remove('hidden');
+
+                if (choice === 'credit') {
+                    btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
+                    if (feedback) feedback.innerHTML = `<span class="text-emerald-700"><strong>Smart.</strong> Credits give <em>you</em> control over the repair quality. Sellers often do the cheapest fix possible.</span>`;
+                    gauntletScore++;
+                    unlockNextGauntlet(step);
+                    sfx.nav();
+                } else {
+                    btn.classList.add('bg-blue-50', 'border-blue-300', 'text-blue-800');
+                    if (feedback) feedback.innerHTML = `<span class="text-blue-700"><strong>Coaching:</strong> Asking the seller to fix it is okay, but risky. They will likely choose the cheapest contractor. A credit is safer.</span>`;
+                    gauntletScore++; 
+                    unlockNextGauntlet(step);
+                    sfx.nav();
+                }
+            } else if (step === 4) {
+                const btns = btn.parentElement.querySelectorAll('button');
+                btns.forEach(b => b.disabled = true);
+                
+                // Show feedback container if hidden
+                if (feedback) feedback.classList.remove('hidden');
+
+                if (choice === 'pass') {
+                    btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
+                    if (feedback) feedback.innerHTML = `<span class="text-emerald-700"><strong>Correct.</strong> ALWAYS verify instructions via a known phone number. Email is never safe.</span>`;
+                    gauntletScore++;
+                    sfx.play('powerup');
+                    document.getElementById('gauntlet-complete').classList.remove('hidden');
+                } else {
+                    btn.classList.add('bg-red-50', 'border-red-300', 'text-red-800');
+                    if (feedback) feedback.innerHTML = `<span class="text-red-700"><strong>CRITICAL STOP.</strong> You just lost your down payment to a hacker. Never trust email wiring instructions.</span>`;
+                    sfx.powerOff();
+                }
             }
+            
+            document.querySelector('#gauntlet-score span').textContent = `${gauntletScore}/4`;
+            lucide.createIcons();
         };
 
-        // P28: Inspect
-        window.handleInspect = function(el) {
-            document.getElementById('inspect-feedback').classList.remove('hidden');
-            sfx.tick();
-        };
+        function unlockNextGauntlet(currentStep) {
+            const next = document.getElementById(`gauntlet-step-${currentStep + 1}`);
+            if (next) {
+                next.classList.remove('opacity-50', 'pointer-events-none');
+                next.classList.add('animate-pop-in');
+            }
+        }
 
-        // P32: Final Exam Logic
         const examQuestions = [
             { q: "What is the max recommended DTI?", a: ["28/36", "50/50"], correct: 0 },
             { q: "When should you deposit cash?", a: ["During Escrow", "60+ days before"], correct: 1 },
@@ -2318,7 +2808,6 @@
             examQuestions.forEach((q, i) => {
                 if(examAnswers[i] === q.correct) score++;
             });
-            // Custom UI Modal instead of alert (Mandatory Rule)
             const resultMessage = score >= 3 ? 
                 `Passed! Score: ${score}/5. You're Buyer Ready.` : 
                 `Score: ${score}/5. Review the material and try again.`;
@@ -2333,9 +2822,7 @@
             }
         };
 
-        // Function to replace alert()
         function showCustomModal(message, isSuccess) {
-            // Create a temporary modal element (since full modal framework is complex)
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4";
             modal.innerHTML = `
@@ -2348,12 +2835,10 @@
             document.body.appendChild(modal);
         }
 
-        // P33: Badge Generator (FIXED CHASSIS MANDATE)
         function generateBadge() {
             const container = document.getElementById('badge-container');
             if (!container) return;
             const safeName = (userName || "Learner").toUpperCase();
-            // ... (Use existing SVG logic from Master Template, injected here)
             const badgeSVG = `<svg viewBox="0 0 400 400" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="max-width: 300px;">
                 <defs>
                     <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -2375,45 +2860,35 @@
             container.innerHTML = badgeSVG;
         }
 
-        // Page 4: Deep Dive Tabs Logic
         window.openTab = function(tabName) {
-            // Hide all tab contents
             const contents = document.querySelectorAll('#page-4 .tab-content');
             contents.forEach(content => content.classList.add('hidden'));
 
-            // Show specific tab content
             const activeContent = document.getElementById(`tab-content-${tabName}`);
             if(activeContent) activeContent.classList.remove('hidden');
 
-            // Reset all tab buttons
             const buttons = document.querySelectorAll('#page-4 .tab-btn');
             buttons.forEach(btn => {
-                btn.classList.remove('bg-allgood-primary', 'text-white', 'border-gray-200'); // Remove active styles
-                btn.classList.add('bg-gray-100', 'text-gray-500', 'border-transparent'); // Add inactive styles
+                btn.classList.remove('bg-allgood-primary', 'text-white', 'border-gray-200', 'active'); 
+                btn.classList.add('bg-gray-100', 'text-gray-500', 'border-transparent'); 
             });
 
-            // Set active tab button
             const activeBtn = document.getElementById(`tab-btn-${tabName}`);
             if(activeBtn) {
                 activeBtn.classList.remove('bg-gray-100', 'text-gray-500', 'border-transparent');
-                activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200');
+                activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200', 'active');
             }
             sfx.tick();
         };
 
-        // Page 4: Anchor Interactions
         window.handleAnchorInteraction = function(element, type) {
-            // Mobile toggle behavior
-            // Remove 'active' class from all other pills
             const allPills = document.querySelectorAll('.anchor-pill');
             allPills.forEach(pill => {
                 if (pill !== element) pill.classList.remove('active');
             });
             
-            // Toggle active on clicked element
             element.classList.toggle('active');
             
-            // Narrator update
             const messages = {
                 "Stability": "Stability: A secure base — predictable costs and long-term roots.",
                 "Freedom": "Freedom: Your rules, your space — paint the walls, own a pet, renovate freely.",
@@ -2428,15 +2903,98 @@
             if (narratorTextEl && messages[type]) {
                 narratorTextEl.textContent = messages[type];
                 narratorStrip.style.display = 'flex';
-                // Trigger pop animation
                 narratorStrip.classList.remove('narrator-speaking');
-                void narratorStrip.offsetWidth; // force reflow
+                void narratorStrip.offsetWidth; 
                 narratorStrip.classList.add('narrator-speaking');
             }
             
             sfx.tick();
         };
 
+        let exploredLoans = new Set();
+
+        window.toggleLoanAccordion = function(btn) {
+            const container = btn.parentElement;
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('.accordion-arrow');
+            const type = container.getAttribute('data-type');
+
+            document.querySelectorAll('#loan-accordion .loan-card').forEach(el => {
+                if(el !== container) {
+                    const otherBtn = el.querySelector('button');
+                    const c = otherBtn.nextElementSibling; 
+                    
+                    if(c) c.classList.add('hidden');
+                    const i = el.querySelector('.accordion-arrow');
+                    if(i) i.classList.remove('rotate-180');
+                }
+            });
+
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+            
+            if (!content.classList.contains('hidden')) {
+                sfx.tick();
+                if(type && !exploredLoans.has(type)) {
+                    exploredLoans.add(type);
+                    updateLoanProgress();
+                }
+            }
+        };
+
+        function updateLoanProgress() {
+            const count = exploredLoans.size;
+            const bar = document.getElementById('loan-progress-bar');
+            const text = document.getElementById('loan-progress-text');
+            if(bar && text) {
+                bar.style.width = `${count * 25}%`;
+                text.textContent = `${count}/4 Explored`;
+                
+                if(count === 4) {
+                    text.textContent = "All Explored! 🔑";
+                    text.classList.remove('text-allgood-primary');
+                    text.classList.add('text-emerald-600');
+                    bar.classList.remove('bg-allgood-primary');
+                    bar.classList.add('bg-emerald-500');
+                    sfx.nav();
+                }
+            }
+        }
+
+        let loanQuizScore = 0;
+        window.checkLoanQuiz = function(btn, type, qId) {
+            const correctAnswers = { 1: 'FHA', 2: 'VA', 3: 'Conv' };
+            const isCorrect = correctAnswers[qId] === type;
+            const parent = btn.parentElement;
+            
+            if (isCorrect) {
+                btn.classList.remove('bg-white', 'hover:bg-gray-50');
+                btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
+                
+                sfx.nav(); 
+                loanQuizScore++;
+                
+                const counter = document.getElementById('key-counter');
+                counter.innerHTML = `<i data-lucide="key" class="w-4 h-4 text-yellow-500 fill-current animate-pulse-glow"></i> <span class="text-xs font-bold text-yellow-700">${loanQuizScore}/3</span>`;
+                lucide.createIcons();
+
+                parent.querySelectorAll('button').forEach(b => b.disabled = true);
+
+                const nextQ = document.querySelector(`.quiz-item[data-id="${qId + 1}"]`);
+                if(nextQ) {
+                    nextQ.classList.remove('opacity-50', 'pointer-events-none');
+                } else {
+                    document.getElementById('loan-quiz-feedback').classList.remove('hidden');
+                    sfx.play('powerup');
+                }
+            } else {
+                btn.classList.add('bg-red-50', 'border-red-300', 'text-red-800');
+                sfx.powerOff(); 
+                
+                btn.classList.add('animate-pulse');
+                setTimeout(() => btn.classList.remove('animate-pulse'), 500);
+            }
+        };
     </script>
 </body>
 </html>
