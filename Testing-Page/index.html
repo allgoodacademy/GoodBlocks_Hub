@@ -392,52 +392,38 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             filter: brightness(1.02);
-            z-index: 50; /* Critical Fix: Lift active pill above siblings to prevent clipping */
+            z-index: 50; 
         }
+        
+        /* TOOLTIP LOGIC UPDATE: Mobile-Optimized */
         .anchor-tooltip {
             opacity: 0;
             visibility: hidden;
-            /* Default: Float above */
             transform: translateY(8px) translateX(-50%);
             transition: all 0.2s ease-out;
             position: absolute;
             bottom: 100%;
             left: 50%;
-            z-index: 999; /* Boosted z-index */
+            z-index: 50;
             pointer-events: none;
             width: max-content;
             max-width: 240px;
         }
-        
-        /* Show tooltip on hover (desktop) or active class (mobile) */
-        .anchor-pill:hover .anchor-tooltip,
-        .anchor-pill.active .anchor-tooltip {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(-8px) translateX(-50%);
-        }
 
-        /* MOBILE FIX: Force tooltip below the pill on small screens to prevent top-clipping */
-        @media (max-width: 768px) {
-            .anchor-tooltip {
-                bottom: auto; /* Reset bottom */
-                top: 100%; /* Push below pill */
-                margin-top: 8px; /* Add spacing */
-                transform: translateY(-8px) translateX(-50%); /* Initial state for animation */
-            }
-            /* Adjusted animation target for mobile */
+        /* DESKTOP ONLY: Show floating tooltip */
+        @media (min-width: 769px) {
             .anchor-pill:hover .anchor-tooltip,
             .anchor-pill.active .anchor-tooltip {
-                transform: translateY(0) translateX(-50%);
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(-8px) translateX(-50%);
             }
-            /* Point the arrow up instead of down on mobile if needed, or remove for simplicity */
-            .anchor-tooltip .absolute {
-                top: -4px; /* Move arrow to top */
-                bottom: auto;
-                border-top: 1px solid #e5e7eb;
-                border-left: 1px solid #e5e7eb;
-                border-right: none;
-                border-bottom: none;
+        }
+
+        /* MOBILE ONLY: Hide tooltip completely to rely on Narrator Strip */
+        @media (max-width: 768px) {
+            .anchor-tooltip {
+                display: none !important;
             }
         }
     </style>
