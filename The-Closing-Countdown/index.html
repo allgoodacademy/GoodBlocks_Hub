@@ -383,7 +383,7 @@
             background-color: #D34716; /* match allgood-primary */
         }
 
-        /* --- MOTIVATION ANCHOR PILLS (New) --- */
+        /* --- MOTIVATION ANCHOR PILLS (Fixed for Mobile Clipping) --- */
         .anchor-pill {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -392,7 +392,10 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             filter: brightness(1.02);
+            z-index: 50; 
         }
+        
+        /* TOOLTIP LOGIC UPDATE: Mobile-Optimized */
         .anchor-tooltip {
             opacity: 0;
             visibility: hidden;
@@ -406,12 +409,22 @@
             width: max-content;
             max-width: 240px;
         }
-        /* Show tooltip on hover (desktop) or active class (mobile) */
-        .anchor-pill:hover .anchor-tooltip,
-        .anchor-pill.active .anchor-tooltip {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(-8px) translateX(-50%);
+
+        /* DESKTOP ONLY: Show floating tooltip */
+        @media (min-width: 769px) {
+            .anchor-pill:hover .anchor-tooltip,
+            .anchor-pill.active .anchor-tooltip {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(-8px) translateX(-50%);
+            }
+        }
+
+        /* MOBILE ONLY: Hide tooltip completely to rely on Narrator Strip */
+        @media (max-width: 768px) {
+            .anchor-tooltip {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -1810,22 +1823,101 @@
 
                 <!-- Page 24: Tell (Contracts) -->
                 <div class="page" id="page-24">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Safety Net</h2></section>
-                    <p class="text-sm text-gray-600 mb-6">Your offer is a legal contract. It includes "Contingencies"—trap doors that let you walk away with your deposit if things go wrong.</p>
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+                        <div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Safety Net</h2>
+                            <p class="text-xs text-gray-500 mt-1">Master these 3 contingencies to protect your deposit.</p>
+                        </div>
+                    </section>
                     
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
-                            <div class="bg-orange-100 p-2 rounded text-orange-600"><i data-lucide="search" class="w-4 h-4"></i></div>
-                            <div class="text-xs"><strong>Inspection Contingency:</strong> Walk away if the house is broken.</div>
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        Your offer is a legal contract with "trap doors." Understand exactly when you can walk away safely. Click to explore each safety net.
+                    </p>
+                    
+                    <div class="space-y-3" id="contract-accordion">
+                        
+                        <!-- Inspection Contingency -->
+                        <div class="border border-orange-200 rounded-lg overflow-hidden group contract-card">
+                            <button onclick="toggleContractAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-orange-50 transition-colors text-left relative">
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-orange-100 p-2 rounded text-orange-600"><i data-lucide="search" class="w-5 h-5"></i></div>
+                                    <h3 class="font-bold text-allgood-dark text-sm">1. Inspection Contingency</h3>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-orange-50 border-t border-orange-100 p-4 animate-pop-in">
+                                <p class="text-xs text-gray-700 mb-3 font-bold">Standard Inspection Period: 7-15 Days</p>
+                                <div class="bg-white p-3 rounded border border-orange-200 mb-3">
+                                    <p class="text-[10px] font-bold text-orange-800 uppercase mb-1">Critical Checks (Florida Focus):</p>
+                                    <ul class="text-xs text-gray-600 space-y-1 list-disc pl-4">
+                                        <li><strong>General Home:</strong> Roof, HVAC, Electrical, Plumbing.</li>
+                                        <li><strong>WDO (Termite):</strong> Wood Destroying Organisms.</li>
+                                        <li><strong>Sewer Scope:</strong> Check for roots/collapse (Critical for older homes).</li>
+                                        <li><strong>4-Point:</strong> Often required for insurance on homes 20+ years old.</li>
+                                    </ul>
+                                </div>
+                                <!-- Pro Strategy -->
+                                <div class="flex gap-2 items-start bg-orange-100 p-2 rounded border border-orange-200">
+                                    <i data-lucide="zap" class="w-4 h-4 text-allgood-primary mt-0.5 flex-shrink-0"></i>
+                                    <div>
+                                        <strong class="text-xs text-allgood-primary block">Pro Strategy: Credit > Repair</strong>
+                                        <p class="text-[10px] text-gray-700 leading-snug">
+                                            Never ask the seller to do repairs. They will hire the cheapest handyman. <br><strong>Always ask for a Closing Cost Credit.</strong> This keeps cash in your pocket so <em>you</em> can hire a pro to fix it right.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
-                            <div class="bg-blue-100 p-2 rounded text-blue-600"><i data-lucide="scale" class="w-4 h-4"></i></div>
-                            <div class="text-xs"><strong>Appraisal Contingency:</strong> Walk away if it's not worth the price.</div>
+
+                        <!-- Appraisal Contingency -->
+                        <div class="border border-blue-200 rounded-lg overflow-hidden group contract-card">
+                            <button onclick="toggleContractAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-50 transition-colors text-left relative">
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-blue-100 p-2 rounded text-blue-600"><i data-lucide="scale" class="w-5 h-5"></i></div>
+                                    <h3 class="font-bold text-allgood-dark text-sm">2. Appraisal Contingency</h3>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-blue-50 border-t border-blue-100 p-4 animate-pop-in">
+                                <p class="text-xs text-gray-700 mb-3">Ensures you don't overpay. If the bank says it's worth less than the offer price, you have options.</p>
+                                <div class="grid grid-cols-2 gap-2 text-center">
+                                    <div class="bg-white p-2 rounded border border-blue-200">
+                                        <strong class="block text-xs text-blue-800">Low Appraisal?</strong>
+                                        <span class="text-[10px] text-gray-500">Seller lowers price.</span>
+                                    </div>
+                                    <div class="bg-white p-2 rounded border border-blue-200">
+                                        <strong class="block text-xs text-blue-800">Gap Coverage?</strong>
+                                        <span class="text-[10px] text-gray-500">Buyer pays difference in cash.</span>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-2 italic">*If we can't agree on the gap, you walk away with your deposit.</p>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded shadow-sm">
-                            <div class="bg-green-100 p-2 rounded text-green-600"><i data-lucide="dollar-sign" class="w-4 h-4"></i></div>
-                            <div class="text-xs"><strong>Finance Contingency:</strong> Walk away if the loan is denied.</div>
+
+                        <!-- Finance Contingency -->
+                        <div class="border border-green-200 rounded-lg overflow-hidden group contract-card">
+                            <button onclick="toggleContractAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-green-50 transition-colors text-left relative">
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-green-100 p-2 rounded text-green-600"><i data-lucide="dollar-sign" class="w-5 h-5"></i></div>
+                                    <h3 class="font-bold text-allgood-dark text-sm">3. Finance Contingency</h3>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-green-50 border-t border-green-100 p-4 animate-pop-in">
+                                <p class="text-xs text-gray-700 mb-3">Protects you if the loan is denied. But remember, the "Buyer Beware" rules still apply! Don't sabotage yourself.</p>
+                                
+                                <div class="bg-red-50 border border-red-200 p-2 rounded mb-2">
+                                    <strong class="text-xs text-red-700 flex items-center gap-1"><i data-lucide="alert-octagon" class="w-3 h-3"></i> Deal Killers (Don't Do This):</strong>
+                                    <ul class="text-[10px] text-red-800 list-disc pl-4 mt-1 space-y-0.5">
+                                        <li>Quitting your job or changing income structure.</li>
+                                        <li>Buying a new car or furniture on credit.</li>
+                                        <li>Making large, unexplained cash deposits.</li>
+                                    </ul>
+                                </div>
+                                <p class="text-[10px] text-gray-500 italic">If the loan fails because of <strong>your</strong> actions, you could lose your deposit.</p>
+                            </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -1911,12 +2003,27 @@
 
                 <!-- Page 26: Final Exam - Renumbered (Was P29/30) -->
                 <div class="page" id="page-26">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Final Exam</h2></section>
-                    <p class="text-sm text-gray-600 mb-4">Pass 3/5 to certify.</p>
-                    <div id="final-exam-container" class="space-y-4">
-                        <!-- Questions injected via JS -->
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Final Exam: Live Fire</h2>
+                        <div class="flex items-center gap-1 bg-allgood-dark text-white px-3 py-1 rounded-full border border-gray-600">
+                            <span class="text-xs font-bold uppercase tracking-wider mr-1">Scenario</span>
+                            <span id="exam-progress" class="font-mono text-sm font-bold text-allgood-primary">1/5</span>
+                        </div>
+                    </section>
+                    
+                    <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
+                        These are real-world "deal killers." Prove you have the instincts to survive. <br><strong>Goal:</strong> Survive 3/5 scenarios to Certify.
+                    </p>
+
+                    <!-- Scenario Container -->
+                    <div id="scenario-card" class="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-md relative overflow-hidden min-h-[300px] flex flex-col justify-between">
+                        <!-- Content injected via JS -->
                     </div>
-                    <button onclick="submitFinalExam()" class="mt-6 w-full bg-allgood-primary text-white font-bold py-3 rounded shadow-lg">Submit Exam</button>
+
+                    <!-- Hidden Button for Flow -->
+                    <button id="finish-exam-btn" onclick="nextPage()" class="hidden mt-6 w-full bg-allgood-primary text-white font-bold py-3 rounded shadow-lg animate-pop-in">
+                        View Results & Certify
+                    </button>
                 </div>
 
                 <!-- Page 27: Certification - Renumbered (Was P30/31) -->
@@ -1933,7 +2040,11 @@
                 <div class="page" id="page-28">
                     <div class="flex flex-col items-center justify-center min-h-full text-center px-6">
                         <div class="w-24 h-24 bg-gray-200 rounded-full mb-4 flex items-center justify-center shadow-md overflow-hidden">
-                            <span class="text-xs text-gray-500">Jonathan's Photo</span>
+                            <img 
+                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
+                                alt="Jonathan Hurtado" 
+                                class="w-full h-full object-cover"
+                            >
                         </div>
                         <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-4">Let's Find Your Home.</h2>
                         <p class="text-base text-gray-600 mb-8 max-w-md">You've done the work. You know the process. Now, let's execute the strategy.</p>
@@ -1942,6 +2053,55 @@
                             <span>Schedule Priority Consultation</span>
                         </a>
                         <p class="text-xs text-gray-400 mt-8">Not in Orlando? We will refer you to a trusted Allgood Academy partner in your area.</p>
+                    </div>
+                </div>
+
+                <!-- Page 29: Credits (Standard) -->
+                <div class="page" id="page-29">
+                    <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8">
+                        <div class="mb-8"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2><p class="text-xs text-gray-400 font-bold tracking-widest uppercase mt-2">Pragmatic Action</p></div>
+                        
+                        <!-- Feedback -->
+                        <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
+                            <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this GoodBlock</h3>
+                            <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                            </div>
+                            <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools.</label>
+                            <textarea id="feedback-text" rows="2" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                            <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
+                        </div>
+
+                        <!-- Success State -->
+                        <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-8 text-center">
+                            <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
+                            <h3 class="font-bold text-green-800">Feedback Received.</h3>
+                            <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
+                        </div>
+
+                        <!-- About Us -->
+                        <div class="w-full max-w-md text-left mx-auto mb-8 mt-12">
+                            <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-sm flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
+                                <span class="font-heading font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors">About Us</span>
+                                <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <div class="accordion-content hidden bg-white border-x border-b border-gray-200 rounded-b-lg p-6 text-gray-600 space-y-3 shadow-inner text-sm font-body leading-relaxed">
+                                <p>The Allgood Academy is a learning lab focused on Pragmatic Action. We apply the advanced instructional design used by top tech companies to guarantee one result: a mindset shift that converts passive learning into tangible, real-world execution.</p>
+                            </div>
+                        </div>
+
+                        <!-- GoodBlock Logo/Link -->
+                        <div class="text-center mt-6">
+                            <a href="https://www.allgoodacademy.com/goodblocks" target="_blank" class="inline-block group">
+                                <span class="font-heading font-bold text-3xl tracking-tight text-allgood-primary animate-pulse-glow block">
+                                    GoodBlock
+                                </span>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -1977,7 +2137,7 @@
     <!-- Logic -->
     <script>
         // --- Global State ---
-        const totalPages = 28; 
+        const totalPages = 29; 
         let currentPage = 0;
         let userName = "Learner";
         
@@ -1986,11 +2146,11 @@
             "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", 
             "5. Tell: Affordability Rules", "6. Simulation: Lender's Lens", "7. Phase 2: Intro Video", 
             "8. Do: Affordability Calc", "9. Challenge: Trade-Offs", "10. Challenge: Protect Loan",
-            "11. Tell: Credit Power", "12. Briefing: The BBA", "13. Show: Loan Types", "14. Tell: Conventional", "15. Tell: FHA Loans",
+            "11. Tell: Credit Power", "12. Briefing: The BBA", "13. Show: Loan Types", "14. Tell: Loan Explorer", "15. Do: Loan Quiz",
             "16. Do: Doc Checklist", "17. Phase 4: Search Hero", "18. Tell: Criteria", "19. Challenge: Needs/Wants", "20. Tell: Online Tools", 
             "21. Challenge: Field Test", "22. Phase 5: Offer Strategy", "23. Challenge: Cash Equation", "24. Tell: Contracts",
             "25. Challenge: Closing Gauntlet",
-            "26. Final Exam", "27. Certification", "28. Priority Access"
+            "26. Final Exam", "27. Certification", "28. Priority Access", "29. Credits & Feedback"
         ];
 
         // Narrator Text Map
@@ -2005,21 +2165,19 @@
             10: "You are approved, but not safe. Every financial move you make is being watched. Sort the actions to keep your loan alive.",
             11: "Numbers don't lie. That $96,000 difference is real money leaving your pocket. The good news? You can influence this number before we apply. Let's see if you can spot the traps.",
             12: "We are a team. This agreement makes it official. It legally binds me to fight for your best interests, not the seller's. It's your protection.",
-            13: "Every buyer’s journey is unique. Let’s explore the loan options that fit you best. Watch the briefing to get started.",
             14: "Don't just pick a loan—pick a strategy. Expand the cards to see which option aligns with your financial profile.",
             15: "You’re mastering the financing landscape. Every right answer brings you closer to the keys.",
             16: "Prove stability. Drag the right documents to the checklist for pre-approval.",
-            17: "The Search is on. Watch the briefing to learn how to filter the noise and find value.",
             18: "Location, Price, Condition. You usually only get two. Which trade-off are you willing to make.",
             19: "Define must-haves vs nice-to-haves. Clear criteria save time and frustration.",
             20: "Speed vs. Truth. Algorithms are fast but blind. We trust the Appraisal—it takes longer, but it's the only number the bank cares about.",
             21: "Protect yourself at every turn. Representation, Inspection, and Title. Pass all three checks to safely move to the offer phase.",
-            22: "An offer isn't just a number; it's a strategy. Price, Terms, and Speed are your levers.",
             23: "In a hot market, the contract price is just a number. The *appraisal* is the reality. Managing that gap with cash is how you win against higher offers.",
             24: "Contingencies are your safety net. Understand exactly when you can walk away with your deposit intact.",
             25: "This is the final sprint. Every day counts. Clear the contingencies, verify the condition, and watch out for fraudsters. Finish strong.",
-            26: "Final test. Answer these questions to prove you’re Buyer Ready. Don’t worry — it’s designed to reinforce what you’ve learned.",
-            27: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying."
+            26: "This isn't a memory test. It's a judgment test. Make the right call in these 5 scenarios to prove you are ready for the real market.",
+            27: "Congratulations! You’ve completed the challenge. This badge shows you’re prepared for the real world of homebuying.",
+            29: "This interactive experience is a GoodBlock™ — powered by the Allgood Academy. Rate your session below, then explore our full catalog of pragmatic learning courses."
         };
 
         // State Management
@@ -2497,30 +2655,27 @@
                             feedback.classList.remove('hidden');
                             feedback.style.display = 'block';
 
-                            if (isSafeZone) {
-                                feedback.textContent = data.safe;
-                                if (data.safe.includes("STOP") || data.safe.includes("Wait") || data.safe.includes("CRITICAL")) {
-                                    feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
-                                    sfx.powerOff();
-                                } else {
-                                    feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
-                                    sfx.nav();
-                                }
+                            // Determine if the action was correctly placed (a "safe" item in "safe" zone OR a "trap" item in "trap" zone)
+                            const isCorrectPlacement = (draggable.getAttribute('data-type') === 'safe' && isSafeZone) || 
+                                                       (draggable.getAttribute('data-type') === 'trap' && zone.id === 'zone-trap');
+                            
+                            // Determine the narrative message based on the zone
+                            let narrativeMsg = isSafeZone ? data.safe : data.trap;
+                            
+                            if (isCorrectPlacement) {
+                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
+                                sfx.nav();
                             } else {
-                                feedback.textContent = data.trap;
-                                if (data.trap.includes("Wait") || data.trap.includes("Hold") || data.trap.includes("Incorrect")) {
-                                    feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
-                                    sfx.powerOff();
-                                } else {
-                                    feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
-                                    sfx.nav();
-                                }
+                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
+                                sfx.powerOff();
                             }
+                            feedback.textContent = narrativeMsg;
                         }
                     });
                 });
             }
         }
+
 
         function initBuyerChoicesDragDrop() { return; }
 
@@ -2543,7 +2698,7 @@
                 fb.className = "mt-2 text-sm font-bold text-center text-green-600";
                 sfx.nav();
             } else {
-                fb.textContent = "Incomplete or Invalid Documents.";
+                fb.textContent = "Incomplete or Invalid Documents. Select exactly the 3 required documents.";
                 fb.className = "mt-2 text-sm font-bold text-center text-red-600";
                 sfx.powerOff();
             }
@@ -2681,11 +2836,11 @@
 
         let gauntletScore = 0;
         window.runGauntlet = function(btn, step, choice) {
-            const parent = btn.parentElement.parentElement; 
+            const parent = btn.closest('.bg-white'); // Use closest to ensure correct parent element
             const feedback = parent.querySelector('.feedback');
             
             if (step === 1 || step === 3) {
-                btn.classList.remove('bg-green-50', 'bg-blue-50');
+                btn.classList.remove('bg-green-50', 'bg-blue-50', 'hover:bg-green-100', 'hover:bg-blue-100', 'border-green-200', 'border-blue-200');
                 btn.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-500');
                 btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Completed`;
                 btn.disabled = true;
@@ -2696,17 +2851,19 @@
             } else if (step === 2) {
                 const btns = btn.parentElement.querySelectorAll('button');
                 btns.forEach(b => b.disabled = true);
-                feedback.classList.remove('hidden');
                 
+                // Show feedback container if hidden
+                if (feedback) feedback.classList.remove('hidden');
+
                 if (choice === 'credit') {
                     btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
-                    feedback.innerHTML = `<span class="text-emerald-700"><strong>Smart.</strong> Credits give <em>you</em> control over the repair quality. Sellers often do the cheapest fix possible.</span>`;
+                    if (feedback) feedback.innerHTML = `<span class="text-emerald-700"><strong>Smart.</strong> Credits give <em>you</em> control over the repair quality. Sellers often do the cheapest fix possible.</span>`;
                     gauntletScore++;
                     unlockNextGauntlet(step);
                     sfx.nav();
                 } else {
                     btn.classList.add('bg-blue-50', 'border-blue-300', 'text-blue-800');
-                    feedback.innerHTML = `<span class="text-blue-700"><strong>Coaching:</strong> Asking the seller to fix it is okay, but risky. They will likely choose the cheapest contractor. A credit is safer.</span>`;
+                    if (feedback) feedback.innerHTML = `<span class="text-blue-700"><strong>Coaching:</strong> Asking the seller to fix it is okay, but risky. They will likely choose the cheapest contractor. A credit is safer.</span>`;
                     gauntletScore++; 
                     unlockNextGauntlet(step);
                     sfx.nav();
@@ -2714,17 +2871,19 @@
             } else if (step === 4) {
                 const btns = btn.parentElement.querySelectorAll('button');
                 btns.forEach(b => b.disabled = true);
-                feedback.classList.remove('hidden');
                 
+                // Show feedback container if hidden
+                if (feedback) feedback.classList.remove('hidden');
+
                 if (choice === 'pass') {
                     btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
-                    feedback.innerHTML = `<span class="text-emerald-700"><strong>Correct.</strong> ALWAYS verify instructions via a known phone number. Email is never safe.</span>`;
+                    if (feedback) feedback.innerHTML = `<span class="text-emerald-700"><strong>Correct.</strong> ALWAYS verify instructions via a known phone number. Email is never safe.</span>`;
                     gauntletScore++;
                     sfx.play('powerup');
                     document.getElementById('gauntlet-complete').classList.remove('hidden');
                 } else {
                     btn.classList.add('bg-red-50', 'border-red-300', 'text-red-800');
-                    feedback.innerHTML = `<span class="text-red-700"><strong>CRITICAL STOP.</strong> You just lost your down payment to a hacker. Never trust email wiring instructions.</span>`;
+                    if (feedback) feedback.innerHTML = `<span class="text-red-700"><strong>CRITICAL STOP.</strong> You just lost your down payment to a hacker. Never trust email wiring instructions.</span>`;
                     sfx.powerOff();
                 }
             }
@@ -2741,69 +2900,215 @@
             }
         }
 
-        const examQuestions = [
-            { q: "What is the max recommended DTI?", a: ["28/36", "50/50"], correct: 0 },
-            { q: "When should you deposit cash?", a: ["During Escrow", "60+ days before"], correct: 1 },
-            { q: "What avoids PMI?", a: ["20% Down", "FHA Loan"], correct: 0 },
-            { q: "Who pays the buyer agent?", a: ["Buyer", "Usually Seller"], correct: 1 },
-            { q: "Can you waive Title Insurance?", a: ["Yes, but risky", "No, it's law"], correct: 0 }
-        ];
-        
-        function buildExam() {
-            const container = document.getElementById('final-exam-container');
-            if (!container) return;
-            container.innerHTML = '';
-            examQuestions.forEach((q, i) => {
-                const div = document.createElement('div');
-                div.className = "bg-white p-4 rounded border shadow-sm";
-                div.innerHTML = `<p class="font-bold text-sm mb-2">${i+1}. ${q.q}</p>
-                    <div class="flex gap-2">
-                        <button onclick="selectExam(this, ${i}, 0)" class="flex-1 p-2 border rounded text-xs hover:bg-gray-50">${q.a[0]}</button>
-                        <button onclick="selectExam(this, ${i}, 1)" class="flex-1 p-2 border rounded text-xs hover:bg-gray-50">${q.a[1]}</button>
-                    </div>`;
-                container.appendChild(div);
-            });
-        }
-        
-        let examAnswers = {};
-        window.selectExam = function(btn, qIdx, aIdx) {
-            examAnswers[qIdx] = aIdx;
-            const parent = btn.parentElement;
-            parent.querySelectorAll('button').forEach(b => b.classList.remove('bg-allgood-secondary', 'text-white'));
-            btn.classList.add('bg-allgood-secondary', 'text-white');
-            sfx.tick();
-        };
-
-        window.submitFinalExam = function() {
-            let score = 0;
-            examQuestions.forEach((q, i) => {
-                if(examAnswers[i] === q.correct) score++;
-            });
-            const resultMessage = score >= 3 ? 
-                `Passed! Score: ${score}/5. You're Buyer Ready.` : 
-                `Score: ${score}/5. Review the material and try again.`;
-            
-            showCustomModal(resultMessage, score >= 3);
-
-            if(score >= 3) {
-                sfx.nav();
-                nextPage();
-            } else {
-                sfx.powerOff();
+        // --- NEW: Live Fire Scenario Engine ---
+        const scenarios = [
+            {
+                id: 1,
+                title: "The Furniture Trap",
+                icon: "armchair", 
+                theme: "blue",
+                situation: "It is 3 days before closing. You see a perfect sofa on sale for 50% off. It's $2,000. You have the cash, but the store offers '0% interest for 12 months' if you open a store card.",
+                options: [
+                    { text: "Take the 0% financing deal.", type: "fail", feedback: "Opening a new credit line triggers a 'hard inquiry' and alters your Debt-to-Income ratio. Lenders re-check credit just before closing; this new debt could cause a last-minute denial." },
+                    { text: "Buy it with cash.", type: "fail", feedback: "Spending significant liquid cash right now is risky. You need those funds verified for closing costs. It is safer to keep your accounts stable until the deed is recorded." },
+                    { text: "Wait until after closing.", type: "pass", feedback: "CORRECT. Do nothing. Buy the sofa *after* the deed is recorded and you have the keys. Patience saves the deal." }
+                ]
+            },
+            {
+                id: 2,
+                title: "The Repair Standoff",
+                icon: "wrench", 
+                theme: "orange",
+                situation: "Inspection reveals the AC unit is 15 years old and struggling. It works, but barely. The Seller refuses to replace it.",
+                options: [
+                    { text: "Walk away immediately.", type: "fail", feedback: "Walking away over an aging (but working) system might mean losing a home you love. In a competitive market, finding a middle ground is often the smarter strategic move." },
+                    { text: "Demand they fix it or no deal.", type: "fail", feedback: "Forcing a seller to repair usually results in them hiring the cheapest, unlicensed labor. You risk inheriting a 'band-aid' fix that breaks again in three months." },
+                    { text: "Ask for a Home Warranty.", type: "pass", feedback: "SMART MOVE. If they won't credit you, ask them to pay for a 1-year Home Warranty ($600). This protects you if the AC dies next month, without costing the seller huge cash now." }
+                ]
+            },
+            {
+                id: 3,
+                title: "The Appraisal Gap",
+                icon: "scale", 
+                theme: "indigo",
+                situation: "You offered $420k. The Appraisal came back at $410k. The Seller refuses to lower the price. You really want this house.",
+                options: [
+                    { text: "Pay the $10k gap in cash.", type: "pass", feedback: "CORRECT (If able). If you have the reserves and plan to stay long-term, covering the gap is the only way to save the deal without the seller budging." },
+                    { text: "Ask the lender to ignore the appraisal.", type: "fail", feedback: "Lenders are federally regulated and cannot lend more than the appraised value of the collateral. This isn't a policy they can waive; it's a hard limit." },
+                    { text: "Threaten to sue.", type: "fail", feedback: "Legal threats rarely save a deal. The Appraisal Contingency gives you the right to walk away, but it doesn't force the seller to lower their price. Negotiation or cash are your only real levers." }
+                ]
+            },
+            {
+                id: 4,
+                title: "The Phantom Email",
+                icon: "shield-alert", 
+                theme: "red",
+                situation: "On closing day, you get an urgent email from 'Title Company' with new wiring instructions for your down payment.",
+                options: [
+                    { text: "Wire the money immediately to avoid delay.", type: "fail", feedback: "This is the most common wire fraud tactic. The email is likely spoofed. Once money is wired to a fraudulent account, it is almost impossible to recover." },
+                    { text: "Reply to the email to confirm.", type: "fail", feedback: "If the email account has been compromised, the hacker is the one replying to you. Digital verification isn't enough when your life savings are on the line." },
+                    { text: "Call the Title Company on a known number.", type: "pass", feedback: "CORRECT. Always verify wiring instructions voice-to-voice using a phone number you Googled independently (not the one in the email)." }
+                ]
+            },
+            {
+                id: 5,
+                title: "The Career Move",
+                icon: "briefcase", 
+                theme: "emerald",
+                situation: "You are Under Contract. You get a job offer for $10k more per year! But it's a 1099 (Contractor) role, not W-2.",
+                options: [
+                    { text: "Take the job! More money helps.", type: "fail", feedback: "Switching from W-2 to 1099 changes your income category. Lenders typically require a 2-year history of self-employment (1099) to count that income. This would restart your clock." },
+                    { text: "Take it but don't tell the lender.", type: "fail", feedback: "Lenders perform a final Verification of Employment (VOE) within days of closing. They will discover the change, and the loan will be denied for undisclosed material changes." },
+                    { text: "Delay the start date until after closing.", type: "pass", feedback: "CORRECT. Secure the house first. Once the loan is funded and recorded, you can change jobs (though always verify with your loan officer first)." }
+                ]
             }
+        ];
+
+        let currentScenarioIndex = 0;
+        let examScore = 0;
+
+        function buildExam() {
+            loadScenario(0);
+        }
+
+        function loadScenario(index) {
+            const container = document.getElementById('scenario-card');
+            const data = scenarios[index];
+            if (!data) return finishLiveFire();
+
+            // Update Progress
+            document.getElementById('exam-progress').textContent = `${index + 1}/${scenarios.length}`;
+
+            // VISUAL ENHANCEMENT: Hero Icon with Pulse Effect + CLEAN TEXT
+            container.innerHTML = `
+                <div class="animate-pop-in flex flex-col h-full">
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="w-20 h-20 rounded-full bg-${data.theme}-50 border-2 border-${data.theme}-100 flex items-center justify-center mb-3 relative shadow-sm">
+                            <div class="absolute inset-0 rounded-full bg-${data.theme}-400 opacity-10 animate-pulse"></div>
+                            <i data-lucide="${data.icon}" class="w-10 h-10 text-${data.theme}-600"></i>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-${data.theme}-600 mb-1 block">Scenario ${data.id}</span>
+                            <h3 class="text-xl font-heading font-bold text-allgood-dark leading-tight">${data.title}</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 border-l-4 border-${data.theme}-400 p-5 rounded-r-lg mb-6 shadow-sm">
+                        <p class="text-sm text-gray-700 font-body leading-relaxed">${data.situation}</p>
+                    </div>
+
+                    <div class="space-y-3 mt-auto">
+                        ${data.options.map((opt, i) => `
+                            <button onclick="checkScenario(this, ${index}, '${opt.type}', '${opt.feedback.replace(/'/g, "\\'")}')" 
+                                class="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-${data.theme}-400 hover:bg-${data.theme}-50 transition-all text-sm font-bold text-gray-600 relative group shadow-sm bg-white">
+                                <span class="block pr-6 group-hover:text-${data.theme}-800 transition-colors">${opt.text}</span>
+                                <div class="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-${data.theme}-500">
+                                    <i data-lucide="arrow-right-circle" class="w-5 h-5"></i>
+                                </div>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        window.checkScenario = function(btn, index, type, feedback) {
+            // Disable all buttons
+            const buttons = btn.parentElement.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            // Style the selected button
+            if (type === 'pass') {
+                btn.classList.remove('border-gray-200', 'hover:border-allgood-secondary');
+                btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-900');
+                examScore++;
+                sfx.play('powerup');
+            } else {
+                // CHANGED: Use Allgood Secondary (Blue/Teal) for "Coach" feel instead of Red
+                btn.classList.remove('border-gray-200', 'hover:border-allgood-secondary');
+                btn.classList.add('bg-cyan-50', 'border-allgood-secondary', 'text-allgood-secondary');
+                sfx.nav(); // Softer sound than powerOff
+            }
+
+            // Show Feedback Modal
+            showScenarioFeedback(type === 'pass', feedback, index);
         };
 
-        function showCustomModal(message, isSuccess) {
+        function showScenarioFeedback(isPass, text, index) {
             const modal = document.createElement('div');
-            modal.className = "fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4";
+            modal.className = "fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm";
+            
+            // DYNAMIC STYLING: Green for Pass, Teal (Jonathan) for Insight
+            const borderColor = isPass ? 'border-emerald-500' : 'border-allgood-secondary';
+            const titleColor = isPass ? 'text-emerald-700' : 'text-allgood-secondary';
+            const barColor = isPass ? 'bg-emerald-200' : 'bg-cyan-200';
+            
+            // BRANDING UPDATE: "Jonathan's Insight" for coaching moments
+            const titleText = isPass ? 'Correct Decision' : "Jonathan's Insight";
+            
             modal.innerHTML = `
-                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${isSuccess ? 'border-green-500' : 'border-red-500'}">
-                    <h3 class="text-xl font-bold mb-3 ${isSuccess ? 'text-green-700' : 'text-red-700'}">${isSuccess ? 'Success' : 'Attention'}</h3>
-                    <p class="text-gray-600 mb-6 text-sm">${message}</p>
-                    <button onclick="this.closest('.fixed').remove(); sfx.tick();" class="bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-2 px-4 rounded transition-colors">Close</button>
+                <div class="bg-white rounded-t-xl sm:rounded-xl shadow-2xl p-6 max-w-sm w-full animate-pop-in border-t-4 ${borderColor}">
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="text-xl font-heading font-bold ${titleColor}">
+                                ${titleText}
+                            </h3>
+                            ${!isPass ? `<img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-gray-200 shadow-sm object-cover">` : ''}
+                        </div>
+                        <div class="h-1 w-12 ${barColor} rounded"></div>
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed font-body mb-6">${text}</p>
+                    <button id="next-scenario-btn" class="w-full bg-allgood-dark hover:bg-black text-white font-bold py-3 rounded text-sm shadow-md transition-transform transform active:scale-[0.98]">
+                        ${index < scenarios.length - 1 ? 'Next Scenario &rarr;' : 'Finish Exam'}
+                    </button>
                 </div>
             `;
             document.body.appendChild(modal);
+            
+            document.getElementById('next-scenario-btn').onclick = () => {
+                modal.remove();
+                if (index < scenarios.length - 1) {
+                    loadScenario(index + 1);
+                } else {
+                    finishLiveFire();
+                }
+                sfx.tick();
+            };
+        }
+
+        function finishLiveFire() {
+            const container = document.getElementById('scenario-card');
+            const isPass = examScore >= 3;
+            
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center animate-pop-in py-8">
+                    <div class="w-20 h-20 rounded-full flex items-center justify-center mb-4 ${isPass ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}">
+                        <i data-lucide="${isPass ? 'trophy' : 'alert-circle'}" class="w-10 h-10"></i>
+                    </div>
+                    <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">${isPass ? 'You are Ready.' : 'Review Needed'}</h2>
+                    <p class="text-sm text-gray-500 font-body mb-6">You survived <strong>${examScore}/5</strong> scenarios.</p>
+                    
+                    ${isPass ? 
+                        `<p class="text-xs text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full font-bold">Certification Unlocked</p>` : 
+                        `<button onclick="examScore=0; loadScenario(0);" class="text-xs text-orange-600 underline font-bold hover:text-orange-800">Retake Simulation</button>`
+                    }
+                </div>
+            `;
+            lucide.createIcons();
+
+            if (isPass) {
+                document.getElementById('finish-exam-btn').classList.remove('hidden');
+                sfx.play('powerup');
+            }
+        }
+
+        // Removed old selectExam/submitFinalExam functions as they are replaced by the Scenario Engine
+        /* function showCustomModal... kept for potential reuse */
+        function showCustomModal(message, isSuccess) {
+             // ... existing helper ...
+             const modal = document.createElement('div');
+             // ...
         }
 
         function generateBadge() {
@@ -2840,14 +3145,14 @@
 
             const buttons = document.querySelectorAll('#page-4 .tab-btn');
             buttons.forEach(btn => {
-                btn.classList.remove('bg-allgood-primary', 'text-white', 'border-gray-200'); 
+                btn.classList.remove('bg-allgood-primary', 'text-white', 'border-gray-200', 'active'); 
                 btn.classList.add('bg-gray-100', 'text-gray-500', 'border-transparent'); 
             });
 
             const activeBtn = document.getElementById(`tab-btn-${tabName}`);
             if(activeBtn) {
                 activeBtn.classList.remove('bg-gray-100', 'text-gray-500', 'border-transparent');
-                activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200');
+                activeBtn.classList.add('bg-allgood-primary', 'text-white', 'border-gray-200', 'active');
             }
             sfx.tick();
         };
@@ -2913,6 +3218,26 @@
             }
         };
 
+        // NEW: Contract Accordion Logic
+        window.toggleContractAccordion = function(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('.accordion-arrow');
+            
+            // Close others
+            document.querySelectorAll('#contract-accordion .contract-card').forEach(card => {
+                if (card !== btn.parentElement) {
+                    card.querySelector('div.hidden, div.block')?.classList.add('hidden');
+                    card.querySelector('div.hidden, div.block')?.classList.remove('block');
+                    card.querySelector('.accordion-arrow')?.classList.remove('rotate-180');
+                }
+            });
+
+            content.classList.toggle('hidden');
+            content.classList.toggle('block');
+            icon.classList.toggle('rotate-180');
+            sfx.tick();
+        };
+
         function updateLoanProgress() {
             const count = exploredLoans.size;
             const bar = document.getElementById('loan-progress-bar');
@@ -2965,6 +3290,27 @@
                 btn.classList.add('animate-pulse');
                 setTimeout(() => btn.classList.remove('animate-pulse'), 500);
             }
+        };
+
+        /* --- CREDITS PAGE LOGIC --- */
+        let currentRating = 0;
+        window.setRating = function(n) {
+            currentRating = n;
+            for (let i = 1; i <= 5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
+                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
+            }
+            sfx.tick();
+        };
+
+        window.submitFeedback = function() {
+            const feedbackText = document.getElementById('feedback-text').value;
+            // In a real app, we would log this data via SessionManager or API.
+            // For this standalone block, we simulate the submission.
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('feedback-success').classList.remove('hidden');
+            sfx.nav();
         };
     </script>
 </body>
