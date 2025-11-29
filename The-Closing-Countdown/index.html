@@ -66,9 +66,18 @@
             }
         }
         
+        /* Keep the animation class available but unused for logo */
         .animate-pulse-glow {
             animation: pulse-glow 2.5s infinite ease-in-out;
             will-change: transform, text-shadow;
+        }
+
+        /* NEW: Static Neon Glow for Logos (No Pulse) */
+        .static-neon-glow {
+            text-shadow: 
+                0 0 5px rgba(211, 71, 22, 0.2),
+                0 0 10px rgba(211, 71, 22, 0.4),
+                0 0 20px rgba(211, 71, 22, 0.6);
         }
 
         /* Narrative Pop Animation */
@@ -455,7 +464,8 @@
                                 </div>
 
                                 <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-2 relative z-10">Jonathan Hurtado's Countdown to Keys</h2>
-                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md animate-pulse-glow">GoodBlock</h1>
+                                <!-- CHANGED: Replaced animate-pulse-glow with static-neon-glow -->
+                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md static-neon-glow">GoodBlock</h1>
                             </div>
                             <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
                         </div>
@@ -2129,7 +2139,8 @@
                         <!-- GoodBlock Logo/Link -->
                         <div class="text-center mt-6">
                             <a href="https://www.allgoodacademy.com/goodblocks" target="_blank" class="inline-block group">
-                                <span class="font-heading font-bold text-3xl tracking-tight text-allgood-primary animate-pulse-glow block">
+                                <!-- CHANGED: Replaced animate-pulse-glow with static-neon-glow -->
+                                <span class="font-heading font-bold text-3xl tracking-tight text-allgood-primary static-neon-glow block">
                                     GoodBlock
                                 </span>
                             </a>
