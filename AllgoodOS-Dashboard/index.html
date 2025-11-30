@@ -198,16 +198,29 @@
             
             const user = auth.currentUser;
             if (!user) {
-                showStatusMessage("Please sign in to send messages.", 'error');
+                // UI Feedback on button for unauth
+                const originalText = btn.innerHTML;
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.textContent = "Please Sign In First";
+                sfx.powerOff();
+                
+                setTimeout(() => {
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    btn.innerHTML = originalText;
+                    lucide.createIcons();
+                }, 2000);
                 return;
             }
 
+            // Loading State
+            const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = "Sending...";
+            btn.textContent = "Sending...";
 
             try {
-                // FIXED: Write to private user collection to guarantee permission
-                // Was: collection(db, 'artifacts', appId, 'public', 'data', 'feedback_inbox')
+                // Write to private user collection to guarantee permission
                 const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
                 
                 await addDoc(targetCollection, {
@@ -218,17 +231,43 @@
                     isGuest: user.isAnonymous
                 });
                 
+                // Success State - BUTTON UPDATE ONLY
                 sfx.confirm();
                 input.value = "";
-                closeMessageModal();
-                showStatusMessage("Message Sent. Thank you, Agent.", 'info');
+                
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Transmission Sent`;
+                lucide.createIcons();
+
+                // Close after delay
+                setTimeout(() => {
+                    closeMessageModal();
+                    // Reset button style after modal closes
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                        btn.innerHTML = originalText;
+                        lucide.createIcons();
+                    }, 500);
+                }, 1500);
+
             } catch (e) {
                 console.error("Message failed", e);
-                showStatusMessage("Transmission failed. Try again.", 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i data-lucide="send" class="w-3 h-3"></i> Send Transmission`;
-                lucide.createIcons();
+                // Error State on Button
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.textContent = "Transmission Failed";
+                sfx.powerOff();
+
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    btn.innerHTML = originalText;
+                    lucide.createIcons();
+                }, 3000);
             }
         }
 
