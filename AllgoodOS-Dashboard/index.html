@@ -382,6 +382,37 @@
                 modal.classList.remove('visible-modal');
             }, 3000);
         }
+        
+        /**
+         * Central function to restore session state from local storage and start listeners.
+         * This runs on page load and when the user clicks "Power Up" with existing data.
+         */
+        function restoreSessionState() {
+            const storedName = localStorage.getItem('aa_username');
+            const storedUID = localStorage.getItem('aa_uid');
+            const dashboard = document.getElementById('page-dashboard');
+
+            if (storedName && storedUID) {
+                // 1. Update UI (Name, Badge display)
+                updateUI(storedName);
+                
+                // 2. Ensure Dashboard is Visible
+                if (dashboard) {
+                    dashboard.classList.add('active');
+                    dashboard.style.display = 'block'; 
+                }
+
+                // 3. Kick off Firebase Auth Check (to ensure token validity)
+                // The onAuthStateChanged listener handles the actual sign-in persistence check.
+                
+                // 4. Start Listeners immediately using stored UID
+                startLaunchListener(storedUID);
+
+                return true; // State restored
+            }
+            return false; // No state to restore
+        }
+        
     </script>
     
     <!-- Tailwind Config -->
@@ -665,7 +696,7 @@
                             <h2 class="text-xl md:text-2xl font-heading text-slate-400 mb-2 uppercase">WELCOME TO THE</h2>
                             <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md static-neon-glow uppercase">ALLGOOD<span class="text-white">ACADEMY</span></h1>
                         </div>
-                        <p class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
+                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
                     </div>
                 </div>
 
@@ -1164,6 +1195,13 @@
 
         // --- FULLSCREEN / FOCUS MODE LOGIC ---
 
+        // FIX: Added window.onload listener for automatic state restoration (Requirement 4)
+        window.onload = () => {
+            // Restore state automatically after all DOM elements and scripts are loaded
+            // This is crucial for handling browser reloads that maintain session cookies.
+            restoreSessionState();
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
 
@@ -1173,16 +1211,19 @@
             const dashboard = document.getElementById('page-dashboard');
             const fullscreenBtn = document.getElementById('btn-fullscreen');
 
-            // Initialize Firebase and Badge Logic
-            if(window.initDashboard) window.initDashboard();
-            
-            // --- FIX: ENFORCE STARTUP SCREEN AND HIDE DASHBOARD ---
+            // --- UI Setup on DOM Load ---
             if (startupScreen) {
+                // Ensure startup screen is the default initial state
                 startupScreen.style.display = 'flex';
                 startupScreen.style.opacity = '1';
             }
-            if (dashboard) dashboard.classList.remove('active');
             if (dashboard) dashboard.style.display = 'none';
+
+            // Update startup message if session data exists
+            const storedName = localStorage.getItem('aa_username');
+            if (storedName) {
+                document.getElementById('startup-message').textContent = `Ready for Operation, ${storedName}.`;
+            }
 
             
             // Warm up audio context on interaction
@@ -1195,20 +1236,13 @@
                     sfx.click(); 
                     startupScreen.style.opacity = '0';
                     
-                    // Immediately try to restore state based on local storage
-                    const storedName = localStorage.getItem('aa_username');
+                    // --- Power Up Logic (Requirement 3) ---
                     const storedUID = localStorage.getItem('aa_uid');
                     
                     if (storedName && storedUID) {
-                        // User has local data saved, attempt sign-in silently
-                        // If auth state is already authenticated (handled by onAuthStateChanged), this is fast.
-                        // If not, we rely on the user clicking "Power Up" again or onAuthStateChanged resolving.
-                        
-                        updateUI(storedName);
-                        dashboard.classList.add('active');
-                        dashboard.style.display = 'block'; 
-                        sfx.powerOn(); // <-- Power ON sound plays here
-
+                        // User has local data saved: Restore state immediately
+                        restoreSessionState();
+                        sfx.powerOn(); 
                     } else if (loginModal) {
                         // No local data, must show login modal.
                         loginModal.classList.remove('hidden-modal');
@@ -1292,6 +1326,28 @@
                 menuModal.classList.remove('visible-modal');
                 sfx.tick();
             });
+        });
+
+        // --- AUTH STATE PERSISTENCE (Requirement 2) ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // If Firebase Auth state persists (e.g., Google login refresh)
+                const storedUID = localStorage.getItem('aa_uid');
+                
+                if (user.uid === storedUID) {
+                     // Check if local storage matches auth state (most common path)
+                     restoreSessionState();
+                } else {
+                     // Should only happen if local storage was cleared but Firebase Auth cookie wasn't.
+                     // Log the user in based on Firebase profile data if available.
+                     const name = user.displayName || localStorage.getItem('aa_username') || 'Agent';
+                     // This mimics the writeUserDataToFirestore without overwriting lastLogin timestamp unnecessarily
+                     localStorage.setItem('aa_username', name);
+                     localStorage.setItem('aa_uid', user.uid);
+                     // Note: isGuest might be inaccurate here if determined only by local storage, but we prioritize Firebase Auth ID.
+                     restoreSessionState(); 
+                }
+            }
         });
     </script>
 </body>
