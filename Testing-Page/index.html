@@ -1250,7 +1250,7 @@
                 <div class="page" id="page-10">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Protect Your Loan</h2></section>
                     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
-                        You are "Conditionally Approved." This is the danger zone. <br>Drag <strong>Approved Moves</strong> into the <strong>Safe</strong>. Drag <strong>Risky Moves</strong> into the <strong>Trash</strong> to protect your closing.
+                        You are "Conditionally Approved." This is the danger zone. <br>Drag <strong>or Tap</strong> Approved Moves into the <strong>Safe</strong>. Put Risky Moves into the <strong>Trash</strong> to protect your closing.
                     </p>
                     
                     <!-- Draggables Source (Merged Items) -->
@@ -2728,6 +2728,7 @@
             const zoneSafe = document.getElementById('zone-safe');
             const zoneTrap = document.getElementById('zone-trap');
             const feedback = document.getElementById('gauntlet-feedback');
+            let selectedItem = null; // Track currently selected item for click-to-drop
             
             const feedbackMap = {
                 'drag-dp': { safe: "Correct. Typically 3-20% required upfront.", trap: "Wait! You cannot close without a down payment." },
@@ -2739,16 +2740,68 @@
                 'drag-late': { safe: "CRITICAL STOP! A late payment can drop your score 50+ points instantly.", trap: "Correct. Always pay on time to protect your rate." }
             };
 
+            // Unified Handler for Logic
+            const handleDropOrClick = (itemId, zoneId, draggableEl) => {
+                const zone = document.getElementById(zoneId);
+                if (!zone || !draggableEl) return;
+
+                zone.appendChild(draggableEl);
+                
+                // Clear selection styling if applicable
+                draggableEl.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50');
+                selectedItem = null;
+
+                const isSafeZone = zoneId === 'zone-safe';
+                const data = feedbackMap[itemId];
+                
+                if(feedback && data) {
+                    feedback.classList.remove('hidden');
+                    feedback.style.display = 'block';
+
+                    // Determine if the action was correctly placed
+                    const isCorrectPlacement = (draggableEl.getAttribute('data-type') === 'safe' && isSafeZone) || 
+                                               (draggableEl.getAttribute('data-type') === 'trap' && zoneId === 'zone-trap');
+                    
+                    let narrativeMsg = isSafeZone ? data.safe : data.trap;
+                    
+                    if (isCorrectPlacement) {
+                        feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
+                        sfx.nav();
+                    } else {
+                        feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
+                        sfx.powerOff();
+                    }
+                    feedback.textContent = narrativeMsg;
+                }
+            };
+
+            // Setup Listeners
             draggables.forEach(drag => {
+                // Drag Start
                 drag.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', e.target.id);
                     e.dataTransfer.effectAllowed = "move";
                     sfx.tick();
                 });
+
+                // Click/Tap Selection (Mobile & Desktop)
+                drag.addEventListener('click', (e) => {
+                    // Deselect others
+                    draggables.forEach(d => d.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50'));
+                    
+                    if (selectedItem === drag) {
+                        selectedItem = null; // Toggle off
+                    } else {
+                        selectedItem = drag;
+                        drag.classList.add('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50');
+                        sfx.tick();
+                    }
+                });
             });
 
             if(zoneSafe && zoneTrap) {
                 [zoneSafe, zoneTrap].forEach(zone => {
+                    // Standard Drag Over
                     zone.addEventListener('dragover', (e) => {
                         e.preventDefault(); 
                         e.dataTransfer.dropEffect = "move";
@@ -2759,37 +2812,19 @@
                         zone.classList.remove('drag-over');
                     });
 
+                    // Standard Drop
                     zone.addEventListener('drop', (e) => {
                         e.preventDefault();
                         zone.classList.remove('drag-over');
                         const id = e.dataTransfer.getData('text/plain');
                         const draggable = document.getElementById(id);
-                        if(!draggable) return;
+                        handleDropOrClick(id, zone.id, draggable);
+                    });
 
-                        zone.appendChild(draggable);
-                        
-                        const isSafeZone = zone.id === 'zone-safe';
-                        const data = feedbackMap[id];
-                        
-                        if(feedback && data) {
-                            feedback.classList.remove('hidden');
-                            feedback.style.display = 'block';
-
-                            // Determine if the action was correctly placed (a "safe" item in "safe" zone OR a "trap" item in "trap" zone)
-                            const isCorrectPlacement = (draggable.getAttribute('data-type') === 'safe' && isSafeZone) || 
-                                                       (draggable.getAttribute('data-type') === 'trap' && zone.id === 'zone-trap');
-                            
-                            // Determine the narrative message based on the zone
-                            let narrativeMsg = isSafeZone ? data.safe : data.trap;
-                            
-                            if (isCorrectPlacement) {
-                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
-                                sfx.nav();
-                            } else {
-                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
-                                sfx.powerOff();
-                            }
-                            feedback.textContent = narrativeMsg;
+                    // Click/Tap Zone to "Drop" Selected Item
+                    zone.addEventListener('click', () => {
+                        if (selectedItem) {
+                            handleDropOrClick(selectedItem.id, zone.id, selectedItem);
                         }
                     });
                 });
