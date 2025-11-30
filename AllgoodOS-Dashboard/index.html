@@ -44,8 +44,8 @@
         async function writeUserDataToFirestore(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
              
-             if (!isGuest) {
-                // Only update profile if it's a permanent user (Google)
+             if (!isGuest && user.displayName !== name) {
+                // Only update profile if it's a permanent user (Google) AND display name is different
                 await updateProfile(user, { displayName: name });
              }
 
@@ -78,6 +78,7 @@
             try {
                 const userCredential = await signInAnonymously(auth);
                 const user = userCredential.user;
+                // Anonymous users are still written to Firestore for launch logging
                 await writeUserDataToFirestore(user, finalName, null, isGuest);
             } catch (error) {
                 console.error("Anonymous Login Error:", error);
@@ -117,7 +118,7 @@
                 const finalName = user.displayName || 'Agent';
                 const finalEmail = user.email || null;
 
-                // 3. WRITE DATA
+                // 3. WRITE DATA (Persistent user with name/email)
                 await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
 
                 // 4. PERSIST LOCAL STATE
@@ -183,9 +184,7 @@
                 startup.style.display = 'flex';
                 setTimeout(() => { startup.style.opacity = '1'; }, 10);
             }
-            if(dashboard) dashboard.style.display = 'none';
-
-            // F. Login Modal will be handled when they click "Power Up"
+            if (dashboard) dashboard.style.display = 'none';
         }
 
         window.launchCourse = async (courseName, url) => {
@@ -258,7 +257,7 @@
             }
             
             // Level 3 requires Agent status + Action
-            if (currentLevel >= 2 && launchCount > 0) currentLevel = 3;
+            if (currentLevel >= 2 && launchCount >= 1) currentLevel = 3; // Changed > 0 to >= 1 for clarity
             
             // Update UI
             for(let i=1; i<=3; i++) {
@@ -625,7 +624,7 @@
                         <h2 class="text-xl font-bold text-allgood-dark mb-6 font-heading uppercase">AGENT LOG IN</h2>
 
                         <!-- Google Sign In (Persistent Identity) -->
-                        <button id="btn-google-login" 
+                        <button id="btn-google-login" onclick="window.handleGoogleLogin()"
                                 class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase flex items-center justify-center mb-4">
                             <!-- Google Icon SVG -->
                             <svg class="w-5 h-5 mr-3 -mt-px" viewBox="0 0 24 24" fill="currentColor">
@@ -641,7 +640,7 @@
                         </div>
 
                         <!-- Anonymous Sign In (Guest Observer) -->
-                        <button id="btn-guest-login" 
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()"
                                 class="w-full bg-gray-500 hover:bg-allgood-dark text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
                             Continue as Guest
                         </button>
@@ -1144,13 +1143,7 @@
             }
 
             // 2. Login Logic - Event Listeners
-            document.getElementById('btn-google-login').addEventListener('click', () => {
-                if(window.handleGoogleLogin) window.handleGoogleLogin();
-            });
-
-            document.getElementById('btn-guest-login').addEventListener('click', () => {
-                if(window.handleGuestLogin) window.handleGuestLogin();
-            });
+            // The functions are defined in the module script block above and use the onclick attribute in HTML.
 
             // 3. Navbar Control Cluster Logic
             const homeBtn = document.getElementById('btn-home');
