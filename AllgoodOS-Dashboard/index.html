@@ -56,6 +56,9 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
         let unsubscribeLaunches = null;
+        
+        // Dictionary to map course names to their badge elements
+        window.allModuleElements = {};
 
         // --- UTILITY: Writes essential user data to Firestore ---
         async function writeUserDataToFirestore(user, name, email, isGuest) {
@@ -83,8 +86,13 @@
              closeLoginModal();
              
              // FIX: Only attach listener if not a guest to prevent permission errors
+             // (Assuming user has updated rules, but this check is still good practice if rules are strict)
              if (!isGuest) {
                  window.startLaunchListener(user.uid); 
+             } else {
+                 // Even guests should see launches if rules allow, let's try starting it anyway if rules are updated
+                 // Per recent instruction, rules are open for authenticated users writing to own path.
+                 window.startLaunchListener(user.uid);
              }
         }
 
@@ -145,6 +153,17 @@
         };
 
         window.launchCourse = async (courseName, url, element) => {
+            // Option 3: Prompt Unauthenticated Users
+            if (!auth.currentUser) {
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) {
+                    loginModal.classList.remove('hidden-modal');
+                    loginModal.classList.add('visible-modal');
+                    showStatusMessage("Please sign in to launch modules.", 'info');
+                }
+                return;
+            }
+
             window.open(url, '_blank');
             sfx.confirm();
             
@@ -156,14 +175,12 @@
                     timestamp: serverTimestamp()
                 }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
 
-                // 2. Visual Update: Change Status to LAUNCHED
+                // 2. Visual Update: Change Status to LAUNCHED (Immediate feedback)
                 if (element) {
-                    const badge = element.querySelector('span.rounded'); // Finds the status badge
+                    const badge = element.querySelector('span.rounded'); 
                     if (badge) {
                         badge.textContent = "LAUNCHED";
-                        // Switch to Blue styling for visual feedback
                         badge.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 animate-pulse";
-                        // Remove pulse after a few seconds
                         setTimeout(() => badge.classList.remove('animate-pulse'), 2000);
                     }
                 }
@@ -290,6 +307,23 @@
                 unsubscribeLaunches = null;
             }
             
+            // Reset Badges on Logout
+            document.querySelectorAll('.mission-file span.rounded').forEach(badge => {
+                if (badge.textContent === "LAUNCHED") {
+                    badge.textContent = "Ready";
+                    const parent = badge.closest('.mission-file');
+                    if (parent.classList.contains('status-active')) {
+                         badge.className = "bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
+                         badge.textContent = "Active";
+                    } else if (parent.classList.contains('status-ready')) {
+                         badge.className = "bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide"; 
+                         badge.textContent = "Ready";
+                    }
+                }
+            });
+            
+            window.initModuleElements();
+
             document.querySelectorAll('.visible-modal').forEach(el => {
                 el.classList.remove('visible-modal');
                 el.classList.add('hidden-modal');
@@ -313,10 +347,33 @@
             }
         };
 
+        // --- INITIALIZE MODULE ELEMENTS MAP ---
+        window.initModuleElements = function() {
+            window.allModuleElements = {};
+            const cards = document.querySelectorAll('.mission-file');
+            cards.forEach(card => {
+                const onclickAttr = card.getAttribute('onclick');
+                if (onclickAttr && onclickAttr.includes('launchCourse')) {
+                    const match = onclickAttr.match(/'([^']+)'/);
+                    if (match && match[1]) {
+                        const courseName = match[1];
+                        const badge = card.querySelector('span.rounded');
+                        if (badge) {
+                            window.allModuleElements[courseName] = badge;
+                        }
+                    }
+                }
+            });
+        }
+
         // --- FIRESTORE LISTENERS ---
         window.startLaunchListener = function(uid) {
             if (unsubscribeLaunches) unsubscribeLaunches();
             
+            if (Object.keys(window.allModuleElements).length === 0) {
+                window.initModuleElements();
+            }
+
             const launchesCollectionRef = collection(db, 'artifacts', appId, 'users', uid, 'launches');
             unsubscribeLaunches = onSnapshot(launchesCollectionRef, (snapshot) => {
                 const totalLaunches = snapshot.size;
@@ -326,6 +383,21 @@
 
                 const statElement = document.getElementById('stat-total-launches');
                 if (statElement) statElement.textContent = totalLaunches;
+                
+                // Update Individual Card Status
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const courseName = data.courseName;
+                    const badgeElement = window.allModuleElements[courseName];
+                    
+                    if (badgeElement) {
+                        if (badgeElement.textContent !== "LAUNCHED") {
+                            badgeElement.textContent = "LAUNCHED";
+                            badgeElement.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500";
+                        }
+                    }
+                });
+
             }, (error) => {
                 console.error("Error listening to launches:", error);
             });
@@ -419,7 +491,6 @@
         }
 
         window.openAboutModal = () => {
-            // Close the system menu first to prevent double-backdrop overlap
             const menu = document.getElementById('menu-modal');
             if (menu) {
                 menu.classList.add('hidden-modal');
@@ -489,6 +560,8 @@
         }
 
         window.initDashboard = function() { 
+            window.initModuleElements();
+            
             onAuthStateChanged(auth, async (user) => {
                 const dashboard = document.getElementById('page-dashboard');
                 if (user) {
@@ -516,7 +589,7 @@
                     window.updateUI(displayName);
                     dashboard.classList.add('active');
                     dashboard.style.display = 'block'; 
-                    closeLoginModal(); // Auto-close login if auth state restored
+                    closeLoginModal(); 
                     window.startLaunchListener(user.uid);
                 } else {
                     if (dashboard.style.display === 'block') {
@@ -525,7 +598,38 @@
                 }
             });
         }
-        
+
+        // --- FIXED STARTUP LISTENER (Inside Module Scope) ---
+        const startupScreen = document.getElementById('startup-screen');
+        if(startupScreen) {
+            startupScreen.addEventListener('click', () => {
+                // Ensure audio is ready safely via GLOBAL window object
+                if(window.sfx && window.sfx.powerOn) {
+                    window.sfx.powerOn(); 
+                } else if (window.initAudio) {
+                    window.initAudio();
+                }
+                
+                startupScreen.style.opacity = '0';
+                
+                const storedUID = localStorage.getItem('aa_uid');
+                const storedName = localStorage.getItem('aa_username');
+                
+                // Correctly transition based on auth state
+                if (storedName && storedUID) {
+                    window.restoreSessionState();
+                    window.initDashboard(); 
+                } else {
+                    const loginModal = document.getElementById('login-modal');
+                    if (loginModal) {
+                        loginModal.classList.remove('hidden-modal');
+                        loginModal.classList.add('visible-modal');
+                    }
+                }
+                
+                setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
+            });
+        }
     </script>
     
     <!-- Tailwind Config -->
@@ -1321,6 +1425,8 @@
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
+                
+                // Confirmed Source: Triangle Wave Frequency Sweep (110 Hz to 220 Hz over 0.4s)
                 osc.type = 'triangle'; // Use triangle wave for sweeping effect
                 osc.frequency.setValueAtTime(110, now);
                 osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
@@ -1338,6 +1444,10 @@
                 playTone(200, 'sine', 0.08, 0.1, 0.01, 0.01);
             },
         };
+
+        // EXPOSE TO WINDOW FOR MODULE ACCESS
+        window.sfx = sfx;
+        window.initAudio = initAudio;
 
         // --- TAB LOGIC ---
         window.switchTab = (tabName) => {
@@ -1361,54 +1471,8 @@
             lucide.createIcons();
             
             // Initialization Logic
-            window.restoreSessionState(); 
-            window.initDashboard();
-
-            // Startup Screen
-            const startupScreen = document.getElementById('startup-screen');
-            const loginModal = document.getElementById('login-modal');
-            const dashboard = document.getElementById('page-dashboard');
-            const fullscreenBtn = document.getElementById('btn-fullscreen');
-
-            if (startupScreen) {
-                startupScreen.style.display = 'flex';
-                startupScreen.style.opacity = '1';
-                
-                // Warm up audio
-                const warmUp = () => initAudio();
-                startupScreen.addEventListener('mousedown', warmUp, { once: true });
-                startupScreen.addEventListener('touchstart', warmUp, { once: true });
-                
-                startupScreen.addEventListener('click', () => {
-                    sfx.powerOn(); 
-                    startupScreen.style.opacity = '0';
-                    
-                    const storedUID = localStorage.getItem('aa_uid');
-                    const storedName = localStorage.getItem('aa_username');
-                    
-                    if (storedName && storedUID) {
-                        window.restoreSessionState();
-                        window.initDashboard(); 
-                    } else if (loginModal) {
-                        loginModal.classList.remove('hidden-modal');
-                        loginModal.classList.add('visible-modal');
-                    }
-                    
-                    setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
-                });
-            }
-
-            if (dashboard) dashboard.style.display = 'none';
-            
-            // UPDATED STARTUP MESSAGE LOGIC
-            const storedName = localStorage.getItem('aa_username');
-            const startupMsg = document.getElementById('startup-message');
-            
-            if (storedName && storedName !== 'Guest') {
-                startupMsg.textContent = `CLICK TO POWER UP, ${storedName.toUpperCase()}`;
-            } else {
-                startupMsg.textContent = "CLICK TO POWER UP";
-            }
+            // Note: window.restoreSessionState() and window.initDashboard() are called 
+            // inside the module script's startupScreen click handler to ensure async DB readiness.
 
             // Button Listeners
             const homeBtn = document.getElementById('btn-home');
@@ -1440,6 +1504,7 @@
                 sfx.tick();
             });
 
+            const fullscreenBtn = document.getElementById('btn-fullscreen');
             if(fullscreenBtn) {
                 fullscreenBtn.addEventListener('click', () => {
                     const body = document.body;
