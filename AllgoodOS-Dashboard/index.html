@@ -69,7 +69,11 @@
              document.getElementById('page-dashboard').classList.add('active');
              document.getElementById('page-dashboard').style.display = 'block'; 
              closeLoginModal();
-             window.startLaunchListener(user.uid); 
+             
+             // FIX: Only attach listener if not a guest to prevent permission errors
+             if (!isGuest) {
+                 window.startLaunchListener(user.uid); 
+             }
         }
 
         // --- AUTH HANDLERS ---
