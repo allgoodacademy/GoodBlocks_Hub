@@ -69,7 +69,9 @@
                     }, { merge: true });
                 } catch (error) {
                     console.error("Login Error:", error);
-                    alert("Connection failed. Continuing in Local Mode.");
+                    // Use a message box instead of alert()
+                    const message = "Connection failed. Continuing in Local Mode.";
+                    showStatusMessage(message, 'error'); 
                 }
             }
             
@@ -117,17 +119,15 @@
 
             // E. Show Startup Screen (Cover everything)
             const startup = document.getElementById('startup-screen');
+            const dashboard = document.getElementById('page-dashboard');
+            
             if(startup) {
                 startup.style.display = 'flex';
                 setTimeout(() => { startup.style.opacity = '1'; }, 10);
             }
+            if(dashboard) dashboard.style.display = 'none';
 
-            // F. Prep Login Modal (for when they click Startup)
-            const loginModal = document.getElementById('login-modal');
-            if(loginModal) {
-                loginModal.classList.remove('hidden-modal');
-                loginModal.classList.add('visible-modal'); 
-            }
+            // F. Login Modal will be handled when they click "Power Up"
         }
 
         window.launchCourse = async (courseName, url) => {
@@ -153,8 +153,6 @@
 
         window.initDashboard = () => {
             // This function now only handles Firebase initialization and badge state management.
-            // The logic to restore a session from localStorage has been REMOVED here
-            // to enforce the "Session Required" flow (Power Up screen on every load).
             
             if (!isOfflineMode) {
                 // --- ONLINE MODE (FIREBASE) ---
@@ -170,9 +168,8 @@
                                     const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
                                     localStorage.setItem('aa_is_guest', isGuest);
                                     
-                                    // We still update UI variables, but DON'T hide the startup screen.
+                                    // We still update UI variables, but DON'T hide the startup screen yet.
                                     updateUI(data.displayName); 
-                                    closeLoginModal();
                                 }
                             }
                         } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
@@ -181,7 +178,6 @@
                 });
             } else {
                 // --- OFFLINE MODE ---
-                // Only running badge updates and necessary checks.
                 updateBadges();
             }
         };
@@ -282,6 +278,34 @@
                 modal.classList.add('hidden-modal');
                 modal.classList.remove('visible-modal');
             }
+        }
+        
+        // Custom Message Box (Replaces alert())
+        function showStatusMessage(message, type = 'info') {
+            const modal = document.getElementById('status-modal');
+            const content = document.getElementById('status-content');
+            const icon = document.getElementById('status-icon');
+            const classes = {
+                'info': { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'info' },
+                'error': { bg: 'bg-red-100', text: 'text-red-800', icon: 'alert-triangle' }
+            };
+
+            const style = classes[type] || classes['info'];
+            
+            modal.querySelector('.bg-white').className = `bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${style.bg} relative`;
+
+            content.textContent = message;
+            content.className = `text-sm font-body ${style.text}`;
+            icon.setAttribute('data-lucide', style.icon);
+            lucide.createIcons();
+
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden-modal');
+                modal.classList.remove('visible-modal');
+            }, 3000);
         }
     </script>
     
@@ -464,32 +488,7 @@
         }
 
         /* --- FOCUS MODE (Simulated Fullscreen) --- */
-        body.focus-mode {
-            background: #F7F7F7; /* Match inner screen color */
-            background-image: none;
-            padding: 0;
-            margin: 0;
-            overflow: hidden;
-        }
-
-        body.focus-mode .tablet-frame {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: none !important;
-            max-height: none !important;
-            border-radius: 0 !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            background-image: none !important;
-            aspect-ratio: auto !important;
-        }
-
-        body.focus-mode .screen-container {
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
+        /* Note: For actual fullscreen, the browser removes body margins/padding */
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body">
@@ -534,6 +533,15 @@
                         <button id="start-session-btn" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body">Enter Dashboard</button>
                     </div>
                 </div>
+                
+                <!-- 2.5 STATUS MESSAGE MODAL (Non-blocking replacement for alert()) -->
+                <div id="status-modal" class="hidden-modal fixed top-4 right-4 z-[500] flex items-center justify-center p-4 modal-transition pointer-events-none">
+                    <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3">
+                        <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
+                        <p id="status-content" class="text-sm font-body text-blue-800"></p>
+                    </div>
+                </div>
+
 
                 <!-- 3. TOP NAVBAR -->
                 <header class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30">
@@ -547,7 +555,9 @@
                         <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)"><i data-lucide="home" class="w-5 h-5"></i></button>
                         <div class="h-6 w-px bg-white/20 mx-1"></div>
                         <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="sun" class="w-5 h-5"></i></button>
-                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Fullscreen"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Fullscreen">
+                            <i id="fullscreen-icon" data-lucide="maximize" class="w-5 h-5"></i>
+                        </button>
                         <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
                     </div>
                 </header>
@@ -560,10 +570,10 @@
                             <button id="close-menu" class="text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
                         </div>
                         <div class="p-3 space-y-1">
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors" onclick="alert('Dashboard Active')">
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors" onclick="showStatusMessage('Dashboard Active', 'info')">
                                 <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Dashboard
                             </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors" onclick="alert('Profile Module: Coming Soon')">
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors" onclick="showStatusMessage('Profile Module: Coming Soon', 'info')">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
                             <div class="border-t border-slate-100 my-2"></div>
@@ -960,40 +970,52 @@
             sfx.nav(); 
         };
 
-        window.initDashboard = () => {
-            // This function now only handles Firebase initialization and badge state management.
-            // The logic to restore a session from localStorage has been REMOVED here
-            // to enforce the "Session Required" flow (Power Up screen on every load).
-            
-            if (!isOfflineMode) {
-                // --- ONLINE MODE (FIREBASE) ---
-                 onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                        try {
-                            const docSnap = await getDoc(userRef);
-                            if (docSnap.exists()) {
-                                const data = docSnap.data();
-                                if(data.displayName) {
-                                    // Restore Guest Status from DB
-                                    const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
-                                    localStorage.setItem('aa_is_guest', isGuest);
-                                    
-                                    // We still update UI variables, but DON'T hide the startup screen.
-                                    updateUI(data.displayName); 
-                                    closeLoginModal();
-                                }
-                            }
-                        } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
-                    }
-                    updateBadges();
-                });
+        // --- FULLSCREEN LOGIC ---
+        const fullscreenIcon = document.getElementById('fullscreen-icon');
+
+        const handleFullscreenChange = () => {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                // Entered fullscreen
+                if(fullscreenIcon) {
+                    fullscreenIcon.setAttribute('data-lucide', 'minimize');
+                    lucide.createIcons();
+                }
             } else {
-                // --- OFFLINE MODE ---
-                // Only running badge updates and necessary checks.
-                updateBadges();
+                // Exited fullscreen
+                if(fullscreenIcon) {
+                    fullscreenIcon.setAttribute('data-lucide', 'maximize');
+                    lucide.createIcons();
+                }
             }
         };
+
+        const toggleFullscreen = () => {
+            try {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    // Enter fullscreen
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    }
+                } else {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            } catch(e) {
+                console.warn("Fullscreen blocked by permissions policy:", e);
+                showStatusMessage("Fullscreen mode unavailable due to browser restrictions.", 'error');
+            }
+            sfx.tick();
+        };
+        
+        // Add listeners for fullscreen change event
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1003,17 +1025,19 @@
             const startupScreen = document.getElementById('startup-screen');
             const loginModal = document.getElementById('login-modal');
             const dashboard = document.getElementById('page-dashboard');
+            const fullscreenBtn = document.getElementById('btn-fullscreen');
 
-            // Initialize App
+            // Initialize Firebase and Badge Logic
             if(window.initDashboard) window.initDashboard();
             
-            // --- FIX: ENFORCE SESSION REQUIRED ---
-            // We ignore localStorage and force the UI state to start with the Power Up screen.
+            // --- FIX: ENFORCE STARTUP SCREEN AND HIDE DASHBOARD ---
             if (startupScreen) {
                 startupScreen.style.display = 'flex';
                 startupScreen.style.opacity = '1';
             }
             if (dashboard) dashboard.classList.remove('active');
+            if (dashboard) dashboard.style.display = 'none';
+
             
             // Warm up audio context on interaction
             if (startupScreen) {
@@ -1027,14 +1051,13 @@
                     setTimeout(() => { 
                         startupScreen.style.display = 'none';
                         
-                        // Check local storage for name: if found, we skip login and show dashboard
+                        // Check local storage for name
                         const storedName = localStorage.getItem('aa_username');
                         
                         if (storedName) {
-                            // User has local data saved from a previous session, show dashboard immediately.
+                            // User has local data saved, restore session and show dashboard immediately.
                             updateUI(storedName);
                             dashboard.classList.add('active');
-                            // CRITICAL FIX: Ensure display property is set to overcome CSS 'display: none' in .page
                             dashboard.style.display = 'block'; 
                         } else if (loginModal) {
                             // No local data, must show login modal.
@@ -1100,28 +1123,10 @@
                 sfx.tick();
             });
 
-            const toggleFullscreen = () => {
-                try {
-                    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                        if (document.documentElement.requestFullscreen) {
-                            document.documentElement.requestFullscreen();
-                        } else if (document.documentElement.webkitRequestFullscreen) {
-                            document.documentElement.webkitRequestFullscreen();
-                        }
-                    } else {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        } else if (document.webkitExitFullscreen) {
-                            document.webkitExitFullscreen();
-                        }
-                    }
-                } catch(e) {
-                    console.warn("Fullscreen blocked by permissions policy");
-                    alert("Fullscreen mode unavailable in this view.");
-                }
-                sfx.tick();
-            };
-            document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+            // Attach fullscreen toggle handler
+            if(fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', toggleFullscreen);
+            }
 
             const menuModal = document.getElementById('menu-modal');
             document.getElementById('btn-menu').addEventListener('click', () => {
