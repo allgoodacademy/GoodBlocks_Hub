@@ -167,10 +167,7 @@
             } else {
                  // No local session. Ensure dashboard is hidden and startup screen is visible.
                  if (dashboard) dashboard.classList.remove('active');
-                 if (startup) {
-                    startup.style.display = 'flex'; 
-                    startup.style.opacity = '1';
-                 }
+                 // Note: startup screen is hidden/shown in DOMContentLoaded for better timing control
             }
 
             if (!isOfflineMode) {
@@ -529,7 +526,7 @@
                 </div>
 
                 <!-- 2. LOGIN MODAL -->
-                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
+                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
                         <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
@@ -596,7 +593,7 @@
                 </div>
 
                 <!-- 4. DASHBOARD CONTENT (TACTICAL OPS) -->
-                <div class="page active" id="page-dashboard">
+                <div class="page" id="page-dashboard">
                     
                     <!-- Status Bar -->
                     <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
@@ -984,10 +981,28 @@
             // 1. Startup Logic
             const startupScreen = document.getElementById('startup-screen');
             const loginModal = document.getElementById('login-modal');
+            const dashboard = document.getElementById('page-dashboard');
 
             // Initialize App
             if(window.initDashboard) window.initDashboard();
-
+            
+            // Check if user session exists in local storage
+            const isIdentified = localStorage.getItem('aa_username') !== null;
+            
+            // FIX: Explicitly ensure UI state matches session state on DOMContentLoaded
+            if (isIdentified) {
+                // Session exists, hide startup and show dashboard
+                if (startupScreen) startupScreen.style.display = 'none';
+                if (dashboard) dashboard.classList.add('active');
+            } else {
+                // No session found, ensure dashboard is hidden and startup screen is visible
+                if (startupScreen) {
+                    startupScreen.style.display = 'flex';
+                    startupScreen.style.opacity = '1';
+                }
+                if (dashboard) dashboard.classList.remove('active');
+            }
+            
             // Warm up audio context on interaction
             if (startupScreen) {
                 const warmUp = () => initAudio();
@@ -1000,16 +1015,12 @@
                     setTimeout(() => { 
                         startupScreen.style.display = 'none';
                         
-                        // Force Modal Check (Using window.auth if available, else localStorage fallback)
-                        const modal = document.getElementById('login-modal');
+                        // Check again, if still not identified, show login modal
+                        const isIdentifiedAfterClick = localStorage.getItem('aa_username') !== null;
                         
-                        // Use localStorage to determine if a user (guest or agent) is already identified
-                        const isIdentified = localStorage.getItem('aa_username') !== null;
-                        
-                        // Only show login modal if NO user data found locally
-                        if (!isIdentified) {
-                             modal.classList.remove('hidden-modal');
-                             modal.classList.add('visible-modal');
+                        if (!isIdentifiedAfterClick && loginModal) {
+                             loginModal.classList.remove('hidden-modal');
+                             loginModal.classList.add('visible-modal');
                         }
                     }, 700);
                 });
