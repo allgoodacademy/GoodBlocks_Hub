@@ -56,6 +56,7 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
         let unsubscribeLaunches = null;
+        let unsubscribeDecisions = null; // NEW: Listener for Decision Challenge
         
         // Dictionary to map course names to their badge elements
         window.allModuleElements = {};
@@ -88,11 +89,13 @@
              // FIX: Only attach listener if not a guest to prevent permission errors
              // (Assuming user has updated rules, but this check is still good practice if rules are strict)
              if (!isGuest) {
-                 window.startLaunchListener(user.uid); 
+                 window.startLaunchListener(user.uid);
+                 window.startDecisionsStatusListener(user.uid); // NEW
              } else {
                  // Even guests should see launches if rules allow, let's try starting it anyway if rules are updated
                  // Per recent instruction, rules are open for authenticated users writing to own path.
                  window.startLaunchListener(user.uid);
+                 window.startDecisionsStatusListener(user.uid); // NEW
              }
         }
 
@@ -306,6 +309,11 @@
                 unsubscribeLaunches();
                 unsubscribeLaunches = null;
             }
+
+            if (unsubscribeDecisions) { // NEW: Unsubscribe from decisions
+                unsubscribeDecisions();
+                unsubscribeDecisions = null;
+            }
             
             // Reset Badges on Logout
             document.querySelectorAll('.mission-file span.rounded').forEach(badge => {
@@ -321,6 +329,13 @@
                     }
                 }
             });
+
+            // NEW: Reset Digital Decisions Badge Specifically
+            const ddcBadge = document.getElementById('ddc-status-badge');
+            if(ddcBadge) {
+                ddcBadge.textContent = "Active";
+                ddcBadge.className = "bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
+            }
             
             window.initModuleElements();
 
@@ -400,6 +415,41 @@
 
             }, (error) => {
                 console.error("Error listening to launches:", error);
+            });
+        }
+
+        // --- NEW: Digital Decisions Status Listener ---
+        window.startDecisionsStatusListener = function(uid) {
+            if (unsubscribeDecisions) unsubscribeDecisions();
+            
+            const scoresRef = collection(db, 'artifacts', appId, 'users', uid, 'game_scores');
+            
+            unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
+                let maxScore = -1;
+                let hasAttempt = false;
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Match the gameName set in digital_decisions.html
+                    if (data.gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
+                        hasAttempt = true;
+                        if (data.finalScore > maxScore) maxScore = data.finalScore;
+                    }
+                });
+
+                const badge = document.getElementById('ddc-status-badge');
+                if (badge && hasAttempt) {
+                    // Threshold is 80 points (approx 89%) based on app logic
+                    if (maxScore >= 80) { 
+                        badge.textContent = "MISSION COMPLETE";
+                        badge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
+                    } else {
+                        badge.textContent = "RETAKE REQUIRED";
+                        badge.className = "bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-amber-200 animate-pulse";
+                    }
+                }
+            }, (error) => {
+                console.log("Status listener silent fail (likely permission or empty):", error);
             });
         }
 
@@ -554,6 +604,7 @@
                     dashboard.style.display = 'block'; 
                 }
                 window.startLaunchListener(storedUID);
+                window.startDecisionsStatusListener(storedUID); // NEW
                 return true; 
             }
             return false; 
@@ -567,6 +618,7 @@
                 if (user) {
                     if (dashboard.style.display === 'block') {
                         window.startLaunchListener(user.uid);
+                        window.startDecisionsStatusListener(user.uid); // NEW
                         return;
                     }
                     
@@ -591,6 +643,7 @@
                     dashboard.style.display = 'block'; 
                     closeLoginModal(); 
                     window.startLaunchListener(user.uid);
+                    window.startDecisionsStatusListener(user.uid); // NEW
                 } else {
                     if (dashboard.style.display === 'block') {
                          window.handleLogout(); 
@@ -1173,7 +1226,8 @@
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Digital Decisions</h3>
-                                    <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
+                                    <!-- UPDATED SPAN WITH ID -->
+                                    <span id="ddc-status-badge" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Make high-stakes choices in simulated online conflict scenarios.</p>
                             </div>
