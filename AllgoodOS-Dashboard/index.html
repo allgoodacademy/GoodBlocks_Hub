@@ -167,6 +167,8 @@
 
             const startup = document.getElementById('startup-screen');
             if(startup) {
+                // RESET MESSAGE ON LOGOUT
+                document.getElementById('startup-message').textContent = "CLICK TO POWER UP";
                 startup.style.display = 'flex';
                 setTimeout(() => { startup.style.opacity = '1'; }, 10);
             }
@@ -1160,9 +1162,15 @@
             }
 
             if (dashboard) dashboard.style.display = 'none';
+            
+            // UPDATED STARTUP MESSAGE LOGIC
             const storedName = localStorage.getItem('aa_username');
-            if (storedName) {
-                document.getElementById('startup-message').textContent = `Ready for Operation, ${storedName}.`;
+            const startupMsg = document.getElementById('startup-message');
+            
+            if (storedName && storedName !== 'Guest') {
+                startupMsg.textContent = `CLICK TO POWER UP, ${storedName.toUpperCase()}`;
+            } else {
+                startupMsg.textContent = "CLICK TO POWER UP";
             }
 
             // Button Listeners
