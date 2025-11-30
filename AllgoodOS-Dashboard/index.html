@@ -151,25 +151,9 @@
         };
 
         window.initDashboard = () => {
-            // Attempt to restore name from localStorage first
-            const storedName = localStorage.getItem('aa_username');
-            const startup = document.getElementById('startup-screen');
-            const dashboard = document.getElementById('page-dashboard');
-
-            if (storedName) {
-                // User has a local session. Hide startup screen immediately and show dashboard.
-                if (startup) {
-                    startup.style.display = 'none'; 
-                    startup.style.opacity = '0'; // Ensure quick removal
-                }
-                updateUI(storedName);
-                if (dashboard) dashboard.classList.add('active');
-            } else {
-                 // No local session. Ensure dashboard is hidden and startup screen is visible.
-                 if (dashboard) dashboard.classList.remove('active');
-                 // Note: startup screen is hidden/shown in DOMContentLoaded for better timing control
-            }
-
+            // The logic to restore a session from localStorage has been REMOVED here
+            // to enforce the "Session Required" flow (Power Up screen on every load).
+            
             if (!isOfflineMode) {
                 // --- ONLINE MODE (FIREBASE) ---
                  onAuthStateChanged(auth, async (user) => {
@@ -186,8 +170,7 @@
                                     
                                     updateUI(data.displayName);
                                     closeLoginModal();
-                                    const startup = document.getElementById('startup-screen');
-                                    if(startup) startup.style.display = 'none'; 
+                                    // NOTE: We no longer auto-hide the startup screen here, forcing the click.
                                 }
                             }
                         } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
@@ -196,7 +179,7 @@
                 });
             } else {
                 // --- OFFLINE MODE ---
-                // No need for a listener, status is already loaded above
+                // Only running badge updates and necessary checks.
                 updateBadges();
             }
         };
@@ -807,7 +790,7 @@
                         <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action')" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-amber-50 rounded flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
-                                <i data-lucide="brain-circuit" class="w-8 h-8 text-amber-600"></i>
+                                <i data-lucide="bullseye" class="w-8 h-8 text-amber-600"></i>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -975,6 +958,42 @@
             sfx.nav(); 
         };
 
+        window.initDashboard = () => {
+            // This function now only handles Firebase initialization and badge state management.
+            // The logic to restore a session from localStorage has been REMOVED here
+            // to enforce the "Session Required" flow (Power Up screen on every load).
+            
+            if (!isOfflineMode) {
+                // --- ONLINE MODE (FIREBASE) ---
+                 onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                        try {
+                            const docSnap = await getDoc(userRef);
+                            if (docSnap.exists()) {
+                                const data = docSnap.data();
+                                if(data.displayName) {
+                                    // Restore Guest Status from DB
+                                    const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
+                                    localStorage.setItem('aa_is_guest', isGuest);
+                                    
+                                    // We still update UI variables, but DON'T hide the startup screen.
+                                    updateUI(data.displayName); 
+                                    closeLoginModal();
+                                }
+                            }
+                        } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
+                    }
+                    updateBadges();
+                });
+            } else {
+                // --- OFFLINE MODE ---
+                // Only running badge updates and necessary checks.
+                updateBadges();
+            }
+        };
+
+
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
 
@@ -986,22 +1005,13 @@
             // Initialize App
             if(window.initDashboard) window.initDashboard();
             
-            // Check if user session exists in local storage
-            const isIdentified = localStorage.getItem('aa_username') !== null;
-            
-            // FIX: Explicitly ensure UI state matches session state on DOMContentLoaded
-            if (isIdentified) {
-                // Session exists, hide startup and show dashboard
-                if (startupScreen) startupScreen.style.display = 'none';
-                if (dashboard) dashboard.classList.add('active');
-            } else {
-                // No session found, ensure dashboard is hidden and startup screen is visible
-                if (startupScreen) {
-                    startupScreen.style.display = 'flex';
-                    startupScreen.style.opacity = '1';
-                }
-                if (dashboard) dashboard.classList.remove('active');
+            // --- FIX: ENFORCE SESSION REQUIRED ---
+            // We ignore localStorage and force the UI state to start with the Power Up screen.
+            if (startupScreen) {
+                startupScreen.style.display = 'flex';
+                startupScreen.style.opacity = '1';
             }
+            if (dashboard) dashboard.classList.remove('active');
             
             // Warm up audio context on interaction
             if (startupScreen) {
@@ -1015,10 +1025,15 @@
                     setTimeout(() => { 
                         startupScreen.style.display = 'none';
                         
-                        // Check again, if still not identified, show login modal
-                        const isIdentifiedAfterClick = localStorage.getItem('aa_username') !== null;
+                        // Check local storage for name: if found, we skip login and show dashboard
+                        const storedName = localStorage.getItem('aa_username');
                         
-                        if (!isIdentifiedAfterClick && loginModal) {
+                        if (storedName) {
+                            // User has local data saved from a previous session, show dashboard immediately.
+                            updateUI(storedName);
+                            dashboard.classList.add('active');
+                        } else if (loginModal) {
+                            // No local data, must show login modal.
                              loginModal.classList.remove('hidden-modal');
                              loginModal.classList.add('visible-modal');
                         }
