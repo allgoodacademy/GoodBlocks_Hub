@@ -56,7 +56,7 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
         let unsubscribeLaunches = null;
-        let unsubscribeDecisions = null; // NEW: Listener for Decision Challenge
+        let unsubscribeDecisions = null; // Listener for Decision Challenge
         
         // Dictionary to map course names to their badge elements
         window.allModuleElements = {};
@@ -86,17 +86,8 @@
              document.getElementById('page-dashboard').style.display = 'block'; 
              closeLoginModal();
              
-             // FIX: Only attach listener if not a guest to prevent permission errors
-             // (Assuming user has updated rules, but this check is still good practice if rules are strict)
-             if (!isGuest) {
-                 window.startLaunchListener(user.uid);
-                 window.startDecisionsStatusListener(user.uid); // NEW
-             } else {
-                 // Even guests should see launches if rules allow, let's try starting it anyway if rules are updated
-                 // Per recent instruction, rules are open for authenticated users writing to own path.
-                 window.startLaunchListener(user.uid);
-                 window.startDecisionsStatusListener(user.uid); // NEW
-             }
+             window.startLaunchListener(user.uid);
+             window.startDecisionsStatusListener(user.uid); // NEW: Start Status Listener
         }
 
         // --- AUTH HANDLERS ---
@@ -167,7 +158,16 @@
                 return;
             }
 
-            window.open(url, '_blank');
+            // --- FIX: PASS UID TO URL TO ENSURE SESSION CONTINUITY ---
+            // This prevents "Guest" users from having different IDs in the Game vs Dashboard
+            let finalUrl = url;
+            try {
+                const urlObj = new URL(url);
+                urlObj.searchParams.append('dashboard_uid', auth.currentUser.uid);
+                finalUrl = urlObj.toString();
+            } catch (e) { console.log("URL append failed", e); }
+
+            window.open(finalUrl, '_blank');
             sfx.confirm();
             
             if (auth.currentUser) {
@@ -182,6 +182,9 @@
                 if (element) {
                     const badge = element.querySelector('span.rounded'); 
                     if (badge) {
+                        // Priority Check: Don't overwrite specialized badges
+                        if (badge.id === 'ddc-status-badge') return; 
+
                         badge.textContent = "LAUNCHED";
                         badge.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 animate-pulse";
                         setTimeout(() => badge.classList.remove('animate-pulse'), 2000);
@@ -310,7 +313,7 @@
                 unsubscribeLaunches = null;
             }
 
-            if (unsubscribeDecisions) { // NEW: Unsubscribe from decisions
+            if (unsubscribeDecisions) { // Unsubscribe from decisions
                 unsubscribeDecisions();
                 unsubscribeDecisions = null;
             }
@@ -608,7 +611,7 @@
                     dashboard.style.display = 'block'; 
                 }
                 window.startLaunchListener(storedUID);
-                window.startDecisionsStatusListener(storedUID); // NEW
+                window.startDecisionsStatusListener(storedUID); // Start Listener
                 return true; 
             }
             return false; 
@@ -622,7 +625,7 @@
                 if (user) {
                     if (dashboard.style.display === 'block') {
                         window.startLaunchListener(user.uid);
-                        window.startDecisionsStatusListener(user.uid); // NEW
+                        window.startDecisionsStatusListener(user.uid); // Start Listener
                         return;
                     }
                     
@@ -647,7 +650,7 @@
                     dashboard.style.display = 'block'; 
                     closeLoginModal(); 
                     window.startLaunchListener(user.uid);
-                    window.startDecisionsStatusListener(user.uid); // NEW
+                    window.startDecisionsStatusListener(user.uid); // Start Listener
                 } else {
                     if (dashboard.style.display === 'block') {
                          window.handleLogout(); 
