@@ -13,19 +13,31 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Initialize Firebase
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-dashboard';
+        // --- OFFLINE/DEPLOYMENT CHECK ---
+        const isOfflineMode = typeof __firebase_config === 'undefined';
+        
+        let auth, db, appId;
+
+        if (!isOfflineMode) {
+            // Initialize Firebase in Canvas Environment
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-dashboard';
+        } else {
+            // Offline Mode Fallback
+            console.warn("Firebase configuration not found. Running in Local/Offline Mode.");
+            auth = null; // Mark auth service as unavailable
+            db = null; // Mark db service as unavailable
+        }
 
         // --- GLOBAL EXPORTS (Fixes ReferenceError) ---
         window.auth = auth; 
         window.db = db;
 
         // TRACKING STATE
-        let launchCount = 0;
+        let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
 
         window.handleLogin = async (name, email, isGuest) => {
@@ -40,71 +52,67 @@
             localStorage.setItem('aa_is_guest', isGuest);
             localStorage.setItem('aa_username', name);
 
-            try {
-                const userCredential = await signInAnonymously(auth);
-                const user = userCredential.user;
-                await updateProfile(user, { displayName: name });
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                
-                await setDoc(userRef, {
-                    displayName: name,
-                    email: email || '',
-                    isGuest: isGuest, // Persist status to DB
-                    lastLogin: serverTimestamp(),
-                    onboardingComplete: true
-                }, { merge: true });
-                
-                updateUI(name);
-                
-                // Explicitly wake up the Dashboard Page
-                document.getElementById('page-dashboard').classList.add('active');
-                
-                closeLoginModal();
-                sfx.confirm();
-            } catch (error) {
-                console.error("Login Error:", error);
-                alert("Connection failed. Continuing as Guest.");
-                updateUI(name);
-                document.getElementById('page-dashboard').classList.add('active');
-                closeLoginModal();
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-70', 'cursor-wait');
+            if (!isOfflineMode) {
+                // --- ONLINE MODE (FIREBASE) ---
+                try {
+                    const userCredential = await signInAnonymously(auth);
+                    const user = userCredential.user;
+                    await updateProfile(user, { displayName: name });
+                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                    
+                    await setDoc(userRef, {
+                        displayName: name,
+                        email: email || '',
+                        isGuest: isGuest, // Persist status to DB
+                        lastLogin: serverTimestamp(),
+                        onboardingComplete: true
+                    }, { merge: true });
+                } catch (error) {
+                    console.error("Login Error:", error);
+                    alert("Connection failed. Continuing in Local Mode.");
+                }
             }
+            
+            // --- UI Update (Applies to both modes) ---
+            updateUI(name);
+            document.getElementById('page-dashboard').classList.add('active');
+            closeLoginModal();
+            sfx.confirm();
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-wait');
         };
 
         window.handleLogout = async () => {
-            try {
-                if(auth.currentUser) await signOut(auth);
-            } catch(e) { console.log("Signout error (offline?)", e); }
+            // Only sign out of Firebase if available
+            if (!isOfflineMode && auth.currentUser) {
+                try {
+                    await signOut(auth);
+                } catch(e) { console.log("Signout error (offline?)", e); }
+            }
             
             // 1. Clear Local Data
             localStorage.removeItem('aa_username');
-            localStorage.removeItem('aa_is_guest'); // Clear guest flag
+            localStorage.removeItem('aa_is_guest'); 
+            localStorage.removeItem('aa_launch_count');
             launchCount = 0; // Reset Stats
             currentLevel = 1;
             
             // 2. FORCE RESET UI STATE
-            
-            // A. Hide ALL Modals (Sidebar, etc)
             document.querySelectorAll('.visible-modal').forEach(el => {
                 el.classList.remove('visible-modal');
                 el.classList.add('hidden-modal');
             });
 
-            // B. Hide ALL Pages (Clear background)
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            
-            // C. Reset Tabs to Default
             if(window.switchTab) window.switchTab('goodblocks');
 
-            // D. Reset Inputs & Name Displays
             document.querySelectorAll('.user-name-display').forEach(el => el.textContent = 'Guest');
             if(document.getElementById('user-name-input')) document.getElementById('user-name-input').value = '';
             if(document.getElementById('user-email-input')) document.getElementById('user-email-input').value = '';
             
-            updateBadges(); // Reset Badges
+            updateBadges(); 
 
             // E. Show Startup Screen (Cover everything)
             const startup = document.getElementById('startup-screen');
@@ -125,51 +133,62 @@
             // IMMEDIATE ACTION
             window.open(url, '_blank');
 
-            const user = auth.currentUser;
             sfx.confirm();
             
             // Increment local stats immediately for badge interaction
             launchCount++;
+            localStorage.setItem('aa_launch_count', launchCount);
             updateBadges();
             
-            // Log asynchronously
-            if (user) {
-                addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'launches'), {
+            // Log asynchronously (Only if Firebase is initialized)
+            if (!isOfflineMode && auth.currentUser) {
+                addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
                     courseName: courseName,
                     targetUrl: url,
                     timestamp: serverTimestamp()
-                }).catch(e => console.log("Log failed, continuing navigation"));
+                }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
             }
         };
 
         window.initDashboard = () => {
-             onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                    try {
-                        const docSnap = await getDoc(userRef);
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            if(data.displayName) {
-                                // Restore Guest Status
-                                if (data.isGuest !== undefined) {
-                                    localStorage.setItem('aa_is_guest', data.isGuest);
-                                } else {
-                                    // Fallback inference for old users
-                                    const isGuest = data.displayName === 'Guest' || data.displayName === 'Learner';
+            // Attempt to restore name from localStorage first
+            const storedName = localStorage.getItem('aa_username');
+            if (storedName) {
+                updateUI(storedName);
+                // Hide splash screen if user data found locally
+                document.getElementById('startup-screen').style.display = 'none'; 
+                document.getElementById('page-dashboard').classList.add('active');
+            }
+
+            if (!isOfflineMode) {
+                // --- ONLINE MODE (FIREBASE) ---
+                 onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                        try {
+                            const docSnap = await getDoc(userRef);
+                            if (docSnap.exists()) {
+                                const data = docSnap.data();
+                                if(data.displayName) {
+                                    // Restore Guest Status from DB
+                                    const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
                                     localStorage.setItem('aa_is_guest', isGuest);
+                                    
+                                    updateUI(data.displayName);
+                                    closeLoginModal();
+                                    const startup = document.getElementById('startup-screen');
+                                    if(startup) startup.style.display = 'none'; 
                                 }
-                                
-                                updateUI(data.displayName);
-                                closeLoginModal();
-                                const startup = document.getElementById('startup-screen');
-                                if(startup) startup.style.display = 'none'; 
                             }
-                        }
-                    } catch(e) { console.log("Offline or error fetching user", e); }
-                }
+                        } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
+                    }
+                    updateBadges();
+                });
+            } else {
+                // --- OFFLINE MODE ---
+                // No need for a listener, status is already loaded above
                 updateBadges();
-            });
+            }
         };
         
         function updateUI(name) {
@@ -180,11 +199,12 @@
         
         function updateBadges() {
             // LOGIC FIX:
-            // Check strict guest flag.
+            // Reload local state for launch count
+            launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
+
             const isGuest = localStorage.getItem('aa_is_guest') === 'true';
             const name = localStorage.getItem('aa_username');
             
-            // Also handle edge case where flag might be missing but name is obviously generic
             const isGenericName = !name || name === 'Guest' || name === 'Learner';
             
             currentLevel = 1;
@@ -968,10 +988,12 @@
                         
                         // Force Modal Check (Using window.auth if available, else localStorage fallback)
                         const modal = document.getElementById('login-modal');
-                        const hasUser = (window.auth && window.auth.currentUser) || localStorage.getItem('aa_username');
                         
-                        // Only show login modal if NOT logged in
-                        if (!hasUser) {
+                        // Use localStorage to determine if a user (guest or agent) is already identified
+                        const isIdentified = localStorage.getItem('aa_username') !== null;
+                        
+                        // Only show login modal if NO user data found locally
+                        if (!isIdentified) {
                              modal.classList.remove('hidden-modal');
                              modal.classList.add('visible-modal');
                         }
@@ -993,20 +1015,8 @@
                 
                 let finalName = rawName || "Guest";
                 
-                // Store the status immediately for UI sync
-                localStorage.setItem('aa_is_guest', isGuest);
-                
                 if(window.handleLogin) {
                     window.handleLogin(finalName, rawEmail, isGuest);
-                } else {
-                    // Fallback
-                    localStorage.setItem('aa_username', finalName);
-                    updateUI(finalName); // This triggers updateBadges
-                    // ...
-                    const loginModal = document.getElementById('login-modal');
-                    loginModal.classList.add('hidden-modal');
-                    loginModal.classList.remove('visible-modal');
-                    sfx.confirm();
                 }
             });
 
