@@ -132,6 +132,90 @@
             }
         };
 
+        window.launchCourse = async (courseName, url, element) => {
+            window.open(url, '_blank');
+            sfx.confirm();
+            
+            if (auth.currentUser) {
+                // 1. Log to Firestore
+                addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
+                    courseName: courseName,
+                    targetUrl: url,
+                    timestamp: serverTimestamp()
+                }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
+
+                // 2. Visual Update: Change Status to LAUNCHED
+                if (element) {
+                    const badge = element.querySelector('span.rounded'); // Finds the status badge
+                    if (badge) {
+                        badge.textContent = "LAUNCHED";
+                        // Switch to Blue styling for visual feedback
+                        badge.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 animate-pulse";
+                        // Remove pulse after a few seconds
+                        setTimeout(() => badge.classList.remove('animate-pulse'), 2000);
+                    }
+                }
+            }
+        };
+
+        // --- MESSAGING LOGIC ---
+        window.openMessageModal = () => {
+            const menu = document.getElementById('menu-modal');
+            if(menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
+            
+            const modal = document.getElementById('message-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            sfx.click();
+            setTimeout(() => document.getElementById('message-input').focus(), 100);
+        }
+
+        window.closeMessageModal = () => {
+            const modal = document.getElementById('message-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            sfx.click();
+        }
+
+        window.submitMessage = async () => {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            const btn = document.getElementById('btn-send-message');
+            
+            if (!text) return;
+            
+            const user = auth.currentUser;
+            if (!user) {
+                showStatusMessage("Please sign in to send messages.", 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = "Sending...";
+
+            try {
+                // Save to public feedback collection
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'feedback_inbox'), {
+                    senderName: user.displayName,
+                    senderEmail: user.email,
+                    message: text,
+                    timestamp: serverTimestamp()
+                });
+                
+                sfx.confirm();
+                input.value = "";
+                closeMessageModal();
+                showStatusMessage("Message Sent. Thank you, Agent.", 'info');
+            } catch (e) {
+                console.error("Message failed", e);
+                showStatusMessage("Transmission failed. Try again.", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="send" class="w-3 h-3"></i> Send Transmission`;
+                lucide.createIcons();
+            }
+        }
+
         window.handleLogout = async () => {
             sfx.powerOff();
             localStorage.removeItem('aa_username');
@@ -191,18 +275,6 @@
                 console.error("Error listening to launches:", error);
             });
         }
-        
-        window.launchCourse = async (courseName, url) => {
-            window.open(url, '_blank');
-            sfx.confirm();
-            if (auth.currentUser) {
-                addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
-                    courseName: courseName,
-                    targetUrl: url,
-                    timestamp: serverTimestamp()
-                }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
-            }
-        };
 
         // --- UI/BADGE LOGIC ---
         window.updateUI = function(name) { 
@@ -286,6 +358,27 @@
         
         window.closeBadgeModal = () => {
             const modal = document.getElementById('badge-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            sfx.click();
+        }
+
+        window.openAboutModal = () => {
+            // Close the system menu first to prevent double-backdrop overlap
+            const menu = document.getElementById('menu-modal');
+            if (menu) {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+
+            const modal = document.getElementById('about-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            sfx.click();
+        }
+
+        window.closeAboutModal = () => {
+            const modal = document.getElementById('about-modal');
             modal.classList.add('hidden-modal');
             modal.classList.remove('visible-modal');
             sfx.click();
@@ -711,13 +804,32 @@
                     </div>
                     <!-- Control Cluster -->
                     <div class="flex items-center space-x-1 shrink-0 relative">
-                        <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)"><i data-lucide="home" class="w-5 h-5"></i></button>
-                        <div class="h-6 w-px bg-white/20 mx-1"></div>
-                        <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="sun" class="w-5 h-5"></i></button>
-                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
-                            <i id="fullscreen-icon" data-lucide="maximize" class="w-5 h-5"></i>
+                        <!-- HOME ICON -->
+                        <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                         </button>
-                        <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                        
+                        <div class="h-6 w-px bg-white/20 mx-1"></div>
+                        
+                        <!-- BLUEPRINT (DARK MODE) ICON -->
+                        <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                        </button>
+                        
+                        <!-- FULLSCREEN ICON -->
+                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                        </button>
+                        
+                        <!-- CHAT ICON (Kept Lucide for now as no exact SVG in reference, but styled to match) -->
+                        <button id="btn-message" class="text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ" onclick="window.openMessageModal()">
+                            <i data-lucide="message-square" class="w-5 h-5"></i>
+                        </button>
+                        
+                        <!-- MENU ICON -->
+                        <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
                     </div>
                 </header>
 
@@ -735,13 +847,16 @@
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Profile Module: Coming Soon', 'info')">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAboutModal()">
+                                <i data-lucide="info" class="w-4 h-4 mr-3 text-slate-500"></i>About Us
+                            </button>
                             <div class="border-t border-slate-100 my-2"></div>
                              <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center transition-colors uppercase" onclick="window.handleLogout()">
                                 <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>Log Out
                             </button>
                         </div>
                         <div class="mt-auto p-4 bg-slate-50 border-t border-slate-200 text-center">
-                            <p class="text-xs text-slate-400 uppercase">Allgood Academy<br>Pragmatic Action</p>
+                            <p class="text-xs text-slate-500 font-body">Allgood Academy &copy; 2025</p>
                         </div>
                     </div>
                 </div>
@@ -794,9 +909,25 @@
                         </button>
                     </div>
 
-                    <!-- TAB 1: GOODBLOCKS -->
+                    <!-- TAB 1: GOODBLOCKS (ALPHABETIZED) -->
                     <div id="tab-goodblocks" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- 1. Countdown to Keys (Coming Soon) -->
+                        
+                        <!-- 1. Airport Navigator (A) -->
+                        <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" 
+                             class="mission-file status-ready p-5 flex items-start gap-4 group">
+                            <div class="w-16 h-16 bg-sky-50 rounded flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors">
+                                <i data-lucide="plane" class="w-8 h-8 text-sky-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Airport Navigator</h3>
+                                    <span class="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Master the logistical flow from curb to gate with zero friction.</p>
+                            </div>
+                        </div>
+
+                        <!-- 2. Countdown to Keys (C) -->
                         <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-50">
                             <div class="w-16 h-16 bg-slate-50 rounded flex items-center justify-center border border-slate-100 flex-shrink-0">
                                 <i data-lucide="key" class="w-8 h-8 text-slate-400"></i>
@@ -810,38 +941,8 @@
                             </div>
                         </div>
 
-                        <!-- 2. Mastering the Sincere Apology -->
-                        <div onclick="window.launchCourse('Mastering the Apology', 'https://www.allgoodacademy.com/goodblocks/mastering-the-sincere-apology')" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-emerald-50 rounded flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
-                                <i data-lucide="heart-handshake" class="w-8 h-8 text-emerald-600"></i>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Mastering the Apology</h3>
-                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Deploy the 4-part structure to de-escalate conflict instantly.</p>
-                            </div>
-                        </div>
-
-                        <!-- 3. Your Digital Identity -->
-                        <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity')" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-purple-50 rounded flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors">
-                                <i data-lucide="fingerprint" class="w-8 h-8 text-purple-600"></i>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Your Digital Identity</h3>
-                                    <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Audit your online footprint and secure your personal perimeter.</p>
-                            </div>
-                        </div>
-
-                        <!-- 4. Digital Asset Defense -->
-                        <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense')" 
+                        <!-- 3. Digital Asset Defense (D) -->
+                        <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-blue-50 rounded flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors">
                                 <i data-lucide="shield-check" class="w-8 h-8 text-blue-600"></i>
@@ -855,26 +956,41 @@
                             </div>
                         </div>
 
-                        <!-- 5. Airport Navigator -->
-                        <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator')" 
+                        <!-- 4. Mastering the Sincere Apology (M) -->
+                        <div onclick="window.launchCourse('Mastering the Apology', 'https://www.allgoodacademy.com/goodblocks/mastering-the-sincere-apology', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-sky-50 rounded flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors">
-                                <i data-lucide="plane" class="w-8 h-8 text-sky-600"></i>
+                            <div class="w-16 h-16 bg-emerald-50 rounded flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
+                                <i data-lucide="heart-handshake" class="w-8 h-8 text-emerald-600"></i>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Airport Navigator</h3>
-                                    <span class="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
+                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Mastering the Apology</h3>
+                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
                                 </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Master the logistical flow from curb to gate with zero friction.</p>
+                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Deploy the 4-part structure to de-escalate conflict instantly.</p>
+                            </div>
+                        </div>
+
+                        <!-- 5. Your Digital Identity (Y) -->
+                        <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity', this)" 
+                             class="mission-file status-ready p-5 flex items-start gap-4 group">
+                            <div class="w-16 h-16 bg-purple-50 rounded flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors">
+                                <i data-lucide="fingerprint" class="w-8 h-8 text-purple-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Your Digital Identity</h3>
+                                    <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Audit your online footprint and secure your personal perimeter.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- TAB 2: GAMES & SIMS -->
+                    <!-- TAB 2: GAMES & SIMS (Update Click Handlers) -->
                     <div id="tab-games" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                         <!-- 1. Jolene's Lemonade -->
-                        <div onclick="window.launchCourse('Jolene\'s Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge')" 
+                        <div onclick="window.launchCourse('Jolene\'s Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-yellow-50 rounded flex items-center justify-center border border-yellow-100 flex-shrink-0 group-hover:bg-yellow-100 transition-colors">
                                 <i data-lucide="store" class="w-8 h-8 text-yellow-600"></i>
@@ -889,7 +1005,7 @@
                         </div>
 
                         <!-- 2. Digital Decisions -->
-                        <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions')" 
+                        <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions', this)" 
                              class="mission-file status-active p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-indigo-50 rounded flex items-center justify-center border border-indigo-100 flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
                                 <i data-lucide="smartphone" class="w-8 h-8 text-indigo-600"></i>
@@ -904,7 +1020,7 @@
                         </div>
 
                         <!-- 3. Conflict Resolution -->
-                        <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge')" 
+                        <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-red-50 rounded flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors">
                                 <i data-lucide="swords" class="w-8 h-8 text-red-600"></i>
@@ -919,7 +1035,7 @@
                         </div>
 
                         <!-- 4. Purposeful Communicator -->
-                        <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge')" 
+                        <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-teal-50 rounded flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors">
                                 <i data-lucide="message-circle" class="w-8 h-8 text-teal-600"></i>
@@ -934,7 +1050,7 @@
                         </div>
 
                         <!-- 5. Master Your Story -->
-                        <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge')" 
+                        <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-rose-50 rounded flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors">
                                 <i data-lucide="book-open" class="w-8 h-8 text-rose-600"></i>
@@ -949,10 +1065,10 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: COURSES -->
+                    <!-- TAB 3: COURSES (Update Click Handlers) -->
                     <div id="tab-courses" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                         <!-- 1. Pragmatic Learning -->
-                        <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action')" 
+                        <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-amber-50 rounded flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
                                 <i data-lucide="brain-circuit" class="w-8 h-8 text-amber-600"></i>
@@ -967,7 +1083,7 @@
                         </div>
 
                         <!-- 2. The Unwritten Rules -->
-                        <div onclick="window.launchCourse('The Unwritten Rules', 'https://www.allgoodacademy.com/courses/the-unwritten-rules-navigating-social-emotional-learning')" 
+                        <div onclick="window.launchCourse('The Unwritten Rules', 'https://www.allgoodacademy.com/courses/the-unwritten-rules-navigating-social-emotional-learning', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-slate-100 rounded flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-slate-200 transition-colors">
                                 <i data-lucide="scale" class="w-8 h-8 text-slate-600"></i>
@@ -982,7 +1098,7 @@
                         </div>
 
                         <!-- 3. The AI Co-Pilot -->
-                        <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/courses/the-ai-co-pilot-a-15-minute-microlearning-course')" 
+                        <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/courses/the-ai-co-pilot-a-15-minute-microlearning-course', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-cyan-50 rounded flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors">
                                 <i data-lucide="bot" class="w-8 h-8 text-cyan-600"></i>
@@ -1027,6 +1143,71 @@
                 </div>
 
             </div>
+
+            <!-- ABOUT US MODAL (Relocated to Root Screen Container) -->
+            <div id="about-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeAboutModal()">
+                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
+                    <button onclick="closeAboutModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-heading font-bold text-allgood-dark uppercase tracking-tight">Academy Protocol</h3>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-1">Mission Directive</p>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <!-- Card 1: The Lab -->
+                        <div class="bg-gray-50 border-l-4 border-allgood-secondary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="p-2 bg-white rounded-full text-allgood-secondary shadow-sm group-hover:scale-110 transition-transform">
+                                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
+                                </div>
+                                <h4 class="font-bold text-allgood-dark text-sm uppercase tracking-wide">The Lab</h4>
+                            </div>
+                            <p class="text-gray-600 text-xs leading-relaxed font-body">Allgood Academy is a mission-driven learning hub. We use <span class="font-bold text-allgood-secondary">advanced instructional design</span> principles trusted by top corporations to create immersive, high-impact training.</p>
+                        </div>
+                        
+                        <!-- Card 2: The Result -->
+                        <div class="bg-gray-50 border-l-4 border-allgood-primary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="p-2 bg-white rounded-full text-allgood-primary shadow-sm group-hover:scale-110 transition-transform">
+                                    <i data-lucide="zap" class="w-5 h-5"></i>
+                                </div>
+                                <h4 class="font-bold text-allgood-dark text-sm uppercase tracking-wide">The Result</h4>
+                            </div>
+                            <p class="text-gray-600 text-xs leading-relaxed font-body">We don't just teach; we transform. Our goal is a complete <span class="font-bold text-allgood-primary">mindset shift</span> that moves learners from passive consumption to pragmatic, real-world execution.</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="closeAboutModal()" class="mt-6 w-full bg-allgood-dark hover:bg-black text-white font-bold py-3 rounded text-xs shadow-md transition-all transform active:scale-95 uppercase tracking-wide flex items-center justify-center gap-2">
+                        <i data-lucide="power-off" class="w-3 h-3"></i> Close Protocol
+                    </button>
+                </div>
+            </div>
+
+            <!-- NEW MESSAGE MODAL -->
+            <div id="message-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeMessageModal()">
+                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
+                    <button onclick="closeMessageModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    
+                    <div class="mb-4">
+                        <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="message-circle" class="w-6 h-6 text-allgood-primary"></i>
+                        </div>
+                        <h3 class="text-xl font-heading font-bold text-allgood-dark uppercase">Direct Line</h3>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-1">To: Allgood Academy HQ</p>
+                    </div>
+                    
+                    <div class="text-left mb-4">
+                        <p class="text-xs text-gray-500 italic mb-2">This is a one-way secure transmission. Use this channel to send feedback, topic requests, or field reports.</p>
+                        <textarea id="message-input" rows="4" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50 font-body placeholder-gray-400" placeholder="Type your message here..."></textarea>
+                    </div>
+                    
+                    <button id="btn-send-message" onclick="window.submitMessage()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded text-xs shadow-md transition-all transform active:scale-95 uppercase tracking-wide flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-3 h-3"></i> Send Transmission
+                    </button>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -1206,13 +1387,14 @@
             if(fullscreenBtn) {
                 fullscreenBtn.addEventListener('click', () => {
                     const body = document.body;
-                    const icon = document.getElementById('fullscreen-icon');
+                    // Removed icon swapping logic to support static SVG
                     if (body.classList.contains('focus-mode')) {
                         body.classList.remove('focus-mode');
-                        icon.setAttribute('data-lucide', 'maximize');
+                        // Visual toggle for active state
+                        fullscreenBtn.classList.remove('text-green-300', 'bg-white/10');
                     } else {
                         body.classList.add('focus-mode');
-                        icon.setAttribute('data-lucide', 'minimize');
+                        fullscreenBtn.classList.add('text-green-300', 'bg-white/10');
                     }
                     lucide.createIcons();
                     sfx.tick();
@@ -1232,6 +1414,27 @@
                 sfx.tick();
             });
         });
+
+        window.openAboutModal = () => {
+            // Close the system menu first to prevent double-backdrop overlap
+            const menu = document.getElementById('menu-modal');
+            if (menu) {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+
+            const modal = document.getElementById('about-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            sfx.click();
+        }
+
+        window.closeAboutModal = () => {
+            const modal = document.getElementById('about-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            sfx.click();
+        }
     </script>
 </body>
 </html>
