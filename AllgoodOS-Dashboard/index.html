@@ -10,15 +10,15 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Set Firebase logging level for debugging
         setLogLevel('Debug');
         
-        // --- HARDCODED FIREBASE CONFIGURATION ---
-        const firebaseConfig = {
+        // --- CONFIGURATION (Environment or Fallback) ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
@@ -28,13 +28,25 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        let auth, db, appId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
+        
+        let auth, db;
 
         // --- FIREBASE INITIALIZATION ---
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
-        appId = 'allgood-academy'; 
+
+        // --- AUTH INIT (Custom Token Support) ---
+        (async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (e) {
+                    console.warn("Auth token failed, falling back", e);
+                }
+            }
+        })();
 
         // --- GLOBAL EXPORTS ---
         window.auth = auth; 
@@ -465,6 +477,7 @@
                     window.updateUI(displayName);
                     dashboard.classList.add('active');
                     dashboard.style.display = 'block'; 
+                    closeLoginModal(); // Auto-close login if auth state restored
                     window.startLaunchListener(user.uid);
                 } else {
                     if (dashboard.style.display === 'block') {
