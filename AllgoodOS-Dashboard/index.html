@@ -69,12 +69,12 @@
              localStorage.setItem('aa_uid', user.uid);
              
              // UI/State Update
-             updateUI(name);
+             window.updateUI(name); // Now globally callable
              document.getElementById('page-dashboard').classList.add('active');
              document.getElementById('page-dashboard').style.display = 'block'; 
              closeLoginModal();
              sfx.powerOn(); // <-- PowerOn sound added here for successful login
-             startLaunchListener(user.uid);
+             window.startLaunchListener(user.uid); // Now globally callable
         }
 
         // --- AUTH: Guest Sign-In (Anonymous) ---
@@ -187,8 +187,8 @@
                 dashboard.style.display = 'none';
             }
             
-            updateUI('Agent'); // Reset display name on UI
-            updateBadges(); 
+            window.updateUI('Agent'); // Reset display name on UI
+            window.updateBadges(); 
 
             // E. Show Startup Screen (Cover everything)
             const startup = document.getElementById('startup-screen');
@@ -199,7 +199,7 @@
         };
 
         // --- FIRESTORE LISTENERS ---
-        function startLaunchListener(uid) {
+        window.startLaunchListener = function(uid) { // Globally accessible function
             if (unsubscribeLaunches) {
                 unsubscribeLaunches(); // Clean up previous listener
             }
@@ -210,7 +210,7 @@
                 const totalLaunches = snapshot.size;
                 launchCount = totalLaunches; // Sync local state with DB count
                 localStorage.setItem('aa_launch_count', launchCount); // Persist
-                updateBadges();
+                window.updateBadges();
 
                 // Update launch count display
                 const statElement = document.getElementById('stat-total-launches');
@@ -239,13 +239,13 @@
         };
 
         // --- UI/BADGE LOGIC ---
-        function updateUI(name) {
+        window.updateUI = function(name) { // Globally accessible function
             const els = document.querySelectorAll('.user-name-display');
             els.forEach(el => el.textContent = name);
-            updateBadges();
+            window.updateBadges();
         }
         
-        function updateBadges() {
+        window.updateBadges = function() { // Globally accessible function
             // LOGIC FIX:
             launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
 
@@ -387,14 +387,14 @@
          * Central function to restore session state from local storage and start listeners.
          * This runs on page load and when the user clicks "Power Up" with existing data.
          */
-        function restoreSessionState() {
+        window.restoreSessionState = function() { // Globally accessible function
             const storedName = localStorage.getItem('aa_username');
             const storedUID = localStorage.getItem('aa_uid');
             const dashboard = document.getElementById('page-dashboard');
 
             if (storedName && storedUID) {
                 // 1. Update UI (Name, Badge display)
-                updateUI(storedName);
+                window.updateUI(storedName);
                 
                 // 2. Ensure Dashboard is Visible
                 if (dashboard) {
@@ -402,15 +402,63 @@
                     dashboard.style.display = 'block'; 
                 }
 
-                // 3. Kick off Firebase Auth Check (to ensure token validity)
-                // The onAuthStateChanged listener handles the actual sign-in persistence check.
-                
-                // 4. Start Listeners immediately using stored UID
-                startLaunchListener(storedUID);
+                // 3. Start Listeners immediately using stored UID
+                window.startLaunchListener(storedUID);
 
                 return true; // State restored
             }
             return false; // No state to restore
+        }
+
+        // --- CORE DASHBOARD INITIALIZATION AND AUTH CHECK (Requirement 2) ---
+        window.initDashboard = function() { // Globally accessible function
+            onAuthStateChanged(auth, async (user) => {
+                const dashboard = document.getElementById('page-dashboard');
+                
+                if (user) {
+                    // User is signed in (either persistent or anonymous via cookie)
+                    
+                    // 1. Check if the dashboard is already active (i.e., restored via localStorage check)
+                    if (dashboard.style.display === 'block') {
+                        // State already active, just ensure listeners are running
+                        window.startLaunchListener(user.uid);
+                        return;
+                    }
+
+                    // 2. State is not active, but user is logged into Firebase. 
+                    // This happens on refresh if no localStorage data exists, or for new persistent users.
+                    
+                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                    const docSnap = await getDoc(userRef);
+
+                    let displayName = user.displayName || 'Agent';
+                    let isGuest = true; // Default assumption for safety
+
+                    if (docSnap.exists()) {
+                        const userData = docSnap.data();
+                        displayName = userData.displayName || user.displayName || 'Agent';
+                        isGuest = userData.isGuest || false;
+                    }
+
+                    // 3. Apply state and store locally
+                    localStorage.setItem('aa_username', displayName);
+                    localStorage.setItem('aa_uid', user.uid);
+                    localStorage.setItem('aa_is_guest', isGuest);
+
+                    // 4. Update UI and start listeners
+                    window.updateUI(displayName);
+                    dashboard.classList.add('active');
+                    dashboard.style.display = 'block'; 
+                    window.startLaunchListener(user.uid);
+
+                } else {
+                    // User is signed out (expected state before login)
+                    // If dashboard is visible (which shouldn't happen), hide it.
+                    if (dashboard.style.display === 'block') {
+                         window.handleLogout(); // Force logout/reset state
+                    }
+                }
+            });
         }
         
     </script>
@@ -1199,7 +1247,8 @@
         window.onload = () => {
             // Restore state automatically after all DOM elements and scripts are loaded
             // This is crucial for handling browser reloads that maintain session cookies.
-            restoreSessionState();
+            window.restoreSessionState(); // Use global call
+            window.initDashboard(); // Also run the Firebase check (Requirement 3)
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1241,8 +1290,9 @@
                     
                     if (storedName && storedUID) {
                         // User has local data saved: Restore state immediately
-                        restoreSessionState();
+                        window.restoreSessionState();
                         sfx.powerOn(); 
+                        window.initDashboard(); // Re-check Auth state and listen (Requirement 4)
                     } else if (loginModal) {
                         // No local data, must show login modal.
                         loginModal.classList.remove('hidden-modal');
@@ -1328,27 +1378,56 @@
             });
         });
 
-        // --- AUTH STATE PERSISTENCE (Requirement 2) ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // If Firebase Auth state persists (e.g., Google login refresh)
-                const storedUID = localStorage.getItem('aa_uid');
+        // --- AUTH STATE PERSISTENCE (Requirement 2 & 3) ---
+        window.initDashboard = function() { // Globally accessible function
+            onAuthStateChanged(auth, async (user) => {
+                const dashboard = document.getElementById('page-dashboard');
                 
-                if (user.uid === storedUID) {
-                     // Check if local storage matches auth state (most common path)
-                     restoreSessionState();
+                if (user) {
+                    // User is signed in (either persistent or anonymous via cookie)
+                    
+                    // 1. Check if the dashboard is already active (i.e., restored via localStorage check)
+                    if (dashboard.style.display === 'block') {
+                        // State already active (from localStorage check), just ensure listeners are running
+                        window.startLaunchListener(user.uid);
+                        return;
+                    }
+
+                    // 2. State is not active, but user is logged into Firebase. 
+                    // This happens on refresh if no localStorage data exists, or for new persistent users.
+                    
+                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                    const docSnap = await getDoc(userRef);
+
+                    let displayName = user.displayName || 'Agent';
+                    let isGuest = true; // Default assumption for safety
+
+                    if (docSnap.exists()) {
+                        const userData = docSnap.data();
+                        displayName = userData.displayName || user.displayName || 'Agent';
+                        isGuest = userData.isGuest || false;
+                    }
+
+                    // 3. Apply state and store locally
+                    localStorage.setItem('aa_username', displayName);
+                    localStorage.setItem('aa_uid', user.uid);
+                    localStorage.setItem('aa_is_guest', isGuest);
+
+                    // 4. Update UI and start listeners
+                    window.updateUI(displayName);
+                    dashboard.classList.add('active');
+                    dashboard.style.display = 'block'; 
+                    window.startLaunchListener(user.uid);
+
                 } else {
-                     // Should only happen if local storage was cleared but Firebase Auth cookie wasn't.
-                     // Log the user in based on Firebase profile data if available.
-                     const name = user.displayName || localStorage.getItem('aa_username') || 'Agent';
-                     // This mimics the writeUserDataToFirestore without overwriting lastLogin timestamp unnecessarily
-                     localStorage.setItem('aa_username', name);
-                     localStorage.setItem('aa_uid', user.uid);
-                     // Note: isGuest might be inaccurate here if determined only by local storage, but we prioritize Firebase Auth ID.
-                     restoreSessionState(); 
+                    // User is signed out (expected state before login)
+                    // If dashboard is visible (which shouldn't happen), hide it.
+                    if (dashboard.style.display === 'block') {
+                         window.handleLogout(); // Force logout/reset state
+                    }
                 }
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>
