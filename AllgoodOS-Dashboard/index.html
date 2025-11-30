@@ -10,27 +10,27 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // --- OFFLINE/DEPLOYMENT CHECK ---
-        const isOfflineMode = typeof __firebase_config === 'undefined';
+        // --- HARDCODED FIREBASE CONFIGURATION (For GitHub Pages/Google Sites deployment) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
+            authDomain: "allgood-academy.firebaseapp.com",
+            projectId: "allgood-academy",
+            storageBucket: "allgood-academy.firebasestorage.app",
+            messagingSenderId: "978829044870",
+            appId: "1:978829044870:web:6c780f64230a77ad0ab507",
+            measurementId: "G-EN4M7T3BLQ"
+        };
         
         let auth, db, appId;
 
-        if (!isOfflineMode) {
-            // Initialize Firebase in Canvas Environment
-            const firebaseConfig = JSON.parse(__firebase_config);
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-dashboard';
-        } else {
-            // Offline Mode Fallback
-            console.warn("Firebase configuration not found. Running in Local/Offline Mode.");
-            auth = null; // Mark auth service as unavailable
-            db = null; // Mark db service as unavailable
-        }
+        // --- FIREBASE INITIALIZATION ---
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        appId = 'allgood-academy'; // Hardcoded from firebaseConfig.projectId
 
         // --- GLOBAL EXPORTS (Fixes ReferenceError) ---
         window.auth = auth; 
@@ -40,56 +40,116 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
 
-        window.handleLogin = async (name, email, isGuest) => {
-            // 1. LOADING STATE (Instant Feedback)
-            const btn = document.getElementById('start-session-btn');
-            const originalText = btn.innerText;
-            btn.innerText = "Authenticating...";
+        // --- UTILITY: Writes essential user data to Firestore ---
+        async function writeUserDataToFirestore(user, name, email, isGuest) {
+             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+             
+             if (!isGuest) {
+                // Only update profile if it's a permanent user (Google)
+                await updateProfile(user, { displayName: name });
+             }
+
+             await setDoc(userRef, {
+                 displayName: name,
+                 email: email || '',
+                 isGuest: isGuest,
+                 lastLogin: serverTimestamp(),
+                 onboardingComplete: true
+             }, { merge: true });
+        }
+
+        // --- AUTH: Guest Sign-In (Anonymous) ---
+        window.handleGuestLogin = async () => {
+            const btn = document.getElementById('btn-guest-login');
+            
+            // 1. LOADING STATE
+            btn.innerText = "Connecting...";
             btn.disabled = true;
             btn.classList.add('opacity-70', 'cursor-wait');
 
+            const finalName = "Guest";
+            const isGuest = true;
+            
             // Persist guest status locally immediately
             localStorage.setItem('aa_is_guest', isGuest);
-            localStorage.setItem('aa_username', name);
+            localStorage.setItem('aa_username', finalName);
 
-            if (!isOfflineMode) {
-                // --- ONLINE MODE (FIREBASE) ---
-                try {
-                    const userCredential = await signInAnonymously(auth);
-                    const user = userCredential.user;
-                    await updateProfile(user, { displayName: name });
-                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                    
-                    await setDoc(userRef, {
-                        displayName: name,
-                        email: email || '',
-                        isGuest: isGuest, // Persist status to DB
-                        lastLogin: serverTimestamp(),
-                        onboardingComplete: true
-                    }, { merge: true });
-                } catch (error) {
-                    console.error("Login Error:", error);
-                    // Use a message box instead of alert()
-                    const message = "Connection failed. Continuing in Local Mode.";
-                    showStatusMessage(message, 'error'); 
-                }
+            // --- FIREBASE AUTH ---
+            try {
+                const userCredential = await signInAnonymously(auth);
+                const user = userCredential.user;
+                await writeUserDataToFirestore(user, finalName, null, isGuest);
+            } catch (error) {
+                console.error("Anonymous Login Error:", error);
+                showStatusMessage("Connection failed. Check network or rules.", 'error'); 
             }
             
-            // --- UI Update (Applies to both modes) ---
-            updateUI(name);
+            // --- UI Update ---
+            updateUI(finalName);
             document.getElementById('page-dashboard').classList.add('active');
-            document.getElementById('page-dashboard').style.display = 'block'; // Ensure visibility
+            document.getElementById('page-dashboard').style.display = 'block'; 
             closeLoginModal();
             sfx.confirm();
 
-            btn.innerText = originalText;
+            btn.innerText = "Continue as Guest";
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-wait');
+        };
+
+        // --- AUTH: Google Sign-In (Persistent) ---
+        window.handleGoogleLogin = async () => {
+            const btn = document.getElementById('btn-google-login');
+            
+            // 1. LOADING STATE
+            btn.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-3 animate-spin"></i> Authenticating...';
+            btn.disabled = true;
+            btn.classList.add('opacity-70', 'cursor-wait');
+            lucide.createIcons(); // Re-render icon
+
+            const provider = new GoogleAuthProvider();
+            const isGuest = false;
+
+            try {
+                // 2. SIGN IN POPUP
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+
+                const finalName = user.displayName || 'Agent';
+                const finalEmail = user.email || null;
+
+                // 3. WRITE DATA
+                await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
+
+                // 4. PERSIST LOCAL STATE
+                localStorage.setItem('aa_is_guest', isGuest);
+                localStorage.setItem('aa_username', finalName);
+
+                // 5. UI Update
+                updateUI(finalName);
+                document.getElementById('page-dashboard').classList.add('active');
+                document.getElementById('page-dashboard').style.display = 'block'; 
+                closeLoginModal();
+                sfx.confirm();
+                
+            } catch (error) {
+                console.error("Google Sign-In Error:", error);
+                
+                let message = "Sign-in failed. Please try again.";
+                if (error.code === 'auth/popup-closed-by-user') {
+                    message = "Sign-in canceled. Please try again.";
+                }
+                showStatusMessage(message, 'error');
+            }
+
+            // 6. RESET BUTTON
+            btn.innerHTML = '<svg class="w-5 h-5 mr-3 -mt-px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.09c2.08 0 3.79.84 4.96 1.96l2.84-2.84C17.91 1.25 15.11 0 12 0 7.37 0 3.23 2.11 0.12 5.56l3.39 2.64C4.85 6.09 8.16 4.09 12 4.09zM24 12c0-.82-.07-1.63-.2-2.43H12v4.61h6.61c-.34 1.84-1.42 3.39-3.02 4.41l3.39 2.64c2.06-2.02 3.32-4.98 3.32-8.63zM5.12 14.54a6.52 6.52 0 0 1-.1-2.54c0-.83.1-1.66.31-2.45L2 6.95C.7 9.17 0 11.5 0 14c0 1.25.13 2.48.37 3.66l3.86-.3C4.54 17.02 4.93 15.82 5.12 14.54zM12 24c3.84 0 7.15-2.09 8.88-5.54l-3.39-2.64c-1.17.8-2.68 1.25-4.5.75L12 24z"/></svg> Sign in with Google';
             btn.disabled = false;
             btn.classList.remove('opacity-70', 'cursor-wait');
         };
 
         window.handleLogout = async () => {
             // Only sign out of Firebase if available
-            if (!isOfflineMode && auth.currentUser) {
+            if (auth.currentUser) {
                 try {
                     await signOut(auth);
                 } catch(e) { console.log("Signout error (offline?)", e); }
@@ -112,8 +172,6 @@
             if(window.switchTab) window.switchTab('goodblocks');
 
             document.querySelectorAll('.user-name-display').forEach(el => el.textContent = 'Guest');
-            if(document.getElementById('user-name-input')) document.getElementById('user-name-input').value = '';
-            if(document.getElementById('user-email-input')) document.getElementById('user-email-input').value = '';
             
             updateBadges(); 
 
@@ -142,7 +200,7 @@
             updateBadges();
             
             // Log asynchronously (Only if Firebase is initialized)
-            if (!isOfflineMode && auth.currentUser) {
+            if (auth.currentUser) {
                 addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
                     courseName: courseName,
                     targetUrl: url,
@@ -152,34 +210,29 @@
         };
 
         window.initDashboard = () => {
-            // This function now only handles Firebase initialization and badge state management.
-            
-            if (!isOfflineMode) {
-                // --- ONLINE MODE (FIREBASE) ---
-                 onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                        try {
-                            const docSnap = await getDoc(userRef);
-                            if (docSnap.exists()) {
-                                const data = docSnap.data();
-                                if(data.displayName) {
-                                    // Restore Guest Status from DB
-                                    const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
-                                    localStorage.setItem('aa_is_guest', isGuest);
-                                    
-                                    // We still update UI variables, but DON'T hide the startup screen yet.
-                                    updateUI(data.displayName); 
-                                }
+             onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                    try {
+                        const docSnap = await getDoc(userRef);
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            if(data.displayName) {
+                                // Restore Guest Status from DB
+                                const isGuest = data.isGuest !== undefined ? data.isGuest : (user.isAnonymous);
+                                localStorage.setItem('aa_is_guest', isGuest);
+                                
+                                // Restore name
+                                const storedName = data.displayName;
+                                localStorage.setItem('aa_username', storedName);
+
+                                updateUI(storedName); 
                             }
-                        } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
-                    }
-                    updateBadges();
-                });
-            } else {
-                // --- OFFLINE MODE ---
+                        }
+                    } catch(e) { console.log("Error fetching user from Firebase.", e); }
+                }
                 updateBadges();
-            }
+            });
         };
         
         function updateUI(name) {
@@ -190,7 +243,6 @@
         
         function updateBadges() {
             // LOGIC FIX:
-            // Reload local state for launch count
             launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
 
             const isGuest = localStorage.getItem('aa_is_guest') === 'true';
@@ -205,6 +257,7 @@
                 currentLevel = 2;
             }
             
+            // Level 3 requires Agent status + Action
             if (currentLevel >= 2 && launchCount > 0) currentLevel = 3;
             
             // Update UI
@@ -213,7 +266,6 @@
                 if(!badge) continue;
                 
                 if (i <= currentLevel) {
-                    // Unlocked - Add the pulse glow only to the Operator badge (Level 3)
                     badge.classList.remove('opacity-30', 'grayscale');
                     if (i === 3) {
                          badge.classList.add('animate-pulse-glow-badge');
@@ -223,13 +275,15 @@
                     badge.classList.add('cursor-pointer', 'hover:scale-110', 'shadow-badge-active');
                     badge.classList.remove('shadow-badge-locked');
 
-                    // Remove lock icon if present
                     const lock = badge.querySelector('.lock-icon');
-                    if(lock) lock.remove();
+                    if(lock) lock.style.display = 'none';
                 } else {
                     // Locked
                     badge.classList.add('opacity-30', 'grayscale', 'shadow-badge-locked');
                     badge.classList.remove('cursor-pointer', 'hover:scale-110', 'shadow-badge-active', 'animate-pulse-glow-badge');
+                    
+                    const lock = badge.querySelector('.lock-icon');
+                    if(lock) lock.style.display = 'block';
                 }
             }
             
@@ -248,8 +302,8 @@
             ];
             const reqs = [
                 "None",
-                "Sign In with Name/Email",
-                "Complete 1 Mission Module"
+                "Sign In with Persistent Identity (Google)",
+                "Agent Status + Complete 1 Mission Module"
             ];
             
             const modal = document.getElementById('badge-modal');
@@ -299,7 +353,7 @@
 
             const style = classes[type] || classes['info'];
             
-            modal.querySelector('.bg-white').className = `bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${style.bg} relative`;
+            modal.querySelector('.modal-content-base').className = `modal-content-base rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${style.bg} relative`;
 
             content.textContent = message;
             content.className = `text-sm font-body ${style.text}`;
@@ -541,6 +595,8 @@
         .footer-content { flex: 0 0 50px; z-index: 20; background: white; border-top: 1px solid #e2e8f0; }
         .page { flex: 1 1 auto; overflow-y: auto; padding: 24px; position: relative; display: none; width: 100%; background-color: #F7F7F7; }
         .page.active { display: block; }
+        
+        .modal-content-base { background: white; } /* For status modal styling */
 
     </style>
 </head>
@@ -566,30 +622,37 @@
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark uppercase">ALLGOOD<span class="text-allgood-primary">ACADEMY</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading uppercase">WELCOME</h2>
-                        <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
-                            <button class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
-                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
-                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
-                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
-                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the Academy experience. All personal data is kept confidential and never sold.</p>
-                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
-                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
-                                </div>
-                            </button>
+                        <h2 class="text-xl font-bold text-allgood-dark mb-6 font-heading uppercase">AGENT LOG IN</h2>
+
+                        <!-- Google Sign In (Persistent Identity) -->
+                        <button id="btn-google-login" 
+                                class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase flex items-center justify-center mb-4">
+                            <!-- Google Icon SVG -->
+                            <svg class="w-5 h-5 mr-3 -mt-px" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 4.09c2.08 0 3.79.84 4.96 1.96l2.84-2.84C17.91 1.25 15.11 0 12 0 7.37 0 3.23 2.11 0.12 5.56l3.39 2.64C4.85 6.09 8.16 4.09 12 4.09zM24 12c0-.82-.07-1.63-.2-2.43H12v4.61h6.61c-.34 1.84-1.42 3.39-3.02 4.41l3.39 2.64c2.06-2.02 3.32-4.98 3.32-8.63zM5.12 14.54a6.52 6.52 0 0 1-.1-2.54c0-.83.1-1.66.31-2.45L2 6.95C.7 9.17 0 11.5 0 14c0 1.25.13 2.48.37 3.66l3.86-.3C4.54 17.02 4.93 15.82 5.12 14.54zM12 24c3.84 0 7.15-2.09 8.88-5.54l-3.39-2.64c-1.17.8-2.68 1.25-4.5.75L12 24z"/>
+                            </svg>
+                            Sign in with Google
+                        </button>
+                        
+                        <div class="relative flex items-center justify-center mb-4">
+                            <div class="flex-grow border-t border-gray-300"></div>
+                            <span class="mx-4 text-xs text-gray-500 font-bold uppercase tracking-wider">OR</span>
+                            <div class="flex-grow border-t border-gray-300"></div>
                         </div>
-                        <input type="text" id="user-name-input" placeholder="YOUR NAME (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body text-center uppercase">
-                        <input type="email" id="user-email-input" placeholder="YOUR EMAIL (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body text-center">
-                        <button id="start-session-btn" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Enter Dashboard</button>
+
+                        <!-- Anonymous Sign In (Guest Observer) -->
+                        <button id="btn-guest-login" 
+                                class="w-full bg-gray-500 hover:bg-allgood-dark text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
+                            Continue as Guest
+                        </button>
+
+                        <p class="text-[10px] text-gray-400 mt-4 leading-relaxed">Guest accounts do not retain long-term progress (Level 1 Clearance).</p>
                     </div>
                 </div>
                 
                 <!-- 2.5 STATUS MESSAGE MODAL (Non-blocking replacement for alert()) -->
                 <div id="status-modal" class="hidden-modal fixed top-4 right-4 z-[500] flex items-center justify-center p-4 modal-transition pointer-events-none">
-                    <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3">
+                    <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3 modal-content-base">
                         <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
                         <p id="status-content" class="text-sm font-body text-blue-800"></p>
                     </div>
@@ -1080,23 +1143,13 @@
                 });
             }
 
-            // 2. Login Logic
-            document.getElementById('start-session-btn').addEventListener('click', () => {
-                const input = document.getElementById('user-name-input');
-                const emailInput = document.getElementById('user-email-input');
-                
-                let rawName = input.value.trim();
-                let rawEmail = emailInput.value.trim();
-                
-                // Logic: If BOTH are empty, they are a Guest (Level 1)
-                // If EITHER has content, they are an Agent (Level 2)
-                const isGuest = (!rawName && !rawEmail);
-                
-                let finalName = rawName || "Guest";
-                
-                if(window.handleLogin) {
-                    window.handleLogin(finalName, rawEmail, isGuest);
-                }
+            // 2. Login Logic - Event Listeners
+            document.getElementById('btn-google-login').addEventListener('click', () => {
+                if(window.handleGoogleLogin) window.handleGoogleLogin();
+            });
+
+            document.getElementById('btn-guest-login').addEventListener('click', () => {
+                if(window.handleGuestLogin) window.handleGuestLogin();
             });
 
             // 3. Navbar Control Cluster Logic
