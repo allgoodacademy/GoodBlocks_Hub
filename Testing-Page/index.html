@@ -125,21 +125,45 @@
             }
         };
 
+        // --- DATA LOGGING (Detailed & Summary) ---
+        
+        // 1. Log Individual Question Attempt
+        window.logScenarioAttempt = async (data) => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            // Path: /users/{uid}/game_scores/{sessionId}/scenario_attempts/{scenarioIndex}
+            const attemptRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'scenario_attempts', `scenario_${data.scenarioIndex}`);
+            
+            try {
+                await setDoc(attemptRef, {
+                    ...data,
+                    timestamp: serverTimestamp()
+                });
+                // console.log("Attempt logged:", data.scenarioIndex);
+            } catch (e) { console.error("Attempt log failed", e); }
+        };
+
+        // 2. Log Final Score / Session Start
         window.logFinalScoreToFirestore = async (scoreData) => {
             const user = auth.currentUser;
             if (!user) return; 
-            const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores');
+            
+            // Path: /users/{uid}/game_scores/{sessionId}
+            // Use setDoc with merge to allow updating the same session document
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
             try {
-                await addDoc(targetCollection, {
+                await setDoc(sessionRef, {
                     gameName: "Digital Decisions Challenge",
                     ...scoreData,
-                    timestamp: serverTimestamp(),
+                    lastUpdated: serverTimestamp(),
                     user: {
                         uid: user.uid,
                         displayName: user.displayName || localStorage.getItem('aa_username') || "Agent Learner",
                         email: user.email || localStorage.getItem('aa_email') || ""
                     }
-                });
+                }, { merge: true });
             } catch (e) { console.error("Save failed", e); }
         }
     </script>
@@ -352,12 +376,19 @@
                 <div class="page" id="page-2">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Welcome & Mission Briefing</h2></section>
                     <div class="bg-white p-6 rounded border border-gray-200 shadow-sm leading-relaxed text-gray-700 text-lg" id="welcome-content">
-                        <p class="mb-6">**Every click is a brick in your digital footprint.** You are about to engage in a challenge that tests your pragmatic judgment in 30 real-world scenarios.</p>
+                        <p class="mb-6"><strong>Every click is a brick in your digital footprint.</strong> You are about to engage in a challenge that tests your pragmatic judgment in 30 real-world scenarios.</p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-center text-sm">
                             <div class="p-3 border rounded-lg bg-gray-50 border-gray-200"><i data-lucide="fingerprint" class="w-6 h-6 mx-auto text-allgood-secondary mb-2"></i><strong class="text-allgood-dark">Digital Footprint</strong><p class="text-xs text-gray-500">Every action is permanent. Manage your brand.</p></div>
                             <div class="p-3 border rounded-lg bg-gray-50 border-gray-200"><i data-lucide="shield-half" class="w-6 h-6 mx-auto text-allgood-primary mb-2"></i><strong class="text-allgood-dark">The Publisher Mindset</strong><p class="text-xs text-gray-500">Act as if everything you post is on a billboard.</p></div>
                         </div>
-                        <div class="bg-gray-100 p-4 rounded border-l-4 border-allgood-primary shadow-sm mb-6"><h3 class="font-bold text-allgood-dark text-lg mb-2">Challenge Rules</h3><ul class="text-sm text-gray-600 space-y-1 list-disc list-inside"><li>30 Scenarios.</li><li>3 points for BEST choice.</li><li>**Badge Requirement:** 80+ points.</li></ul></div>
+                        <div class="bg-gray-100 p-4 rounded border-l-4 border-allgood-primary shadow-sm mb-6">
+                            <h3 class="font-bold text-allgood-dark text-lg mb-2">Challenge Rules</h3>
+                            <ul class="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                                <li>The challenge consists of <strong>30 Scenarios</strong>.</li>
+                                <li>You earn <strong>3 points</strong> for the <strong>MOST-EFFECTIVE</strong> choice.</li>
+                                <li><strong>Badge Requirement:</strong> Score <strong>80 points or higher</strong>.</li>
+                            </ul>
+                        </div>
                         <p class="mt-6 font-bold text-allgood-secondary">Ready to test your judgment? Let's begin.</p>
                     </div>
                 </div>
@@ -568,10 +599,13 @@
             window.showPage = function(index) {
                 if (index < 0 || index >= 34) return;
                 
-                // Final Score Check: Cannot advance to score page (index 32) if not all questions answered
+                // Final Score Check
                 if (index === 32 && Object.keys(answeredScenarioScores).length < TOTAL_SCENARIOS) {
                     window.showScenarioOutcome('challenge-incomplete'); return;
                 }
+
+                // PLAY NAV SOUND
+                if(window.sfx && window.sfx.nav) window.sfx.nav();
 
                 pages.forEach(p => p.classList.remove('active'));
                 pages[index].classList.add('active');
@@ -661,6 +695,15 @@
                 if (!answeredScenarioScores[sIdx]) {
                     totalChallengeScore += chosen.score;
                     answeredScenarioScores[sIdx] = chosen.score;
+                    
+                    // Log attempt to Firestore
+                    window.logScenarioAttempt({
+                        scenarioIndex: sIdx,
+                        choiceIndex: cIdx,
+                        score: chosen.score,
+                        effectiveness: chosen.effectiveness,
+                        question: data.title
+                    });
                 }
                 window.showPage(currentPageIndex); // Re-render to show feedback inline
                 
