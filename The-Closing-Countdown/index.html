@@ -677,7 +677,7 @@
                     <section class="mb-6 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Mission Setup: The 3 Pillars</h2></section>
                     
                     <p class="text-sm text-gray-600 mb-6 font-body leading-relaxed">
-                        Every journey starts with a foundation. Motivation, credit, and funding are the three pillars that carry you through the stress of buying a home. <strong>Flip each card to see what they mean — this is your briefing before we move forward.</strong>
+                        Every journey starts with a foundation. Motivation, preparation, and funding are the three pillars that carry you through the stress of buying a home. <strong>Flip each card to see what they mean — this is your briefing before we move forward.</strong>
                     </p>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -689,7 +689,7 @@
                                     <h3 class="font-bold text-sm">Pillar 1: Motivation</h3>
                                 </div>
                                 <div class="flip-card-back bg-allgood-primary text-white p-4">
-                                    <h3 class="font-bold text-sm mb-2">The 'Why'</h3>
+                                    <h3 class="font-bold text-sm mb-2">Your Why</h3>
                                     <p class="text-xs leading-snug">Your reason for buying must be stronger than the stress of the process.</p>
                                 </div>
                             </div>
@@ -698,12 +698,12 @@
                         <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.play('click')">
                             <div class="flip-card-inner">
                                 <div class="flip-card-front bg-blue-50 border-blue-200">
-                                    <i data-lucide="credit-card" class="w-8 h-8 text-allgood-secondary mb-2"></i>
-                                    <h3 class="font-bold text-sm">Pillar 2: Credit</h3>
+                                    <i data-lucide="clipboard-list" class="w-8 h-8 text-allgood-secondary mb-2"></i>
+                                    <h3 class="font-bold text-sm">Pillar 2: Preparation</h3>
                                 </div>
                                 <div class="flip-card-back bg-allgood-secondary text-white p-4">
-                                    <h3 class="font-bold text-sm mb-2">The History</h3>
-                                    <p class="text-xs leading-snug">Your score determines your buying power. Protect it at all costs.</p>
+                                    <h3 class="font-bold text-sm mb-2">Your Readiness</h3>
+                                    <p class="text-xs leading-snug">Budgeting, saving, and financial habits set the stage. Credit is part of this readiness, but not the whole story.</p>
                                 </div>
                             </div>
                         </div>
@@ -715,8 +715,8 @@
                                     <h3 class="font-bold text-sm">Pillar 3: Funding</h3>
                                 </div>
                                 <div class="flip-card-back bg-green-600 text-white p-4">
-                                    <h3 class="font-bold text-sm mb-2">The Fuel</h3>
-                                    <p class="text-xs leading-snug">Your savings and loan options fuel the purchase. Build wisely.</p>
+                                    <h3 class="font-bold text-sm mb-2">Your Resources</h3>
+                                    <p class="text-xs leading-snug">Savings and loan options fuel the purchase. Build wisely so you can move with confidence.</p>
                                 </div>
                             </div>
                         </div>
@@ -730,7 +730,8 @@
                     <!-- Tabs Navigation -->
                     <div class="flex space-x-1 border-b border-gray-200 overflow-x-auto no-scrollbar">
                         <button onclick="openTab('motivation')" id="tab-btn-motivation" class="tab-btn active px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-allgood-primary text-white border-t border-x border-gray-200 transition-colors">Motivation</button>
-                        <button onclick="openTab('credit')" id="tab-btn-credit" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Credit</button>
+                        <!-- CHANGED: Label updated to Preparation -->
+                        <button onclick="openTab('credit')" id="tab-btn-credit" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Preparation</button>
                         <button onclick="openTab('funding')" id="tab-btn-funding" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-t-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border-t border-x border-transparent transition-colors">Funding</button>
                     </div>
 
@@ -819,8 +820,9 @@
                         <!-- Tab 2: Credit -->
                         <div id="tab-content-credit" class="tab-content hidden animate-pop-in">
                             <div class="bg-sky-50 border border-sky-100 p-5 rounded-lg mb-4">
+                                <!-- CHANGED: Updated text to bridge Preparation -> Credit Score -->
                                 <p class="text-sm text-sky-900 font-body leading-relaxed">
-                                    Lenders reward consistency. Whether your score is 640 or 740, protecting your history and avoiding new debt makes a difference. The path forward is about progress, not perfection.
+                                    Preparation is about financial readiness. Budgeting sets the stage, but your credit score is the "report card" lenders use to grade that history. Protect it at all costs.
                                 </p>
                             </div>
                             <div class="mt-6">
@@ -2108,13 +2110,16 @@
                 <!-- Page 28: CTA - Renumbered (Was P31/32) -->
                 <div class="page" id="page-28">
                     <div class="flex flex-col items-center justify-center min-h-full text-center px-6">
-                        <div class="w-24 h-24 bg-gray-200 rounded-full mb-4 flex items-center justify-center shadow-md overflow-hidden">
+                        <!-- CHANGED: Switched to Full Hero Image Container -->
+                        <div class="mb-6 relative group max-w-xs w-full">
+                            <div class="absolute -inset-1 bg-gradient-to-r from-allgood-primary to-allgood-secondary rounded-xl opacity-20 blur transition duration-500 group-hover:opacity-40"></div>
                             <img 
-                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
+                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/Jonathan%20Hurtado%20(1).png?raw=true" 
                                 alt="Jonathan Hurtado" 
-                                class="w-full h-full object-cover"
+                                class="relative w-full h-auto rounded-xl shadow-lg border-2 border-white object-cover"
                             >
                         </div>
+                        
                         <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-4">Let's Find Your Home.</h2>
                         <p class="text-base text-gray-600 mb-8 max-w-md">You've done the work. You know the process. Now, let's execute the strategy.</p>
                         <a href="https://calendly.com" target="_blank" class="w-full max-w-sm bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-4 px-8 rounded-lg shadow-xl transition-transform transform hover:scale-105 flex items-center justify-center gap-2">
