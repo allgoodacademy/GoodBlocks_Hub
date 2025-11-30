@@ -406,6 +406,10 @@
                     const badgeElement = window.allModuleElements[courseName];
                     
                     if (badgeElement) {
+                        // FIX: Priority Check - Skip if this is the Digital Decisions special badge
+                        // This allows the Status Listener to own this specific badge
+                        if (badgeElement.id === 'ddc-status-badge') return;
+
                         if (badgeElement.textContent !== "LAUNCHED") {
                             badgeElement.textContent = "LAUNCHED";
                             badgeElement.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500";
