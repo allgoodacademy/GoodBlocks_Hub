@@ -643,6 +643,14 @@
                     
                     if (window.currentUser) {
                         // User exists (SSO/Auth)?
+                        
+                        // FIX: Force Log Session Start immediately so DB folder appears
+                        window.logFinalScoreToFirestore({ 
+                            finalScore: 0, 
+                            rank: "Session Started", 
+                            sessionId: sessionId 
+                        });
+
                         // 1. Reveal Page 1 immediately
                         window.showPage(0);
                         // 2. Fade out Startup Screen
