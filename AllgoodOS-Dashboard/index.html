@@ -76,6 +76,7 @@
             // --- UI Update (Applies to both modes) ---
             updateUI(name);
             document.getElementById('page-dashboard').classList.add('active');
+            document.getElementById('page-dashboard').style.display = 'block'; // Ensure visibility
             closeLoginModal();
             sfx.confirm();
 
@@ -151,6 +152,7 @@
         };
 
         window.initDashboard = () => {
+            // This function now only handles Firebase initialization and badge state management.
             // The logic to restore a session from localStorage has been REMOVED here
             // to enforce the "Session Required" flow (Power Up screen on every load).
             
@@ -168,9 +170,9 @@
                                     const isGuest = data.isGuest !== undefined ? data.isGuest : (data.displayName === 'Guest' || data.displayName === 'Learner');
                                     localStorage.setItem('aa_is_guest', isGuest);
                                     
-                                    updateUI(data.displayName);
+                                    // We still update UI variables, but DON'T hide the startup screen.
+                                    updateUI(data.displayName); 
                                     closeLoginModal();
-                                    // NOTE: We no longer auto-hide the startup screen here, forcing the click.
                                 }
                             }
                         } catch(e) { console.log("Offline or error fetching user from Firebase.", e); }
@@ -675,15 +677,15 @@
                             </div>
                         </div>
 
-                        <!-- 4. Digital Asset Defense -->
-                        <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense')" 
+                        <!-- 4. Digital Asset Defender -->
+                        <div onclick="window.launchCourse('Digital Asset Defender', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defender')" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-blue-50 rounded flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors">
                                 <i data-lucide="shield-check" class="w-8 h-8 text-blue-600"></i>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1">Digital Asset Defense</h3>
+                                    <h3 class="font-bold text-slate-800 text-lg mb-1">Digital Asset Defender</h3>
                                     <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Secure wealth via wallet protocols and threat avoidance.</p>
@@ -790,7 +792,7 @@
                         <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action')" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-amber-50 rounded flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
-                                <i data-lucide="bullseye" class="w-8 h-8 text-amber-600"></i>
+                                <i data-lucide="brain-circuit" class="w-8 h-8 text-amber-600"></i>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1032,6 +1034,8 @@
                             // User has local data saved from a previous session, show dashboard immediately.
                             updateUI(storedName);
                             dashboard.classList.add('active');
+                            // CRITICAL FIX: Ensure display property is set to overcome CSS 'display: none' in .page
+                            dashboard.style.display = 'block'; 
                         } else if (loginModal) {
                             // No local data, must show login modal.
                              loginModal.classList.remove('hidden-modal');
