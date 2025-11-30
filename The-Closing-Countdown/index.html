@@ -333,6 +333,14 @@
                 0 0 0 2px #D34716, /* Brand Primary Ring */
                 0 4px 6px rgba(0,0,0,0.1); /* Lift off the glass */
             flex-shrink: 0;
+            /* INTERACTIVITY UPGRADE */
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        #narrator-avatar:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px #D34716, 0 6px 12px rgba(211, 71, 22, 0.2);
         }
 
         #narrator-message {
@@ -548,6 +556,43 @@
                         <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list">
                             <!-- Table of Contents injected via JS -->
                         </div>
+                    </div>
+                </div>
+
+                <!-- QUESTION MODAL (New) -->
+                <div id="question-modal" class="hidden-modal absolute inset-0 z-[150] bg-black/50 flex items-center justify-center p-4 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full border-t-4 border-allgood-secondary relative overflow-hidden">
+                        
+                        <!-- Input State -->
+                        <div id="question-input-view">
+                            <div class="flex items-center gap-3 mb-4">
+                                <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm object-cover">
+                                <div>
+                                    <h3 class="font-heading font-bold text-allgood-secondary text-lg">Ask Jonathan</h3>
+                                    <p class="text-[10px] text-gray-500 font-body">Stuck? Send a quick question.</p>
+                                </div>
+                            </div>
+                            
+                            <textarea id="question-text" rows="4" class="w-full border border-gray-300 rounded-md p-3 text-sm font-body focus:ring-1 focus:ring-allgood-secondary focus:border-allgood-secondary outline-none resize-none bg-gray-50 mb-4" placeholder="Type your question here..."></textarea>
+                            
+                            <div class="flex gap-2 justify-end">
+                                <button onclick="closeQuestionModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700 text-xs font-bold font-body transition-colors">Cancel</button>
+                                <button onclick="submitQuestion()" class="bg-allgood-secondary hover:bg-allgood-accent text-white px-4 py-2 rounded shadow-md text-xs font-bold font-body transition-transform transform active:scale-95 flex items-center gap-2">
+                                    <span>Send</span>
+                                    <i data-lucide="send" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Success State (Hidden) -->
+                        <div id="question-success-view" class="hidden flex-col items-center justify-center py-4 text-center animate-pop-in">
+                            <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-3 text-emerald-600">
+                                <i data-lucide="check" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-heading font-bold text-allgood-dark mb-1">Question Sent</h3>
+                            <p class="text-xs text-gray-500 font-body">Jonathan will review it shortly.</p>
+                        </div>
+
                     </div>
                 </div>
                 <!-- FIXED CHASSIS END: Modals -->
@@ -1205,7 +1250,7 @@
                 <div class="page" id="page-10">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Protect Your Loan</h2></section>
                     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
-                        You are "Conditionally Approved." This is the danger zone. <br>Drag <strong>Approved Moves</strong> into the <strong>Safe</strong>. Drag <strong>Risky Moves</strong> into the <strong>Trash</strong> to protect your closing.
+                        You are "Conditionally Approved." This is the danger zone. <br>Drag <strong>or Tap</strong> Approved Moves into the <strong>Safe</strong>. Put Risky Moves into the <strong>Trash</strong> to protect your closing.
                     </p>
                     
                     <!-- Draggables Source (Merged Items) -->
@@ -2076,7 +2121,7 @@
                             <i data-lucide="calendar-check" class="w-6 h-6"></i>
                             <span>Schedule Priority Consultation</span>
                         </a>
-                        <p class="text-xs text-gray-400 mt-8">Not in Orlando? We will refer you to a trusted Allgood Academy partner in your area.</p>
+                        <p class="text-xs text-gray-400 mt-8">Schedule your priority consultation with Jonathan Hurtado and start your journey with confidence.</p>
                     </div>
                 </div>
 
@@ -2157,37 +2202,42 @@
                     FIXED CHASSIS START: Footer
                     ========================================================================== 
                 -->
-                <footer class="footer-content flex items-center justify-between px-6">
+                <footer class="footer-content flex items-center justify-between px-6 relative">
                     <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
                     
-                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>Back
+                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body z-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        Back
                     </button>
-                    
-                    <div class="text-center hidden sm:block">
-                        <p class="text-gray-400 text-[10px] font-body">
-                            <a href="https://www.allgoodacademy.com/goodblocks" target="_blank" class="font-bold hover:text-allgood-primary transition-colors">GoodBlock&trade;</a> 
-                            powered by the 
+
+                    <!-- BRANDING RESTORED -->
+                    <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none hidden sm:flex">
+                        <p class="text-[10px] text-gray-400 font-body pointer-events-auto">
+                            <a href="https://www.allgoodacademy.com/goodblocks" target="_blank" class="font-bold hover:text-allgood-primary transition-colors">GoodBlock™</a> 
+                            powered by 
                             <a href="https://www.allgoodacademy.com" target="_blank" class="font-bold hover:text-allgood-primary transition-colors">Allgood Academy</a>
                         </p>
                     </div>
 
-                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span>Next</span><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    <button id="next-button" class="bg-allgood-primary text-white hover:bg-allgood-hover font-bold py-2 px-6 rounded-full shadow-md flex items-center transition-all transform hover:scale-105 active:scale-95 text-sm font-body z-10">
+                        <span>Next</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
                 </footer>
-                <!-- FIXED CHASSIS END: Footer -->
-
             </div>
         </div>
     </main>
 
-    <!-- Logic -->
     <script>
-        // --- Global State ---
-        const totalPages = 29; 
+        /* ==========================================================================
+           FIXED CHASSIS START: Global State & Init
+           ========================================================================== 
+        */
         let currentPage = 0;
+        const totalPages = 29;
         let userName = "Learner";
         
-        // Page Titles (Updated for New Flow)
+        // Page Titles (Restored to Max Narrative Version)
         const pageTitles = [
             "1. Cover: Launchpad", "2. Phase 1: Intro Video", "3. Mission Setup: 3 Pillars", "4. Deep Dive: Readiness", 
             "5. Tell: Affordability Rules", "6. Simulation: Lender's Lens", "7. Phase 2: Intro Video", 
@@ -2199,7 +2249,7 @@
             "26. Final Exam", "27. Certification", "28. Priority Access", "29. Credits & Feedback"
         ];
 
-        // Narrator Text Map (MAX NARRATIVE OVERHAUL)
+        // Narrator Text Map (Restored Max Narrative)
         const narratorText = {
             3: "Max is nervous. He needs to define his 'Why' before he worries about the 'How'. Help Max identify his pillars.",
             4: "Max picked 'Stability' as his anchor. Now, let's look at the rules lenders will use to judge Max's application.",
@@ -2277,9 +2327,25 @@
                 gain.gain.linearRampToValueAtTime(0, now + 0.4);
                 osc.start(now); osc.stop(now + 0.4);
             },
-            powerOff: () => { initAudio(); playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001); },
-            nav: () => { initAudio(); playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01); },
-            tick: () => { initAudio(); playTone(1000, 'sine', 0.01, 0.01); },
+            powerOff: () => {
+                initAudio();
+                playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001);
+            },
+            nav: () => {
+                initAudio();
+                playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01);
+            },
+            tick: () => {
+                initAudio();
+                playTone(1000, 'sine', 0.01, 0.01);
+            },
+            // NEW: Distinct, clean 'pop' for correct answers and minor achievements.
+            success: () => {
+                initAudio();
+                // CHANGED: Reverted to simple "Tick"/Click per request. 
+                // Matches the Page 3 card flip sound.
+                playTone(1000, 'sine', 0.01, 0.01); 
+            },
             play: (tag) => {
                 if (tag === 'powerup') sfx.powerOn();
                 else if (tag === 'powerdown' || tag === 'knock') sfx.powerOff();
@@ -2440,6 +2506,13 @@
                 });
             }
 
+            // Avatar Click Listener
+            const avatar = document.getElementById('narrator-avatar');
+            if (avatar) {
+                avatar.addEventListener('click', openQuestionModal);
+                avatar.title = "Ask Jonathan a Question";
+            }
+
             const menuToggle = document.getElementById('menu-toggle');
             const closeMenu = document.getElementById('close-menu');
             const menuModal = document.getElementById('menu-modal');
@@ -2454,8 +2527,10 @@
                         toc.innerHTML = '';
                         pageTitles.forEach((t, i) => {
                             const btn = document.createElement('button');
-                            btn.className = "w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded text-xs";
-                            btn.textContent = t;
+                            // Added flex layout to align number and text neatly
+                            btn.className = "w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded text-xs flex items-start group transition-colors";
+                            // Added page number span with fixed width for alignment
+                            btn.innerHTML = `<span class="font-bold text-gray-400 w-8 shrink-0 group-hover:text-allgood-primary transition-colors">${i + 1}.</span> <span>${t}</span>`;
                             btn.onclick = () => { showPage(i); menuModal.classList.add('hidden-modal'); menuModal.classList.remove('visible-modal'); };
                             toc.appendChild(btn);
                         });
@@ -2653,6 +2728,7 @@
             const zoneSafe = document.getElementById('zone-safe');
             const zoneTrap = document.getElementById('zone-trap');
             const feedback = document.getElementById('gauntlet-feedback');
+            let selectedItem = null; // Track currently selected item for click-to-drop
             
             const feedbackMap = {
                 'drag-dp': { safe: "Correct. Typically 3-20% required upfront.", trap: "Wait! You cannot close without a down payment." },
@@ -2664,16 +2740,68 @@
                 'drag-late': { safe: "CRITICAL STOP! A late payment can drop your score 50+ points instantly.", trap: "Correct. Always pay on time to protect your rate." }
             };
 
+            // Unified Handler for Logic
+            const handleDropOrClick = (itemId, zoneId, draggableEl) => {
+                const zone = document.getElementById(zoneId);
+                if (!zone || !draggableEl) return;
+
+                zone.appendChild(draggableEl);
+                
+                // Clear selection styling if applicable
+                draggableEl.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50');
+                selectedItem = null;
+
+                const isSafeZone = zoneId === 'zone-safe';
+                const data = feedbackMap[itemId];
+                
+                if(feedback && data) {
+                    feedback.classList.remove('hidden');
+                    feedback.style.display = 'block';
+
+                    // Determine if the action was correctly placed
+                    const isCorrectPlacement = (draggableEl.getAttribute('data-type') === 'safe' && isSafeZone) || 
+                                               (draggableEl.getAttribute('data-type') === 'trap' && zoneId === 'zone-trap');
+                    
+                    let narrativeMsg = isSafeZone ? data.safe : data.trap;
+                    
+                    if (isCorrectPlacement) {
+                        feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
+                        sfx.nav();
+                    } else {
+                        feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
+                        sfx.powerOff();
+                    }
+                    feedback.textContent = narrativeMsg;
+                }
+            };
+
+            // Setup Listeners
             draggables.forEach(drag => {
+                // Drag Start
                 drag.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', e.target.id);
                     e.dataTransfer.effectAllowed = "move";
                     sfx.tick();
                 });
+
+                // Click/Tap Selection (Mobile & Desktop)
+                drag.addEventListener('click', (e) => {
+                    // Deselect others
+                    draggables.forEach(d => d.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50'));
+                    
+                    if (selectedItem === drag) {
+                        selectedItem = null; // Toggle off
+                    } else {
+                        selectedItem = drag;
+                        drag.classList.add('ring-2', 'ring-allgood-primary', 'ring-offset-2', 'bg-blue-50');
+                        sfx.tick();
+                    }
+                });
             });
 
             if(zoneSafe && zoneTrap) {
                 [zoneSafe, zoneTrap].forEach(zone => {
+                    // Standard Drag Over
                     zone.addEventListener('dragover', (e) => {
                         e.preventDefault(); 
                         e.dataTransfer.dropEffect = "move";
@@ -2684,37 +2812,19 @@
                         zone.classList.remove('drag-over');
                     });
 
+                    // Standard Drop
                     zone.addEventListener('drop', (e) => {
                         e.preventDefault();
                         zone.classList.remove('drag-over');
                         const id = e.dataTransfer.getData('text/plain');
                         const draggable = document.getElementById(id);
-                        if(!draggable) return;
+                        handleDropOrClick(id, zone.id, draggable);
+                    });
 
-                        zone.appendChild(draggable);
-                        
-                        const isSafeZone = zone.id === 'zone-safe';
-                        const data = feedbackMap[id];
-                        
-                        if(feedback && data) {
-                            feedback.classList.remove('hidden');
-                            feedback.style.display = 'block';
-
-                            // Determine if the action was correctly placed (a "safe" item in "safe" zone OR a "trap" item in "trap" zone)
-                            const isCorrectPlacement = (draggable.getAttribute('data-type') === 'safe' && isSafeZone) || 
-                                                       (draggable.getAttribute('data-type') === 'trap' && zone.id === 'zone-trap');
-                            
-                            // Determine the narrative message based on the zone
-                            let narrativeMsg = isSafeZone ? data.safe : data.trap;
-                            
-                            if (isCorrectPlacement) {
-                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-emerald-50 border-emerald-200 text-emerald-800 font-bold";
-                                sfx.nav();
-                            } else {
-                                feedback.className = "mt-4 p-4 rounded-lg text-sm border shadow-sm animate-pop-in bg-red-50 border-red-200 text-red-800 font-bold";
-                                sfx.powerOff();
-                            }
-                            feedback.textContent = narrativeMsg;
+                    // Click/Tap Zone to "Drop" Selected Item
+                    zone.addEventListener('click', () => {
+                        if (selectedItem) {
+                            handleDropOrClick(selectedItem.id, zone.id, selectedItem);
                         }
                     });
                 });
@@ -2747,6 +2857,68 @@
                 fb.className = "mt-2 text-sm font-bold text-center text-red-600";
                 sfx.powerOff();
             }
+        };
+
+        /* --- ASK JONATHAN LOGIC --- */
+        window.openQuestionModal = function() {
+            const modal = document.getElementById('question-modal');
+            const inputView = document.getElementById('question-input-view');
+            const successView = document.getElementById('question-success-view');
+            const textArea = document.getElementById('question-text');
+            
+            if (modal) {
+                // Reset State
+                inputView.classList.remove('hidden');
+                successView.classList.add('hidden');
+                successView.style.display = 'none'; // Ensure fully hidden
+                textArea.value = '';
+                
+                modal.classList.remove('hidden-modal');
+                modal.classList.add('visible-modal');
+                sfx.tick();
+                
+                // Auto-focus text area for UX
+                setTimeout(() => textArea.focus(), 100);
+            }
+        };
+
+        window.closeQuestionModal = function() {
+            const modal = document.getElementById('question-modal');
+            if (modal) {
+                modal.classList.add('hidden-modal');
+                modal.classList.remove('visible-modal');
+            }
+        };
+
+        window.submitQuestion = function() {
+            const text = document.getElementById('question-text').value;
+            if (!text.trim()) return; // Prevent empty sends
+
+            // Future Database Hook
+            const payload = {
+                learnerId: userName,
+                page: currentPage + 1,
+                timestamp: new Date().toISOString(),
+                question: text
+            };
+            // console.log("Sending Question:", payload); 
+            // fetch('/api/questions', { method: 'POST', body: JSON.stringify(payload) });
+
+            // UI Feedback
+            const inputView = document.getElementById('question-input-view');
+            const successView = document.getElementById('question-success-view');
+            
+            inputView.classList.add('hidden');
+            successView.classList.remove('hidden');
+            successView.style.display = 'flex'; // Force flex display
+            
+            sfx.success(); // "Pop" sound
+            lucide.createIcons();
+
+            // Auto Close
+            setTimeout(() => {
+                closeQuestionModal();
+            }, 2000);
         };
 
         window.toggleTradeP20 = function(el) {
@@ -2834,7 +3006,7 @@
 
             if (fieldTestScore === 3) {
                 document.getElementById('field-test-complete').classList.remove('hidden');
-                setTimeout(() => sfx.play('powerup'), 500);
+                // Removed sound effect here per request
             } else if (type === 'financial') {
                 document.getElementById('field-test-complete').classList.remove('hidden');
                 document.querySelector('#field-test-complete .inline-block').className = "hidden"; 
@@ -2875,7 +3047,7 @@
                 
                 btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
                 btn.classList.add('bg-emerald-100', 'border-emerald-500');
-                sfx.play('powerup');
+                sfx.success(); // Replaced powerup
             }
         };
 
@@ -2924,7 +3096,7 @@
                     btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
                     if (feedback) feedback.innerHTML = `<span class="text-emerald-700"><strong>Correct.</strong> ALWAYS verify instructions via a known phone number. Email is never safe.</span>`;
                     gauntletScore++;
-                    sfx.play('powerup');
+                    // Removed sound effect here per request 
                     document.getElementById('gauntlet-complete').classList.remove('hidden');
                 } else {
                     btn.classList.add('bg-red-50', 'border-red-300', 'text-red-800');
@@ -3068,7 +3240,7 @@
                 btn.classList.remove('border-gray-200', 'hover:border-allgood-secondary');
                 btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-900');
                 examScore++;
-                sfx.play('powerup');
+                // Removed sound effect here per request
             } else {
                 // CHANGED: Use Allgood Secondary (Blue/Teal) for "Coach" feel instead of Red
                 btn.classList.remove('border-gray-200', 'hover:border-allgood-secondary');
@@ -3144,7 +3316,7 @@
 
             if (isPass) {
                 document.getElementById('finish-exam-btn').classList.remove('hidden');
-                sfx.play('powerup');
+                // Removed sound effect here per request
             }
         }
 
@@ -3326,7 +3498,7 @@
                     nextQ.classList.remove('opacity-50', 'pointer-events-none');
                 } else {
                     document.getElementById('loan-quiz-feedback').classList.remove('hidden');
-                    sfx.play('powerup');
+                    // Removed sound effect here per request
                 }
             } else {
                 btn.classList.add('bg-red-50', 'border-red-300', 'text-red-800');
