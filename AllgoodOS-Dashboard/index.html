@@ -434,6 +434,28 @@
         .blueprint-mode .tab-btn { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
         .blueprint-mode .tab-btn.active-tab { background-color: #0f172a; color: #38bdf8; border-color: #38bdf8; }
 
+        /* --- FOCUS MODE (Simulated Fullscreen / Fill Iframe) --- */
+        .focus-mode .tablet-frame {
+            /* Override size constraints to fill parent container (iframe) */
+            height: 100vh; 
+            max-height: none; 
+            width: 100vw;
+            max-width: none;
+            aspect-ratio: auto;
+            margin: 0;
+            padding: 0;
+            /* Remove chrome effects */
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            background-image: none;
+            background-color: #F7F7F7; /* Match body/screen background */
+        }
+        .focus-mode .screen-container {
+            border-radius: 0;
+            box-shadow: none;
+        }
+
         /* --- SCROLLBARS (PDF STYLE) --- */
         .page::-webkit-scrollbar { width: 14px; }
         .page::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
@@ -486,9 +508,6 @@
             color: #64748b;
             background-color: transparent;
         }
-
-        /* --- FOCUS MODE (Simulated Fullscreen) --- */
-        /* Note: For actual fullscreen, the browser removes body margins/padding */
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body">
@@ -555,7 +574,7 @@
                         <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)"><i data-lucide="home" class="w-5 h-5"></i></button>
                         <div class="h-6 w-px bg-white/20 mx-1"></div>
                         <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="sun" class="w-5 h-5"></i></button>
-                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Fullscreen">
+                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
                             <i id="fullscreen-icon" data-lucide="maximize" class="w-5 h-5"></i>
                         </button>
                         <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
@@ -970,53 +989,8 @@
             sfx.nav(); 
         };
 
-        // --- FULLSCREEN LOGIC ---
-        const fullscreenIcon = document.getElementById('fullscreen-icon');
-
-        const handleFullscreenChange = () => {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                // Entered fullscreen
-                if(fullscreenIcon) {
-                    fullscreenIcon.setAttribute('data-lucide', 'minimize');
-                    lucide.createIcons();
-                }
-            } else {
-                // Exited fullscreen
-                if(fullscreenIcon) {
-                    fullscreenIcon.setAttribute('data-lucide', 'maximize');
-                    lucide.createIcons();
-                }
-            }
-        };
-
-        const toggleFullscreen = () => {
-            try {
-                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    // Enter fullscreen
-                    if (document.documentElement.requestFullscreen) {
-                        document.documentElement.requestFullscreen();
-                    } else if (document.documentElement.webkitRequestFullscreen) {
-                        document.documentElement.webkitRequestFullscreen();
-                    }
-                } else {
-                    // Exit fullscreen
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    }
-                }
-            } catch(e) {
-                console.warn("Fullscreen blocked by permissions policy:", e);
-                showStatusMessage("Fullscreen mode unavailable due to browser restrictions.", 'error');
-            }
-            sfx.tick();
-        };
-        
-        // Add listeners for fullscreen change event
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-
+        // --- FULLSCREEN / FOCUS MODE LOGIC ---
+        // Removed old handleFullscreenChange and toggleFullscreen functions.
 
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
@@ -1123,9 +1097,24 @@
                 sfx.tick();
             });
 
-            // Attach fullscreen toggle handler
+            // --- NEW FOCUS MODE TOGGLE (CSS-based) ---
             if(fullscreenBtn) {
-                fullscreenBtn.addEventListener('click', toggleFullscreen);
+                fullscreenBtn.addEventListener('click', () => {
+                    const body = document.body;
+                    const icon = document.getElementById('fullscreen-icon');
+                    
+                    if (body.classList.contains('focus-mode')) {
+                        // Exit Focus Mode
+                        body.classList.remove('focus-mode');
+                        icon.setAttribute('data-lucide', 'maximize');
+                    } else {
+                        // Enter Focus Mode
+                        body.classList.add('focus-mode');
+                        icon.setAttribute('data-lucide', 'minimize');
+                    }
+                    lucide.createIcons();
+                    sfx.tick();
+                });
             }
 
             const menuModal = document.getElementById('menu-modal');
