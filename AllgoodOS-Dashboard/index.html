@@ -153,11 +153,24 @@
         window.initDashboard = () => {
             // Attempt to restore name from localStorage first
             const storedName = localStorage.getItem('aa_username');
+            const startup = document.getElementById('startup-screen');
+            const dashboard = document.getElementById('page-dashboard');
+
             if (storedName) {
+                // User has a local session. Hide startup screen immediately and show dashboard.
+                if (startup) {
+                    startup.style.display = 'none'; 
+                    startup.style.opacity = '0'; // Ensure quick removal
+                }
                 updateUI(storedName);
-                // Hide splash screen if user data found locally
-                document.getElementById('startup-screen').style.display = 'none'; 
-                document.getElementById('page-dashboard').classList.add('active');
+                if (dashboard) dashboard.classList.add('active');
+            } else {
+                 // No local session. Ensure dashboard is hidden and startup screen is visible.
+                 if (dashboard) dashboard.classList.remove('active');
+                 if (startup) {
+                    startup.style.display = 'flex'; 
+                    startup.style.opacity = '1';
+                 }
             }
 
             if (!isOfflineMode) {
@@ -345,10 +358,12 @@
         /* --- TABLET FRAME (FIXED CHASSIS - HEIGHT PRIORITY) --- */
         .tablet-frame {
             height: 85vh; 
+            /* NEW: Maximum vertical cap to prevent overly tall frames on large screens */
+            max-height: 900px; 
             width: auto;
             aspect-ratio: 16/10;
             max-width: 100%;
-            max-height: 95vh;
+            /* Removed redundant max-height: 95vh here */
             background-image: 
                 radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
                 radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
@@ -636,16 +651,15 @@
 
                     <!-- TAB 1: GOODBLOCKS -->
                     <div id="tab-goodblocks" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- 1. Countdown to Keys (Active) -->
-                        <div onclick="window.launchCourse('Countdown to Keys', 'https://allgoodacademy.github.io/GoodBlocks_Hub/The-Closing-Countdown/index.html')" 
-                             class="mission-file status-active p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-orange-50 rounded flex items-center justify-center border border-orange-100 group-hover:bg-orange-100 transition-colors flex-shrink-0">
-                                <i data-lucide="key" class="w-8 h-8 text-allgood-primary"></i>
+                        <!-- 1. Countdown to Keys (Coming Soon) -->
+                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-50">
+                            <div class="w-16 h-16 bg-slate-50 rounded flex items-center justify-center border border-slate-100 flex-shrink-0">
+                                <i data-lucide="key" class="w-8 h-8 text-slate-400"></i>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1">Countdown to Keys</h3>
-                                    <span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
+                                    <h3 class="font-bold text-slate-500 text-lg mb-1">Countdown to Keys</h3>
+                                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Coming Soon</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Execute the 100-day protocol to secure your first home.</p>
                             </div>
