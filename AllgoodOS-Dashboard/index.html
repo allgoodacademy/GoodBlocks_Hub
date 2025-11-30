@@ -11,8 +11,12 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Set Firebase logging level for debugging
+        setLogLevel('Debug');
+        
         // --- HARDCODED FIREBASE CONFIGURATION (For GitHub Pages/Google Sites deployment) ---
         const firebaseConfig = {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
@@ -39,74 +43,86 @@
         // TRACKING STATE
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
+        let unsubscribeLaunches = null;
 
         // --- UTILITY: Writes essential user data to Firestore ---
         async function writeUserDataToFirestore(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
              
-             if (!isGuest && user.displayName !== name) {
-                // Only update profile if it's a permanent user (Google) AND display name is different
+             // Update Firebase Auth profile display name for anonymous users if provided
+             if (isGuest && user.displayName !== name) {
                 await updateProfile(user, { displayName: name });
              }
 
+             // Write to Firestore
              await setDoc(userRef, {
                  displayName: name,
-                 email: email || '',
+                 email: email || (isGuest ? null : user.email || null),
                  isGuest: isGuest,
                  lastLogin: serverTimestamp(),
                  onboardingComplete: true
              }, { merge: true });
+
+             // Persist local state
+             localStorage.setItem('aa_is_guest', isGuest);
+             localStorage.setItem('aa_username', name);
+             localStorage.setItem('aa_uid', user.uid);
+             
+             // UI/State Update
+             updateUI(name);
+             document.getElementById('page-dashboard').classList.add('active');
+             document.getElementById('page-dashboard').style.display = 'block'; 
+             closeLoginModal();
+             sfx.powerOn(); // <-- PowerOn sound added here for successful login
+             startLaunchListener(user.uid);
         }
 
         // --- AUTH: Guest Sign-In (Anonymous) ---
+        // This is now the universal button handler, capable of anonymous login with optional details.
         window.handleGuestLogin = async () => {
+            sfx.click();
             const btn = document.getElementById('btn-guest-login');
+            
+            // Read optional inputs
+            const nameInput = document.getElementById('user-name-input').value.trim();
+            const emailInput = document.getElementById('user-email-input').value.trim();
+
+            const finalName = nameInput || "Guest";
+            const finalEmail = emailInput || null;
+            const isGuest = true;
             
             // 1. LOADING STATE
             btn.innerText = "Connecting...";
             btn.disabled = true;
             btn.classList.add('opacity-70', 'cursor-wait');
 
-            const finalName = "Guest";
-            const isGuest = true;
-            
-            // Persist guest status locally immediately
-            localStorage.setItem('aa_is_guest', isGuest);
-            localStorage.setItem('aa_username', finalName);
-
             // --- FIREBASE AUTH ---
             try {
                 const userCredential = await signInAnonymously(auth);
                 const user = userCredential.user;
-                // Anonymous users are still written to Firestore for launch logging
-                await writeUserDataToFirestore(user, finalName, null, isGuest);
+                
+                // Write data
+                await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
+                
             } catch (error) {
                 console.error("Anonymous Login Error:", error);
                 showStatusMessage("Connection failed. Check network or rules.", 'error'); 
+            } finally {
+                // 5. RESET BUTTON (if error occurs before navigation)
+                btn.innerText = "Enter Dashboard"; // Restored original text
+                btn.disabled = false;
+                btn.classList.remove('opacity-70', 'cursor-wait');
             }
-            
-            // --- UI Update ---
-            updateUI(finalName);
-            document.getElementById('page-dashboard').classList.add('active');
-            document.getElementById('page-dashboard').style.display = 'block'; 
-            closeLoginModal();
-            sfx.confirm();
-
-            btn.innerText = "Continue as Guest";
-            btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-wait');
         };
 
         // --- AUTH: Google Sign-In (Persistent) ---
         window.handleGoogleLogin = async () => {
-            const btn = document.getElementById('btn-google-login');
+            sfx.click();
+            const btnContainer = document.getElementById('google-icon-container');
             
-            // 1. LOADING STATE
-            btn.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-3 animate-spin"></i> Authenticating...';
-            btn.disabled = true;
-            btn.classList.add('opacity-70', 'cursor-wait');
-            lucide.createIcons(); // Re-render icon
-
+            // 1. LOADING STATE (Using the icon container for feedback)
+            btnContainer.classList.add('opacity-50', 'cursor-wait');
+            
             const provider = new GoogleAuthProvider();
             const isGuest = false;
 
@@ -120,17 +136,6 @@
 
                 // 3. WRITE DATA (Persistent user with name/email)
                 await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
-
-                // 4. PERSIST LOCAL STATE
-                localStorage.setItem('aa_is_guest', isGuest);
-                localStorage.setItem('aa_username', finalName);
-
-                // 5. UI Update
-                updateUI(finalName);
-                document.getElementById('page-dashboard').classList.add('active');
-                document.getElementById('page-dashboard').style.display = 'block'; 
-                closeLoginModal();
-                sfx.confirm();
                 
             } catch (error) {
                 console.error("Google Sign-In Error:", error);
@@ -140,63 +145,88 @@
                     message = "Sign-in canceled. Please try again.";
                 }
                 showStatusMessage(message, 'error');
+            } finally {
+                 // 6. RESET BUTTON 
+                btnContainer.classList.remove('opacity-50', 'cursor-wait');
             }
-
-            // 6. RESET BUTTON
-            btn.innerHTML = '<svg class="w-5 h-5 mr-3 -mt-px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.09c2.08 0 3.79.84 4.96 1.96l2.84-2.84C17.91 1.25 15.11 0 12 0 7.37 0 3.23 2.11 0.12 5.56l3.39 2.64C4.85 6.09 8.16 4.09 12 4.09zM24 12c0-.82-.07-1.63-.2-2.43H12v4.61h6.61c-.34 1.84-1.42 3.39-3.02 4.41l3.39 2.64c2.06-2.02 3.32-4.98 3.32-8.63zM5.12 14.54a6.52 6.52 0 0 1-.1-2.54c0-.83.1-1.66.31-2.45L2 6.95C.7 9.17 0 11.5 0 14c0 1.25.13 2.48.37 3.66l3.86-.3C4.54 17.02 4.93 15.82 5.12 14.54zM12 24c3.84 0 7.15-2.09 8.88-5.54l-3.39-2.64c-1.17.8-2.68 1.25-4.5.75L12 24z"/></svg> Sign in with Google';
-            btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-wait');
         };
 
         window.handleLogout = async () => {
-            // Only sign out of Firebase if available
+            sfx.powerOff();
+            // 1. Clear Local Data
+            localStorage.removeItem('aa_username');
+            localStorage.removeItem('aa_is_guest'); 
+            localStorage.removeItem('aa_launch_count');
+            localStorage.removeItem('aa_uid');
+
+            launchCount = 0; // Reset Stats
+            currentLevel = 1;
+            
+            // 2. Sign out of Firebase
             if (auth.currentUser) {
                 try {
                     await signOut(auth);
                 } catch(e) { console.log("Signout error (offline?)", e); }
             }
             
-            // 1. Clear Local Data
-            localStorage.removeItem('aa_username');
-            localStorage.removeItem('aa_is_guest'); 
-            localStorage.removeItem('aa_launch_count');
-            launchCount = 0; // Reset Stats
-            currentLevel = 1;
+            // 3. Stop Launch Listener
+            if (unsubscribeLaunches) {
+                unsubscribeLaunches();
+                unsubscribeLaunches = null;
+            }
             
-            // 2. FORCE RESET UI STATE
+            // 4. FORCE RESET UI STATE
             document.querySelectorAll('.visible-modal').forEach(el => {
                 el.classList.remove('visible-modal');
                 el.classList.add('hidden-modal');
             });
 
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            if(window.switchTab) window.switchTab('goodblocks');
-
-            document.querySelectorAll('.user-name-display').forEach(el => el.textContent = 'Guest');
+            const dashboard = document.getElementById('page-dashboard');
+            if (dashboard) {
+                dashboard.classList.remove('active');
+                dashboard.style.display = 'none';
+            }
             
+            updateUI('Agent'); // Reset display name on UI
             updateBadges(); 
 
             // E. Show Startup Screen (Cover everything)
             const startup = document.getElementById('startup-screen');
-            const dashboard = document.getElementById('page-dashboard');
-            
             if(startup) {
                 startup.style.display = 'flex';
                 setTimeout(() => { startup.style.opacity = '1'; }, 10);
             }
-            if (dashboard) dashboard.style.display = 'none';
-        }
+        };
 
+        // --- FIRESTORE LISTENERS ---
+        function startLaunchListener(uid) {
+            if (unsubscribeLaunches) {
+                unsubscribeLaunches(); // Clean up previous listener
+            }
+            
+            const launchesCollectionRef = collection(db, 'artifacts', appId, 'users', uid, 'launches');
+            // Using onSnapshot for real-time updates
+            unsubscribeLaunches = onSnapshot(launchesCollectionRef, (snapshot) => {
+                const totalLaunches = snapshot.size;
+                launchCount = totalLaunches; // Sync local state with DB count
+                localStorage.setItem('aa_launch_count', launchCount); // Persist
+                updateBadges();
+
+                // Update launch count display
+                const statElement = document.getElementById('stat-total-launches');
+                if (statElement) {
+                    statElement.textContent = totalLaunches;
+                }
+            }, (error) => {
+                console.error("Error listening to launches:", error);
+            });
+        }
+        
         window.launchCourse = async (courseName, url) => {
             // IMMEDIATE ACTION
             window.open(url, '_blank');
 
             sfx.confirm();
-            
-            // Increment local stats immediately for badge interaction
-            launchCount++;
-            localStorage.setItem('aa_launch_count', launchCount);
-            updateBadges();
             
             // Log asynchronously (Only if Firebase is initialized)
             if (auth.currentUser) {
@@ -208,32 +238,7 @@
             }
         };
 
-        window.initDashboard = () => {
-             onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                    try {
-                        const docSnap = await getDoc(userRef);
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            if(data.displayName) {
-                                // Restore Guest Status from DB
-                                const isGuest = data.isGuest !== undefined ? data.isGuest : (user.isAnonymous);
-                                localStorage.setItem('aa_is_guest', isGuest);
-                                
-                                // Restore name
-                                const storedName = data.displayName;
-                                localStorage.setItem('aa_username', storedName);
-
-                                updateUI(storedName); 
-                            }
-                        }
-                    } catch(e) { console.log("Error fetching user from Firebase.", e); }
-                }
-                updateBadges();
-            });
-        };
-        
+        // --- UI/BADGE LOGIC ---
         function updateUI(name) {
             const els = document.querySelectorAll('.user-name-display');
             els.forEach(el => el.textContent = name);
@@ -251,13 +256,17 @@
             
             currentLevel = 1;
             
-            // Level 2 requires explicit identity (Not a guest AND has a custom name)
-            if (!isGuest && !isGenericName) {
+            // Level 2 (Agent) requires persistent identity
+            if (!isGuest && name && !isGenericName) {
                 currentLevel = 2;
             }
             
-            // Level 3 requires Agent status + Action
-            if (currentLevel >= 2 && launchCount >= 1) currentLevel = 3; // Changed > 0 to >= 1 for clarity
+            // Level 3 (Operator) requires Agent status + Action (1 Launch)
+            if (currentLevel >= 2 && launchCount >= 1) {
+                currentLevel = 3; 
+            } else if (currentLevel >= 2) {
+                currentLevel = 2; // Ensure Google users who haven't launched stay at 2
+            }
             
             // Update UI
             for(let i=1; i<=3; i++) {
@@ -290,18 +299,24 @@
             const label = document.getElementById('clearance-label');
             const titles = ["OBSERVER", "AGENT", "OPERATOR"];
             if(label) label.textContent = `LEVEL ${currentLevel}: ${titles[currentLevel-1]}`;
+
+            // Update stat display in profile card
+            const launchStat = document.getElementById('stat-total-launches');
+             if (launchStat) {
+                launchStat.textContent = launchCount;
+            }
         }
         
         window.showBadgeInfo = (level) => {
             const titles = ["Observer", "Agent", "Operator"];
             const descs = [
                 "You are observing the academy. Sign in to track your progress.",
-                "Identity confirmed. You are authorized to access mission files.",
+                "Identity confirmed. You are authorized to access mission files. This requires persistent sign-in.",
                 "Field Operator status confirmed. You have moved from theory to action."
             ];
             const reqs = [
-                "None",
-                "Sign In with Persistent Identity (Google)",
+                "None (Guest/Anonymous Access)",
+                "Sign In with Persistent Identity (Google or SSO)",
                 "Agent Status + Complete 1 Mission Module"
             ];
             
@@ -596,6 +611,43 @@
         .page.active { display: block; }
         
         .modal-content-base { background: white; } /* For status modal styling */
+        
+        /* Tooltip styling */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #4C4C4C;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #4C4C4C transparent transparent transparent;
+        }
 
     </style>
 </head>
@@ -617,35 +669,55 @@
                     </div>
                 </div>
 
-                <!-- 2. LOGIN MODAL -->
+                <!-- 2. LOGIN MODAL (RESTORED ORIGINAL LAYOUT) -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark uppercase">ALLGOOD<span class="text-allgood-primary">ACADEMY</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-6 font-heading uppercase">AGENT LOG IN</h2>
+                        <h2 class="text-xl font-bold text-allgood-dark mb-6 font-heading uppercase">Please Sign in to start</h2>
 
-                        <!-- Google Sign In (Persistent Identity) -->
-                        <button id="btn-google-login" onclick="window.handleGoogleLogin()"
-                                class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase flex items-center justify-center mb-4">
-                            <!-- Google Icon SVG -->
-                            <svg class="w-5 h-5 mr-3 -mt-px" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 4.09c2.08 0 3.79.84 4.96 1.96l2.84-2.84C17.91 1.25 15.11 0 12 0 7.37 0 3.23 2.11 0.12 5.56l3.39 2.64C4.85 6.09 8.16 4.09 12 4.09zM24 12c0-.82-.07-1.63-.2-2.43H12v4.61h6.61c-.34 1.84-1.42 3.39-3.02 4.41l3.39 2.64c2.06-2.02 3.32-4.98 3.32-8.63zM5.12 14.54a6.52 6.52 0 0 1-.1-2.54c0-.83.1-1.66.31-2.45L2 6.95C.7 9.17 0 11.5 0 14c0 1.25.13 2.48.37 3.66l3.86-.3C4.54 17.02 4.93 15.82 5.12 14.54zM12 24c3.84 0 7.15-2.09 8.88-5.54l-3.39-2.64c-1.17.8-2.68 1.25-4.5.75L12 24z"/>
-                            </svg>
-                            Sign in with Google
-                        </button>
-                        
-                        <div class="relative flex items-center justify-center mb-4">
-                            <div class="flex-grow border-t border-gray-300"></div>
-                            <span class="mx-4 text-xs text-gray-500 font-bold uppercase tracking-wider">OR</span>
-                            <div class="flex-grow border-t border-gray-300"></div>
+                        <div class="space-y-4 mb-6">
+                            <!-- Name Input -->
+                            <div class="relative">
+                                <input type="text" id="user-name-input" placeholder="YOUR NAME (Optional)" class="w-full p-3 rounded border border-gray-300 focus:ring-allgood-primary focus:border-allgood-primary text-allgood-dark font-body text-lg">
+                            </div>
+                            
+                            <!-- Email Input -->
+                            <div class="relative">
+                                <input type="email" id="user-email-input" placeholder="YOUR EMAIL (Optional)" class="w-full p-3 rounded border border-gray-300 focus:ring-allgood-primary focus:border-allgood-primary text-allgood-dark font-body text-lg">
+                                
+                                <!-- "Why?" Tooltip -->
+                                <div class="tooltip-container absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer p-1">
+                                    <i data-lucide="help-circle" class="w-4 h-4 text-allgood-secondary"></i>
+                                    <div class="tooltip-text">
+                                        Providing your name helps us personalize your dashboard. Email is optional and allows for progress recovery.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Anonymous Sign In (Guest Observer) -->
+                        <!-- 2.1 MAIN ACTION BUTTON (Guest/Anonymous) -->
                         <button id="btn-guest-login" onclick="window.handleGuestLogin()"
-                                class="w-full bg-gray-500 hover:bg-allgood-dark text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
-                            Continue as Guest
+                                class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.01] active:scale-[0.99] font-body uppercase">
+                            Enter Dashboard
                         </button>
+                        
+                        <!-- 2.2 SECONDARY ACTION (Google Icon) -->
+                        <div class="mt-4 flex items-center justify-center space-x-2">
+                             <div class="h-px w-10 bg-gray-200"></div>
+                             <p class="text-xs text-gray-500 uppercase font-bold">OR</p>
+                             <div class="h-px w-10 bg-gray-200"></div>
+                        </div>
 
-                        <p class="text-[10px] text-gray-400 mt-4 leading-relaxed">Guest accounts do not retain long-term progress (Level 1 Clearance).</p>
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" 
+                                class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white">
+                            <!-- Google Icon SVG (Standard Look) -->
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 11.02 21.84 10.05 21.53 9.15H12V14.85H19.53C19.16 16.59 18.23 18.15 17.07 19.34L17.06 19.36L20.24 22.54C21.73 20.8 22.75 18.52 22.95 16.03H12V14.85C12 14.85 12 14.85 12 14.85C12 14.85 12 14.85 12 14.85V14.85Z" fill="#EA4335"/>
+                                <path d="M12 22C14.61 22 16.92 21.04 18.73 19.34L17.07 19.36C15.93 20.47 14.07 21.19 12 21.19C7.39 21.19 3.59 17.89 2.21 13.56L5.6 10.92C6.46 12.98 8.1 14.73 10 15.65V18.15H12V22Z" fill="#34A853"/>
+                                <path d="M2.21 13.56L5.6 10.92C5.37 9.8 5.25 8.65 5.25 7.5C5.25 6.35 5.37 5.2 5.6 4.08L2.21 1.44C1.19 3.48 0.5 5.75 0.5 8.16C0.5 10.57 1.19 12.84 2.21 14.88V13.56Z" fill="#FBBC05"/>
+                                <path d="M12 2.81C14.33 2.81 16.33 3.65 17.83 5.09L20.67 2.25C18.66 0.84 15.82 0 12 0C7.39 0 3.59 3.3 2.21 7.63L5.6 10.27C6.46 8.21 8.1 6.46 10 5.54V2.81H12Z" fill="#4285F4"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 
@@ -738,8 +810,8 @@
                                 <span class="text-[10px] uppercase text-slate-400 font-bold">MODULES</span>
                             </div>
                             <div>
-                                <span class="block text-2xl font-bold text-emerald-600 leading-none">0</span>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold">COMPLETED</span>
+                                <span class="block text-2xl font-bold text-emerald-600 leading-none" id="stat-total-launches">0</span>
+                                <span class="text-[10px] uppercase text-slate-400 font-bold">LAUNCHED</span>
                             </div>
                         </div>
                     </div>
@@ -1050,7 +1122,7 @@
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-                osc.type = 'triangle';
+                osc.type = 'sine'; // RESTORED TO SINE
                 osc.frequency.setValueAtTime(110, now);
                 osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
                 gain.gain.setValueAtTime(0, now);
@@ -1120,31 +1192,38 @@
                 startupScreen.addEventListener('touchstart', warmUp, { once: true });
                 
                 startupScreen.addEventListener('click', () => {
-                    sfx.powerOn(); 
+                    sfx.click(); 
                     startupScreen.style.opacity = '0';
+                    
+                    // Immediately try to restore state based on local storage
+                    const storedName = localStorage.getItem('aa_username');
+                    const storedUID = localStorage.getItem('aa_uid');
+                    
+                    if (storedName && storedUID) {
+                        // User has local data saved, attempt sign-in silently
+                        // If auth state is already authenticated (handled by onAuthStateChanged), this is fast.
+                        // If not, we rely on the user clicking "Power Up" again or onAuthStateChanged resolving.
+                        
+                        updateUI(storedName);
+                        dashboard.classList.add('active');
+                        dashboard.style.display = 'block'; 
+                        sfx.powerOn(); // <-- Power ON sound plays here
+
+                    } else if (loginModal) {
+                        // No local data, must show login modal.
+                        loginModal.classList.remove('hidden-modal');
+                        loginModal.classList.add('visible-modal');
+                    }
+                    
                     setTimeout(() => { 
                         startupScreen.style.display = 'none';
-                        
-                        // Check local storage for name
-                        const storedName = localStorage.getItem('aa_username');
-                        
-                        if (storedName) {
-                            // User has local data saved, restore session and show dashboard immediately.
-                            updateUI(storedName);
-                            dashboard.classList.add('active');
-                            dashboard.style.display = 'block'; 
-                        } else if (loginModal) {
-                            // No local data, must show login modal.
-                             loginModal.classList.remove('hidden-modal');
-                             loginModal.classList.add('visible-modal');
-                        }
                     }, 700);
                 });
             }
 
             // 2. Login Logic - Event Listeners
             // The functions are defined in the module script block above and use the onclick attribute in HTML.
-
+            
             // 3. Navbar Control Cluster Logic
             const homeBtn = document.getElementById('btn-home');
             let homePressTimer;
