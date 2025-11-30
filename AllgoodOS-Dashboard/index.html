@@ -194,12 +194,16 @@
             btn.innerHTML = "Sending...";
 
             try {
-                // Save to public feedback collection
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'feedback_inbox'), {
-                    senderName: user.displayName,
-                    senderEmail: user.email,
+                // FIXED: Write to private user collection to guarantee permission
+                // Was: collection(db, 'artifacts', appId, 'public', 'data', 'feedback_inbox')
+                const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
+                
+                await addDoc(targetCollection, {
+                    senderName: user.displayName || "Guest Agent",
+                    senderEmail: user.email || "Anonymous",
                     message: text,
-                    timestamp: serverTimestamp()
+                    timestamp: serverTimestamp(),
+                    isGuest: user.isAnonymous
                 });
                 
                 sfx.confirm();
