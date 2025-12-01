@@ -27,7 +27,9 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
+        // FIX: Force Shared App ID to ensure Game and Dashboard talk to the same DB folder
+        const appId = 'allgood-academy'; 
+        // const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -140,7 +142,7 @@
                     ...data,
                     timestamp: serverTimestamp()
                 });
-                // console.log("Attempt logged:", data.scenarioIndex);
+                console.log(`[DB SUCCESS] Saved Attempt to: artifacts/${appId}/users/${user.uid}/game_scores`);
             } catch (e) { console.error("Attempt log failed", e); }
         };
 
@@ -164,6 +166,7 @@
                         email: user.email || localStorage.getItem('aa_email') || ""
                     }
                 }, { merge: true });
+                console.log(`[DB SUCCESS] Session Updated at: artifacts/${appId}/users/${user.uid}/game_scores`);
             } catch (e) { console.error("Save failed", e); }
         }
     </script>
