@@ -134,6 +134,11 @@
             const user = auth.currentUser;
             if (!user) return;
             
+            if (!window.sessionId) {
+                console.error("Session ID is missing!");
+                return;
+            }
+
             // Path: /users/{uid}/game_scores/{sessionId}/scenario_attempts/{scenarioIndex}
             const attemptRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'scenario_attempts', `scenario_${data.scenarioIndex}`);
             
@@ -151,6 +156,11 @@
             const user = auth.currentUser;
             if (!user) return; 
             
+            if (!window.sessionId) {
+                console.error("Session ID is missing!");
+                return;
+            }
+
             // Path: /users/{uid}/game_scores/{sessionId}
             // Use setDoc with merge to allow updating the same session document
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
@@ -534,7 +544,7 @@
         const BADGE_THRESHOLD = 80;
         let totalChallengeScore = 0;
         let answeredScenarioScores = {};
-        let sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         function sanitizeText(text) {
             if (!text) return "";
@@ -651,7 +661,7 @@
                         window.logFinalScoreToFirestore({ 
                             finalScore: 0, 
                             rank: "Session Started", 
-                            sessionId: sessionId 
+                            sessionId: window.sessionId 
                         });
 
                         // 1. Reveal Page 1 immediately
@@ -813,7 +823,7 @@
                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked';
                 }
                 
-                window.logFinalScoreToFirestore({ finalScore: currentScore, maxScore: MAX_SCORE, percentage: percentage, rank: rank, isCertified: isCertified, sessionId: sessionId });
+                window.logFinalScoreToFirestore({ finalScore: currentScore, maxScore: MAX_SCORE, percentage: percentage, rank: rank, isCertified: isCertified, sessionId: window.sessionId });
                 lucide.createIcons();
             }
 
@@ -1007,7 +1017,7 @@
             }
             window.submitFeedback = function() {
                 const feedbackText = document.getElementById('feedback-text').value;
-                window.logFinalScoreToFirestore({ feedback: feedbackText, rank: "Feedback", sessionId: sessionId });
+                window.logFinalScoreToFirestore({ feedback: feedbackText, rank: "Feedback", sessionId: window.sessionId });
                 document.getElementById('feedback-container').classList.add('hidden');
                 document.getElementById('feedback-success').classList.remove('hidden');
                 sfx.nav(); 
