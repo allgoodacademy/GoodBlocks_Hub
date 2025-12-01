@@ -14,10 +14,8 @@
         import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Set Firebase logging level for debugging
         setLogLevel('Debug');
         
-        // --- CONFIGURATION (Environment or Fallback) ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
@@ -28,16 +26,14 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
+        const appId = 'allgood-academy'; 
         
         let auth, db;
 
-        // --- FIREBASE INITIALIZATION ---
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
 
-        // --- AUTH INIT (Custom Token Support) ---
         (async function initAuth() {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 try {
@@ -48,20 +44,16 @@
             }
         })();
 
-        // --- GLOBAL EXPORTS ---
         window.auth = auth; 
         window.db = db;
 
-        // TRACKING STATE
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let currentLevel = 1;
         let unsubscribeLaunches = null;
-        let unsubscribeDecisions = null; // Listener for Decision Challenge
+        let unsubscribeDecisions = null;
         
-        // Dictionary to map course names to their badge elements
         window.allModuleElements = {};
 
-        // --- UTILITY: Writes essential user data to Firestore ---
         async function writeUserDataToFirestore(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
              
@@ -87,10 +79,9 @@
              closeLoginModal();
              
              window.startLaunchListener(user.uid);
-             window.startDecisionsStatusListener(user.uid); // NEW: Start Status Listener
+             window.startDecisionsStatusListener(user.uid);
         }
 
-        // --- AUTH HANDLERS ---
         window.handleGuestLogin = async () => {
             sfx.click();
             const btn = document.getElementById('btn-guest-login');
@@ -147,7 +138,6 @@
         };
 
         window.launchCourse = async (courseName, url, element) => {
-            // Option 3: Prompt Unauthenticated Users
             if (!auth.currentUser) {
                 const loginModal = document.getElementById('login-modal');
                 if (loginModal) {
@@ -158,8 +148,8 @@
                 return;
             }
 
-            // --- FIX: PASS UID TO URL TO ENSURE SESSION CONTINUITY ---
-            // This prevents "Guest" users from having different IDs in the Game vs Dashboard
+            showStatusMessage("⚠️ Launching External Site. Data will NOT sync to this Sandbox.", 'error');
+
             let finalUrl = url;
             try {
                 const urlObj = new URL(url);
@@ -167,22 +157,22 @@
                 finalUrl = urlObj.toString();
             } catch (e) { console.log("URL append failed", e); }
 
-            window.open(finalUrl, '_blank');
+            setTimeout(() => {
+                window.open(finalUrl, '_blank');
+            }, 1500);
+            
             sfx.confirm();
             
             if (auth.currentUser) {
-                // 1. Log to Firestore
                 addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
                     courseName: courseName,
                     targetUrl: url,
                     timestamp: serverTimestamp()
                 }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
 
-                // 2. Visual Update: Change Status to LAUNCHED (Immediate feedback)
                 if (element) {
                     const badge = element.querySelector('span.rounded'); 
                     if (badge) {
-                        // Priority Check: Don't overwrite specialized badges
                         if (badge.id === 'ddc-status-badge') return; 
 
                         badge.textContent = "LAUNCHED";
@@ -193,7 +183,6 @@
             }
         };
 
-        // --- MESSAGING LOGIC ---
         window.openMessageModal = () => {
             const menu = document.getElementById('menu-modal');
             if(menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
@@ -221,7 +210,6 @@
             
             const user = auth.currentUser;
             if (!user) {
-                // UI Feedback on button for unauth
                 const originalText = btn.innerHTML;
                 btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
                 btn.classList.add('bg-red-600', 'hover:bg-red-700');
@@ -237,13 +225,11 @@
                 return;
             }
 
-            // Loading State
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.textContent = "Sending...";
 
             try {
-                // Write to private user collection to guarantee permission
                 const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
                 
                 await addDoc(targetCollection, {
@@ -254,7 +240,6 @@
                     isGuest: user.isAnonymous
                 });
                 
-                // Success State - BUTTON UPDATE ONLY
                 sfx.confirm();
                 input.value = "";
                 
@@ -263,10 +248,8 @@
                 btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Transmission Sent`;
                 lucide.createIcons();
 
-                // Close after delay
                 setTimeout(() => {
                     closeMessageModal();
-                    // Reset button style after modal closes
                     setTimeout(() => {
                         btn.disabled = false;
                         btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
@@ -278,7 +261,6 @@
 
             } catch (e) {
                 console.error("Message failed", e);
-                // Error State on Button
                 btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
                 btn.classList.add('bg-red-600', 'hover:bg-red-700');
                 btn.textContent = "Transmission Failed";
@@ -313,12 +295,11 @@
                 unsubscribeLaunches = null;
             }
 
-            if (unsubscribeDecisions) { // Unsubscribe from decisions
+            if (unsubscribeDecisions) { 
                 unsubscribeDecisions();
                 unsubscribeDecisions = null;
             }
             
-            // Reset Badges on Logout
             document.querySelectorAll('.mission-file span.rounded').forEach(badge => {
                 if (badge.textContent === "LAUNCHED") {
                     badge.textContent = "Ready";
@@ -333,7 +314,6 @@
                 }
             });
 
-            // NEW: Reset Digital Decisions Badge Specifically
             const ddcBadge = document.getElementById('ddc-status-badge');
             if(ddcBadge) {
                 ddcBadge.textContent = "Active";
@@ -358,14 +338,12 @@
 
             const startup = document.getElementById('startup-screen');
             if(startup) {
-                // RESET MESSAGE ON LOGOUT
                 document.getElementById('startup-message').textContent = "CLICK TO POWER UP";
                 startup.style.display = 'flex';
                 setTimeout(() => { startup.style.opacity = '1'; }, 10);
             }
         };
 
-        // --- INITIALIZE MODULE ELEMENTS MAP ---
         window.initModuleElements = function() {
             window.allModuleElements = {};
             const cards = document.querySelectorAll('.mission-file');
@@ -384,7 +362,6 @@
             });
         }
 
-        // --- FIRESTORE LISTENERS ---
         window.startLaunchListener = function(uid) {
             if (unsubscribeLaunches) unsubscribeLaunches();
             
@@ -402,15 +379,12 @@
                 const statElement = document.getElementById('stat-total-launches');
                 if (statElement) statElement.textContent = totalLaunches;
                 
-                // Update Individual Card Status
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const courseName = data.courseName;
                     const badgeElement = window.allModuleElements[courseName];
                     
                     if (badgeElement) {
-                        // FIX: Priority Check - Skip if this is the Digital Decisions special badge
-                        // This allows the Status Listener to own this specific badge
                         if (badgeElement.id === 'ddc-status-badge') return;
 
                         if (badgeElement.textContent !== "LAUNCHED") {
@@ -425,7 +399,6 @@
             });
         }
 
-        // --- NEW: Digital Decisions Status Listener ---
         window.startDecisionsStatusListener = function(uid) {
             if (unsubscribeDecisions) unsubscribeDecisions();
             
@@ -437,7 +410,6 @@
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    // Match the gameName set in digital_decisions.html
                     if (data.gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
                         hasAttempt = true;
                         if (data.finalScore > maxScore) maxScore = data.finalScore;
@@ -446,7 +418,6 @@
 
                 const badge = document.getElementById('ddc-status-badge');
                 if (badge && hasAttempt) {
-                    // Threshold is 80 points (approx 89%) based on app logic
                     if (maxScore >= 80) { 
                         badge.textContent = "MISSION COMPLETE";
                         badge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
@@ -460,7 +431,6 @@
             });
         }
 
-        // --- UI/BADGE LOGIC ---
         window.updateUI = function(name) { 
             const els = document.querySelectorAll('.user-name-display');
             els.forEach(el => el.textContent = name);
@@ -611,7 +581,7 @@
                     dashboard.style.display = 'block'; 
                 }
                 window.startLaunchListener(storedUID);
-                window.startDecisionsStatusListener(storedUID); // Start Listener
+                window.startDecisionsStatusListener(storedUID); 
                 return true; 
             }
             return false; 
@@ -625,7 +595,7 @@
                 if (user) {
                     if (dashboard.style.display === 'block') {
                         window.startLaunchListener(user.uid);
-                        window.startDecisionsStatusListener(user.uid); // Start Listener
+                        window.startDecisionsStatusListener(user.uid); 
                         return;
                     }
                     
@@ -650,7 +620,7 @@
                     dashboard.style.display = 'block'; 
                     closeLoginModal(); 
                     window.startLaunchListener(user.uid);
-                    window.startDecisionsStatusListener(user.uid); // Start Listener
+                    window.startDecisionsStatusListener(user.uid); 
                 } else {
                     if (dashboard.style.display === 'block') {
                          window.handleLogout(); 
@@ -659,11 +629,9 @@
             });
         }
 
-        // --- FIXED STARTUP LISTENER (Inside Module Scope) ---
         const startupScreen = document.getElementById('startup-screen');
         if(startupScreen) {
             startupScreen.addEventListener('click', () => {
-                // Ensure audio is ready safely via GLOBAL window object
                 if(window.sfx && window.sfx.powerOn) {
                     window.sfx.powerOn(); 
                 } else if (window.initAudio) {
@@ -675,7 +643,6 @@
                 const storedUID = localStorage.getItem('aa_uid');
                 const storedName = localStorage.getItem('aa_username');
                 
-                // Correctly transition based on auth state
                 if (storedName && storedUID) {
                     window.restoreSessionState();
                     window.initDashboard(); 
@@ -722,7 +689,7 @@
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
-            /* Industrial grid pattern */
+            /* Industrial grid pattern - FIXED */
             background-image: 
                 linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -769,7 +736,7 @@
             max-height: 95vh;
             min-height: 0;
             min-width: 0;
-            /* Brushed Aluminum & Depth Gradients */
+            /* Brushed Aluminum & Depth Gradients - FIXED */
             background-image: 
                 radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
                 radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
@@ -787,50 +754,40 @@
             transition: width 0.3s, height 0.3s, padding 0.3s;
         }
 
-        /* The Inner Bezel (Deep Black Frame) */
         .tablet-frame::before {
             content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
             border-radius: 6px; background: #111; z-index: 0;
         }
 
+        /* --- SCREEN CONTAINER: EXECUTIVE OS INTERFACE --- */
         .screen-container {
-            width: 100%; height: 100%; background-color: #F7F7F7;
+            width: 100%; height: 100%;
+            /* NEW: Executive Glass Gradient (Software Layer) */
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             position: relative; z-index: 1; overflow: hidden;
             display: flex; flex-direction: column; 
             border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
         
-        /* --- MISSION CARD (EMBOSSED LOOK) --- */
+        /* --- MISSION CARD (GLASSMORPHISM) --- */
         .mission-file {
-            background: white;
-            border: 1px solid #d1d5db; /* Neutral border */
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
             border-left-width: 4px;
             border-radius: 6px;
-            /* Embossed/Durable Shadow */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             transition: all 0.2s ease;
             cursor: pointer;
             position: relative;
             overflow: hidden;
         }
-        /* Copper Glow on Hover */
-        .mission-file::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            opacity: 0;
-            border-radius: 6px;
-            box-shadow: 0 0 10px #EB8D69, inset 0 0 5px #EB8D69; 
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-            z-index: 5;
-        }
+        
         .mission-file:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-        .mission-file:hover::after {
-            opacity: 0.5;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
         }
 
         /* Status colors */
@@ -838,27 +795,44 @@
         .status-ready { border-left-color: #357889; } /* Deep Cyan */
         .status-locked { border-left-color: #757575; opacity: 0.7; cursor: not-allowed; }
         
-        /* Tab Styling */
+        /* COMMAND RAIL TABS (UPDATED) */
         .tab-btn {
-            transition: all 0.2s;
-            border-bottom: 3px solid transparent;
-            font-weight: 500;
+            color: #64748b; /* Text Secondary */
+            border: none;
+        }
+        .tab-btn:hover {
+            background-color: rgba(255,255,255,0.5);
+            color: #357889; /* Brand Secondary */
         }
         .active-tab {
-            background-color: white;
-            border-bottom-color: #D34716;
-            color: #D34716;
-            font-weight: bold;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+            background-color: #D34716 !important; /* Brand Primary */
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(211, 71, 22, 0.3), 0 2px 4px -1px rgba(211, 71, 22, 0.1);
+            transform: translateY(-1px);
         }
 
-        /* --- MOBILE ADAPTATION --- */
+        /* Custom image container for headshot */
+        .headshot-container {
+            width: 64px;
+            height: 64px;
+            overflow: hidden;
+            border-radius: 6px;
+            border: 1px solid rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        .headshot-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+
         @media (max-width: 640px) {
             body {
                 padding: 0;
                 align-items: flex-start;
                 background-image: none;
-                background-color: #F7F7F7;
+                background-color: #f8fafc;
             }
             .tablet-frame {
                 width: 100vw !important;
@@ -877,21 +851,16 @@
             .screen-container {
                 border-radius: 0 !important;
                 box-shadow: none !important;
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
             }
             main { padding: 0 !important; }
         }
 
-        /* --- BLUEPRINT MODE (Dark Mode) --- */
-        .blueprint-mode .screen-container { background-color: #0f172a; color: #94a3b8; }
-        .blueprint-mode .mission-file { background-color: #1e293b; border-color: #334155; }
+        /* --- BLUEPRINT MODE --- */
+        .blueprint-mode .screen-container { background: #0f172a; color: #94a3b8; }
+        .blueprint-mode .mission-file { background-color: #1e293b; border-color: #334155; opacity: 1; backdrop-filter: none; }
         .blueprint-mode h1, .blueprint-mode h2, .blueprint-mode h3, .blueprint-mode strong { color: #38bdf8 !important; }
-        .blueprint-mode .text-slate-500, .blueprint-mode .text-slate-700 { color: #94a3b8 !important; }
-        .blueprint-mode .section-header { border-bottom-color: #334155; }
-        .blueprint-mode .bg-white { background-color: #1e293b; border-color: #334155; }
-        .blueprint-mode .status-active { border-left-color: #D34716; background-color: #1e293b; }
-        .blueprint-mode .tab-btn { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
-        .blueprint-mode .tab-btn.active-tab { background-color: #0f172a; color: #38bdf8; border-color: #38bdf8; }
-        .blueprint-mode .mission-file:hover::after { opacity: 0.1; }
 
         /* --- FOCUS MODE --- */
         .focus-mode .tablet-frame {
@@ -900,7 +869,7 @@
             aspect-ratio: auto !important; max-width: none !important; max-height: none !important; 
             min-height: 0 !important;
             margin: 0 !important; padding: 0 !important; 
-            background: #F7F7F7 !important; border: none !important; border-radius: 0 !important; 
+            background: #f8fafc !important; border: none !important; border-radius: 0 !important; 
             box-shadow: none !important; z-index: 99999 !important;
             background-image: none !important;
         }
@@ -908,20 +877,21 @@
         .focus-mode .screen-container { border-radius: 0; box-shadow: none; height: 100%; }
 
         /* --- SCROLLBARS --- */
-        .page::-webkit-scrollbar { width: 14px; }
-        .page::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
-        .page::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
-        .page::-webkit-scrollbar-thumb:hover { background-color: #EB8D69; }
+        .page::-webkit-scrollbar { width: 10px; }
+        .page::-webkit-scrollbar-track { background: transparent; }
+        .page::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 5px; border: 2px solid #f8fafc; }
+        .page::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
 
         /* --- MODALS --- */
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-        /* --- LAYOUT --- */
-        .navbar-content { flex: 0 0 60px; z-index: 20; background: #357889; border-bottom: 2px solid #2D6473; color: white; }
+        /* --- LAYOUT - HEADER (GLASS) --- */
+        /* Updated Navbar for Executive Glass Look */
+        .navbar-content { flex: 0 0 60px; z-index: 20; background: rgba(53, 120, 137, 0.85); backdrop-filter: blur(5px); border-bottom: 1px solid rgba(255,255,255,0.1); color: white; }
         .footer-content { flex: 0 0 50px; z-index: 20; background: white; border-top: 1px solid #e2e8f0; }
-        .page { flex: 1 1 auto; overflow-y: auto; padding: 24px; position: relative; display: none; width: 100%; background-color: #F7F7F7; }
+        .page { flex: 1 1 auto; overflow-y: auto; padding: 24px; position: relative; display: none; width: 100%; background: transparent; }
         .page.active { display: block; }
         
         .modal-content-base { background: white; }
@@ -970,7 +940,6 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                                 <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
                                 
-                                <!-- Tooltip -->
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
                                     <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
                                     <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
@@ -996,7 +965,6 @@
 
                         <button id="google-icon-container" onclick="window.handleGoogleLogin()" 
                                 class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
-                            <!-- Clean Google G Logo -->
                             <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -1015,7 +983,7 @@
                     </div>
                 </div>
 
-                <!-- 3. TOP NAVBAR -->
+                <!-- 3. TOP NAVBAR (GLASS) -->
                 <header class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30">
                     <div class="flex items-center overflow-hidden">
                         <div class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none uppercase">
@@ -1024,29 +992,19 @@
                     </div>
                     <!-- Control Cluster -->
                     <div class="flex items-center space-x-1 shrink-0 relative">
-                        <!-- HOME ICON -->
                         <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                         </button>
-                        
                         <div class="h-6 w-px bg-white/20 mx-1"></div>
-                        
-                        <!-- BLUEPRINT (DARK MODE) ICON -->
                         <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
                         </button>
-                        
-                        <!-- FULLSCREEN ICON -->
                         <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                         </button>
-                        
-                        <!-- CHAT ICON (Kept Lucide for now as no exact SVG in reference, but styled to match) -->
                         <button id="btn-message" class="text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ" onclick="window.openMessageModal()">
                             <i data-lucide="message-square" class="w-5 h-5"></i>
                         </button>
-                        
-                        <!-- MENU ICON -->
                         <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
@@ -1084,12 +1042,12 @@
                 <!-- 4. DASHBOARD CONTENT -->
                 <div class="page" id="page-dashboard">
                     
-                    <!-- Status Bar -->
-                    <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-md border border-slate-200 mb-6">
-                        <div>
+                    <!-- Status Bar (Refactored for Mobile Stacking) -->
+                    <div class="flex flex-col md:flex-row items-center justify-between bg-white/60 backdrop-blur-md p-4 rounded-lg shadow-sm border border-white/50 mb-6 text-allgood-dark text-center md:text-left">
+                        <div class="mb-4 md:mb-0 w-full md:w-auto">
                             <h1 class="text-xl font-heading font-bold text-slate-700 uppercase">Welcome, <span class="user-name-display text-allgood-primary">Agent</span>.</h1>
                             <!-- Interactive Badge Row -->
-                            <div class="flex items-center mt-2 space-x-3">
+                            <div class="flex items-center justify-center md:justify-start mt-2 space-x-3">
                                 <div class="text-xs text-slate-500 font-bold uppercase tracking-wide mr-2" id="clearance-label">LEVEL 1: OBSERVER</div>
                                 <div id="badge-1" class="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 transition-all shadow-sm" onclick="showBadgeInfo(1)">
                                     <i data-lucide="eye" class="w-4 h-4"></i>
@@ -1104,7 +1062,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex gap-4 text-right">
+                        <div class="flex gap-6 md:gap-4 text-center md:text-right w-full md:w-auto justify-center md:justify-end">
                             <div>
                                 <span class="block text-2xl font-bold text-allgood-secondary leading-none">13</span>
                                 <span class="text-[10px] uppercase text-slate-400 font-bold">MODULES</span>
@@ -1116,23 +1074,27 @@
                         </div>
                     </div>
 
-                    <!-- TAB NAVIGATION -->
-                    <div class="flex space-x-2 mb-6 border-b border-slate-200 px-2 overflow-x-auto">
-                        <button id="tab-btn-goodblocks" onclick="switchTab('goodblocks')" class="tab-btn active-tab flex items-center px-4 py-3 rounded-t-lg text-sm uppercase">
-                            <i data-lucide="box" class="w-4 h-4 mr-2"></i> GOODBLOCKS
+                    <!-- TAB NAVIGATION: COMMAND RAIL (Mobile Optimized) -->
+                    <div class="bg-white/40 backdrop-blur-md p-1.5 rounded-xl border border-white/60 shadow-sm flex space-x-2 mb-6 mx-auto max-w-3xl">
+                        <button id="tab-btn-goodblocks" onclick="switchTab('goodblocks')" 
+                            class="tab-btn active-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
+                            <i data-lucide="box" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
+                            <span class="hidden sm:inline">GoodBlocks</span>
                         </button>
-                        <button id="tab-btn-games" onclick="switchTab('games')" class="tab-btn inactive-tab flex items-center px-4 py-3 rounded-t-lg text-sm uppercase">
-                            <i data-lucide="gamepad-2" class="w-4 h-4 mr-2"></i> GAMES & SIMS
+                        <button id="tab-btn-games" onclick="switchTab('games')" 
+                            class="tab-btn inactive-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
+                            <i data-lucide="gamepad-2" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
+                            <span class="hidden sm:inline">Games & Sims</span>
                         </button>
-                        <button id="tab-btn-courses" onclick="switchTab('courses')" class="tab-btn inactive-tab flex items-center px-4 py-3 rounded-t-lg text-sm uppercase">
-                            <i data-lucide="book-open" class="w-4 h-4 mr-2"></i> COURSES
+                        <button id="tab-btn-courses" onclick="switchTab('courses')" 
+                            class="tab-btn inactive-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
+                            <i data-lucide="book-open" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
+                            <span class="hidden sm:inline">Courses</span>
                         </button>
                     </div>
 
-                    <!-- TAB 1: GOODBLOCKS (ALPHABETIZED) -->
+                    <!-- TAB 1: GOODBLOCKS -->
                     <div id="tab-goodblocks" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
-                        <!-- 1. Airport Navigator (A) -->
                         <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-sky-50 rounded flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors">
@@ -1146,22 +1108,26 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Master the logistical flow from curb to gate with zero friction.</p>
                             </div>
                         </div>
-
-                        <!-- 2. Countdown to Keys (C) -->
-                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-50">
-                            <div class="w-16 h-16 bg-slate-50 rounded flex items-center justify-center border border-slate-100 flex-shrink-0">
-                                <i data-lucide="key" class="w-8 h-8 text-slate-400"></i>
+                        
+                        <!-- UPDATED CARD: JONATHAN HURTADO'S COUNTDOWN TO KEYS -->
+                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-70">
+                            <div class="headshot-container flex-shrink-0 bg-slate-100">
+                                <!-- Headshot Image Replacement -->
+                                <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
+                                     alt="Jonathan Hurtado's Headshot"
+                                     onerror="this.onerror=null; this.src='https://placehold.co/64x64/334155/f8fafc?text=JH'" 
+                                     class="rounded object-cover w-full h-full">
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-500 text-lg mb-1 uppercase">Countdown to Keys</h3>
+                                    <h3 class="font-bold text-slate-500 text-lg mb-1 uppercase">Jonathan Hurtado's Countdown to Keys</h3>
                                     <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Coming Soon</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Execute the 100-day protocol to secure your first home.</p>
                             </div>
                         </div>
+                        <!-- END UPDATED CARD -->
 
-                        <!-- 3. Digital Asset Defense (D) -->
                         <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-blue-50 rounded flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors">
@@ -1175,8 +1141,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Secure wealth via wallet protocols and threat avoidance.</p>
                             </div>
                         </div>
-
-                        <!-- 4. Mastering the Sincere Apology (M) -->
                         <div onclick="window.launchCourse('Mastering the Apology', 'https://www.allgoodacademy.com/goodblocks/mastering-the-sincere-apology', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-emerald-50 rounded flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
@@ -1190,8 +1154,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Deploy the 4-part structure to de-escalate conflict instantly.</p>
                             </div>
                         </div>
-
-                        <!-- 5. Your Digital Identity (Y) -->
                         <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-purple-50 rounded flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors">
@@ -1207,9 +1169,8 @@
                         </div>
                     </div>
 
-                    <!-- TAB 2: GAMES & SIMS (Update Click Handlers) -->
+                    <!-- TAB 2: GAMES & SIMS -->
                     <div id="tab-games" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-                        <!-- 1. Jolene's Lemonade -->
                         <div onclick="window.launchCourse('Jolene\'s Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-yellow-50 rounded flex items-center justify-center border border-yellow-100 flex-shrink-0 group-hover:bg-yellow-100 transition-colors">
@@ -1223,8 +1184,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Manage supply, demand, and profit margins in a live market.</p>
                             </div>
                         </div>
-
-                        <!-- 2. Digital Decisions (UPDATED LINK) -->
                         <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions', this)" 
                              class="mission-file status-active p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-indigo-50 rounded flex items-center justify-center border border-indigo-100 flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
@@ -1233,14 +1192,11 @@
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Digital Decisions</h3>
-                                    <!-- UPDATED SPAN WITH ID -->
                                     <span id="ddc-status-badge" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Make high-stakes choices in simulated online conflict scenarios.</p>
                             </div>
                         </div>
-
-                        <!-- 3. Conflict Resolution -->
                         <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-red-50 rounded flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors">
@@ -1254,8 +1210,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Identify triggers and neutralize tension in high-stress interactions.</p>
                             </div>
                         </div>
-
-                        <!-- 4. Purposeful Communicator -->
                         <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-teal-50 rounded flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors">
@@ -1269,8 +1223,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Select precise language to drive outcomes and build consensus.</p>
                             </div>
                         </div>
-
-                        <!-- 5. Master Your Story -->
                         <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-rose-50 rounded flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors">
@@ -1286,9 +1238,8 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: COURSES (Update Click Handlers) -->
+                    <!-- TAB 3: COURSES -->
                     <div id="tab-courses" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-                        <!-- 1. Pragmatic Learning -->
                         <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-amber-50 rounded flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
@@ -1302,8 +1253,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Turn passive input into active output. The core philosophy of Allgood Academy.</p>
                             </div>
                         </div>
-
-                        <!-- 2. The Unwritten Rules -->
                         <div onclick="window.launchCourse('The Unwritten Rules', 'https://www.allgoodacademy.com/courses/the-unwritten-rules-navigating-social-emotional-learning', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-slate-100 rounded flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-slate-200 transition-colors">
@@ -1317,8 +1266,6 @@
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Decode the hidden social contracts that govern professional environments.</p>
                             </div>
                         </div>
-
-                        <!-- 3. The AI Co-Pilot -->
                         <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/courses/the-ai-co-pilot-a-15-minute-microlearning-course', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                             <div class="w-16 h-16 bg-cyan-50 rounded flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors">
@@ -1334,9 +1281,8 @@
                         </div>
                     </div>
 
-                    <!-- FOOTER OS SIGNATURE -->
                     <div class="mt-12 mb-6 text-center">
-                        <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-60">
+                        <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-80">
                             ALLGOOD OS <span class="mx-2">•</span> GOODBLOCK™
                         </p>
                     </div>
@@ -1365,7 +1311,7 @@
 
             </div>
 
-            <!-- ABOUT US MODAL (Relocated to Root Screen Container) -->
+            <!-- ABOUT US MODAL -->
             <div id="about-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeAboutModal()">
                 <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
                     <button onclick="closeAboutModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -1376,7 +1322,6 @@
                     </div>
                     
                     <div class="space-y-4">
-                        <!-- Card 1: The Lab -->
                         <div class="bg-gray-50 border-l-4 border-allgood-secondary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="p-2 bg-white rounded-full text-allgood-secondary shadow-sm group-hover:scale-110 transition-transform">
@@ -1387,7 +1332,6 @@
                             <p class="text-gray-600 text-xs leading-relaxed font-body">Allgood Academy is a mission-driven learning hub. We use <span class="font-bold text-allgood-secondary">advanced instructional design</span> principles trusted by top corporations to create immersive, high-impact training.</p>
                         </div>
                         
-                        <!-- Card 2: The Result -->
                         <div class="bg-gray-50 border-l-4 border-allgood-primary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="p-2 bg-white rounded-full text-allgood-primary shadow-sm group-hover:scale-110 transition-transform">
@@ -1405,7 +1349,7 @@
                 </div>
             </div>
 
-            <!-- NEW MESSAGE MODAL -->
+            <!-- MESSAGE MODAL -->
             <div id="message-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeMessageModal()">
                 <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
                     <button onclick="closeMessageModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -1433,7 +1377,6 @@
     </main>
 
     <script>
-        // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
@@ -1446,7 +1389,6 @@
             }
         }
 
-        // Updated Helper with Envelope Control (Attack/Decay)
         function playTone(freq, type, duration, vol = 0.1, attack = 0.01, decay = 0.001) {
             initAudio();
             const now = audioCtx.currentTime;
@@ -1487,8 +1429,7 @@
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 
-                // Confirmed Source: Triangle Wave Frequency Sweep (110 Hz to 220 Hz over 0.4s)
-                osc.type = 'triangle'; // Use triangle wave for sweeping effect
+                osc.type = 'triangle'; 
                 osc.frequency.setValueAtTime(110, now);
                 osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
                 gain.gain.setValueAtTime(0, now);
@@ -1506,11 +1447,9 @@
             },
         };
 
-        // EXPOSE TO WINDOW FOR MODULE ACCESS
         window.sfx = sfx;
         window.initAudio = initAudio;
 
-        // --- TAB LOGIC ---
         window.switchTab = (tabName) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             const target = document.getElementById('tab-' + tabName);
@@ -1527,15 +1466,9 @@
             sfx.nav(); 
         };
 
-        // --- DOM LOAD & INIT ---
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             
-            // Initialization Logic
-            // Note: window.restoreSessionState() and window.initDashboard() are called 
-            // inside the module script's startupScreen click handler to ensure async DB readiness.
-
-            // Button Listeners
             const homeBtn = document.getElementById('btn-home');
             let homePressTimer;
             let homeIsHold = false;
@@ -1569,10 +1502,8 @@
             if(fullscreenBtn) {
                 fullscreenBtn.addEventListener('click', () => {
                     const body = document.body;
-                    // Removed icon swapping logic to support static SVG
                     if (body.classList.contains('focus-mode')) {
                         body.classList.remove('focus-mode');
-                        // Visual toggle for active state
                         fullscreenBtn.classList.remove('text-green-300', 'bg-white/10');
                     } else {
                         body.classList.add('focus-mode');
@@ -1598,7 +1529,6 @@
         });
 
         window.openAboutModal = () => {
-            // Close the system menu first to prevent double-backdrop overlap
             const menu = document.getElementById('menu-modal');
             if (menu) {
                 menu.classList.add('hidden-modal');
