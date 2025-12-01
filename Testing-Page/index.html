@@ -147,8 +147,6 @@
                 return;
             }
 
-            // Removed popup alert here as requested
-
             let finalUrl = url;
             try {
                 const urlObj = new URL(url);
@@ -156,11 +154,9 @@
                 finalUrl = urlObj.toString();
             } catch (e) { console.log("URL append failed", e); }
 
-            setTimeout(() => {
-                window.open(finalUrl, '_blank');
-            }, 1500);
-            
+            // Option 1: Instant Execution
             sfx.confirm();
+            window.open(finalUrl, '_blank');
             
             if (auth.currentUser) {
                 addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
