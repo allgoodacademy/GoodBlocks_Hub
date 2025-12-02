@@ -1004,6 +1004,13 @@
             transform: scale(1.05);
         }
 
+        /* NEW: Emoji Badge Styling */
+        .emoji-badge {
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+            line-height: 1;
+            display: block;
+        }
+
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body">
@@ -1186,8 +1193,9 @@
                     <div id="tab-goodblocks" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-sky-50 rounded flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors">
-                                <i data-lucide="plane" class="w-8 h-8 text-sky-600"></i>
+                            <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🛫</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1219,8 +1227,9 @@
 
                         <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-blue-50 rounded flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-                                <i data-lucide="shield-check" class="w-8 h-8 text-blue-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🛡️</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1232,8 +1241,9 @@
                         </div>
                         <div onclick="window.launchCourse('Mastering the Apology', 'https://www.allgoodacademy.com/goodblocks/mastering-the-sincere-apology', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-emerald-50 rounded flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
-                                <i data-lucide="heart-handshake" class="w-8 h-8 text-emerald-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🤝</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1245,8 +1255,9 @@
                         </div>
                         <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-purple-50 rounded flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors">
-                                <i data-lucide="fingerprint" class="w-8 h-8 text-purple-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🧬</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1262,8 +1273,9 @@
                     <div id="tab-games" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                         <div onclick="window.launchCourse('Jolene\'s Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-yellow-50 rounded flex items-center justify-center border border-yellow-100 flex-shrink-0 group-hover:bg-yellow-100 transition-colors">
-                                <i data-lucide="store" class="w-8 h-8 text-yellow-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-yellow-50 rounded-full flex items-center justify-center border border-yellow-100 flex-shrink-0 group-hover:bg-yellow-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🍋</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1275,8 +1287,9 @@
                         </div>
                         <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions', this)" 
                              class="mission-file status-active p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-indigo-50 rounded flex items-center justify-center border border-indigo-100 flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
-                                <i data-lucide="smartphone" class="w-8 h-8 text-indigo-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center border border-indigo-100 flex-shrink-0 group-hover:bg-indigo-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">⚖️</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1288,8 +1301,9 @@
                         </div>
                         <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-red-50 rounded flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors">
-                                <i data-lucide="swords" class="w-8 h-8 text-red-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🌤️</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1301,8 +1315,9 @@
                         </div>
                         <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-teal-50 rounded flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors">
-                                <i data-lucide="message-circle" class="w-8 h-8 text-teal-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🎙️</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1314,8 +1329,9 @@
                         </div>
                         <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-rose-50 rounded flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors">
-                                <i data-lucide="book-open" class="w-8 h-8 text-rose-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">📖</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1331,8 +1347,9 @@
                     <div id="tab-courses" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                         <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-amber-50 rounded flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
-                                <i data-lucide="brain-circuit" class="w-8 h-8 text-amber-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🛠️</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1344,8 +1361,9 @@
                         </div>
                         <div onclick="window.launchCourse('The Unwritten Rules', 'https://www.allgoodacademy.com/courses/the-unwritten-rules-navigating-social-emotional-learning', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-slate-100 rounded flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-slate-200 transition-colors">
-                                <i data-lucide="scale" class="w-8 h-8 text-slate-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-slate-200 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🧭</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
@@ -1357,8 +1375,9 @@
                         </div>
                         <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/courses/the-ai-co-pilot-a-15-minute-microlearning-course', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-cyan-50 rounded flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors">
-                                <i data-lucide="bot" class="w-8 h-8 text-cyan-600"></i>
+                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
+                            <div class="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors shadow-sm">
+                                <span class="text-3xl emoji-badge">🤖</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
