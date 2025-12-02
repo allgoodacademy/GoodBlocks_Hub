@@ -328,6 +328,13 @@
                 dashboard.style.display = 'none';
             }
             
+            // Hide Admin Panel if open
+            const adminPanel = document.getElementById('page-admin');
+            if(adminPanel) {
+                adminPanel.classList.remove('active');
+                adminPanel.style.display = 'none';
+            }
+            
             window.updateUI('Agent'); 
             window.updateBadges(); 
 
@@ -708,6 +715,80 @@
             });
         }
 
+        // --- NEW ADMIN FUNCTIONS ---
+        window.openAdminLogin = () => {
+            const menu = document.getElementById('menu-modal');
+            if (menu) {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+            const modal = document.getElementById('admin-login-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            sfx.click();
+            setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
+        };
+
+        window.closeAdminLogin = () => {
+            const modal = document.getElementById('admin-login-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            sfx.click();
+        };
+
+        window.handleAdminAuth = async (bypass = false) => {
+            sfx.click();
+            const input = document.getElementById('admin-password-input');
+            const val = input.value.trim();
+            const btn = document.getElementById('btn-admin-submit');
+            
+            // Bypass Logic (Opt-out)
+            if (bypass) {
+                window.openAdminDashboard();
+                return;
+            }
+
+            // Simple validation check for email format
+            if (val.includes('@') && val.length > 5) {
+                // Log email if we had a backend for it, for now just allow entry
+                // Could save to Firestore 'leads' collection here if needed later
+                window.openAdminDashboard();
+                input.value = ""; // Clear input
+            } else {
+                // Error feedback
+                btn.classList.add('bg-red-600');
+                btn.textContent = "INVALID FORMAT";
+                sfx.powerOff();
+                setTimeout(() => {
+                    btn.classList.remove('bg-red-600');
+                    btn.textContent = "AUTHENTICATE";
+                }, 1500);
+            }
+        };
+
+        window.openAdminDashboard = () => {
+            sfx.confirm();
+            window.closeAdminLogin();
+            
+            // Hide standard dashboard
+            document.getElementById('page-dashboard').style.display = 'none';
+            
+            // Show Admin Dashboard
+            const adminPage = document.getElementById('page-admin');
+            adminPage.style.display = 'block';
+            adminPage.classList.add('active');
+        };
+
+        window.closeAdminDashboard = () => {
+            sfx.nav();
+            const adminPage = document.getElementById('page-admin');
+            adminPage.style.display = 'none';
+            adminPage.classList.remove('active');
+            
+            // Restore standard dashboard
+            document.getElementById('page-dashboard').style.display = 'block';
+        };
+
         const startupScreen = document.getElementById('startup-screen');
         if(startupScreen) {
             startupScreen.addEventListener('click', () => {
@@ -1086,6 +1167,34 @@
                     </div>
                 </div>
 
+                <!-- 2.7 ADMIN LOGIN MODAL (NEW - PROFESSIONAL) -->
+                <div id="admin-login-modal" class="hidden-modal absolute inset-0 z-[260] bg-slate-900/50 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="window.closeAdminLogin()">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
+                        <button onclick="window.closeAdminLogin()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+
+                        <div class="mb-6 mt-2">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <i data-lucide="lock" class="w-6 h-6 text-allgood-secondary"></i>
+                            </div>
+                            <h2 class="text-xl font-heading font-bold text-allgood-dark">Administrator Access</h2>
+                            <p class="text-xs text-gray-500 mt-1">Please verify your credentials.</p>
+                        </div>
+                        
+                        <div class="text-left mb-4">
+                            <label class="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Admin Password</label>
+                            <input type="password" id="admin-password-input" class="w-full border border-gray-300 rounded p-3 text-gray-800 focus:ring-2 focus:ring-allgood-secondary focus:border-transparent outline-none transition-all font-body" placeholder="••••••••">
+                        </div>
+                        
+                        <button id="btn-admin-submit" onclick="window.handleAdminAuth()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow-md transition-all font-body uppercase tracking-wide mb-3">
+                            Sign In
+                        </button>
+                        
+                        <button onclick="window.handleAdminAuth(true)" class="text-xs text-gray-400 hover:text-allgood-primary underline underline-offset-4 decoration-dotted font-body">
+                            Enter Preview Mode (Guest)
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 3. TOP NAVBAR (GLASS) -->
                 <header class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30">
                     <div class="flex items-center overflow-hidden">
@@ -1128,6 +1237,10 @@
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Profile Module: Coming Soon', 'info')">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
+                            <!-- ADMIN ENTRY -->
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAdminLogin()">
+                                <i data-lucide="lock" class="w-4 h-4 mr-3 text-allgood-secondary"></i>Admin Console
+                            </button>
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAboutModal()">
                                 <i data-lucide="info" class="w-4 h-4 mr-3 text-slate-500"></i>About Us
                             </button>
@@ -1138,6 +1251,139 @@
                         </div>
                         <div class="mt-auto p-4 bg-slate-50 border-t border-slate-200 text-center">
                             <p class="text-xs text-slate-500 font-body">Allgood Academy &copy; 2025</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. NEW ADMIN PAGE (PROFESSIONAL LMS STYLE) -->
+                <div class="page" id="page-admin" style="display:none;">
+                    
+                    <!-- INFO BANNER -->
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r shadow-sm flex justify-between items-start">
+                        <div class="flex">
+                            <i data-lucide="info" class="w-5 h-5 text-blue-500 mr-3 mt-0.5"></i>
+                            <div>
+                                <p class="text-sm text-blue-900 font-bold">Preview Mode</p>
+                                <p class="text-xs text-blue-700 mt-1">The Analytics Module is currently in development. Data shown below is for demonstration purposes only.</p>
+                            </div>
+                        </div>
+                        <button onclick="window.closeAdminDashboard()" class="text-blue-400 hover:text-blue-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+
+                    <!-- ADMIN TOP BAR -->
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Learner Analytics</h2>
+                            <p class="text-xs text-gray-500 font-body mt-1 uppercase tracking-wide">Overview & Reporting</p>
+                        </div>
+                        <div class="flex gap-2">
+                             <button class="bg-white border border-gray-300 text-gray-600 hover:text-allgood-primary px-4 py-2 rounded text-xs font-bold uppercase shadow-sm transition-colors flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+                            </button>
+                            <button onclick="window.closeAdminDashboard()" class="bg-allgood-secondary hover:bg-allgood-accent text-white px-4 py-2 rounded text-xs font-bold uppercase shadow-sm transition-colors">
+                                Return to Dashboard
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI CARDS -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Card 1 -->
+                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Active Learners</p>
+                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">1,248</h3>
+                                <p class="text-[10px] text-emerald-600 font-bold mt-1">▲ 12% vs last month</p>
+                            </div>
+                            <div class="p-3 bg-blue-50 rounded-full text-blue-600">
+                                <i data-lucide="users" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <!-- Card 2 -->
+                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Module Completion</p>
+                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">87%</h3>
+                                <p class="text-[10px] text-emerald-600 font-bold mt-1">▲ 4% vs last month</p>
+                            </div>
+                            <div class="p-3 bg-emerald-50 rounded-full text-emerald-600">
+                                <i data-lucide="check-circle" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <!-- Card 3 -->
+                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Avg. Assessment</p>
+                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">92/100</h3>
+                                <p class="text-[10px] text-gray-400 font-bold mt-1">─ Stable</p>
+                            </div>
+                            <div class="p-3 bg-amber-50 rounded-full text-amber-600">
+                                <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ACTIVITY TABLE -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="font-heading font-bold text-lg text-allgood-dark">Recent Learner Activity</h3>
+                            <div class="relative">
+                                <input type="text" placeholder="Search learner..." class="pl-8 pr-4 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-allgood-secondary outline-none w-48">
+                                <i data-lucide="search" class="w-3 h-3 text-gray-400 absolute left-3 top-2.5"></i>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                                        <th class="p-4 font-bold">Learner Name</th>
+                                        <th class="p-4 font-bold">Module</th>
+                                        <th class="p-4 font-bold">Date</th>
+                                        <th class="p-4 font-bold">Status</th>
+                                        <th class="p-4 font-bold text-right">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm text-gray-700 divide-y divide-gray-100">
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="p-4 font-medium text-allgood-dark">Sarah Jenkins</td>
+                                        <td class="p-4">Airport Navigator</td>
+                                        <td class="p-4 text-gray-500">Oct 24, 2025</td>
+                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
+                                        <td class="p-4 text-right font-bold">100%</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="p-4 font-medium text-allgood-dark">Michael Ross</td>
+                                        <td class="p-4">Digital Asset Defense</td>
+                                        <td class="p-4 text-gray-500">Oct 24, 2025</td>
+                                        <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase">In Progress</span></td>
+                                        <td class="p-4 text-right font-bold text-gray-400">--</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="p-4 font-medium text-allgood-dark">David Kim</td>
+                                        <td class="p-4">Mastering the Apology</td>
+                                        <td class="p-4 text-gray-500">Oct 23, 2025</td>
+                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
+                                        <td class="p-4 text-right font-bold">95%</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="p-4 font-medium text-allgood-dark">Elena Rodriguez</td>
+                                        <td class="p-4">Digital Decisions</td>
+                                        <td class="p-4 text-gray-500">Oct 22, 2025</td>
+                                        <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Review Needed</span></td>
+                                        <td class="p-4 text-right font-bold text-amber-600">72%</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="p-4 font-medium text-allgood-dark">James Chen</td>
+                                        <td class="p-4">Your Digital Identity</td>
+                                        <td class="p-4 text-gray-500">Oct 22, 2025</td>
+                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
+                                        <td class="p-4 text-right font-bold">88%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-center">
+                            <button class="text-xs text-allgood-secondary font-bold hover:underline">View All History</button>
                         </div>
                     </div>
                 </div>
@@ -1468,6 +1714,68 @@
                     </div>
                 </div>
 
+                </div> <!-- End Dashboard Page -->
+
+                <!-- 5. NEW ADMIN PAGE (BLUEPRINT MODE) -->
+                <div class="page" id="page-admin" style="display:none; background-color: #0f172a; color: #94a3b8;">
+                    <!-- ADMIN TOP BAR -->
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-4 mb-8">
+                        <div>
+                            <h2 class="text-2xl font-mono text-cyan-400 tracking-wider">SYSTEM_ADMIN_CONSOLE</h2>
+                            <p class="text-[10px] text-slate-500 font-mono mt-1">V.2025.04.1 | SECURITY_LEVEL_4</p>
+                        </div>
+                        <button onclick="window.closeAdminDashboard()" class="text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-4 py-2 rounded text-xs font-mono uppercase transition-all">
+                            EXIT_CONSOLE
+                        </button>
+                    </div>
+
+                    <!-- ADMIN GRID -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono">
+                        
+                        <!-- SYSTEM STATUS -->
+                        <div class="bg-slate-800 border border-slate-700 p-6 rounded">
+                            <h3 class="text-sm text-cyan-500 mb-4 border-b border-slate-700 pb-2 uppercase tracking-widest">System_Diagnostics</h3>
+                            <div class="space-y-3 text-xs">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">SERVER_LOAD</span>
+                                    <span class="text-green-400">12% [NOMINAL]</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">ACTIVE_SESSIONS</span>
+                                    <span class="text-blue-400">4,291</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">DB_LATENCY</span>
+                                    <span class="text-green-400">24ms</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">SECURITY_ALERTS</span>
+                                    <span class="text-slate-500">NONE</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RECENT ACTIVITY (DUMMY) -->
+                        <div class="bg-slate-800 border border-slate-700 p-6 rounded relative overflow-hidden">
+                             <h3 class="text-sm text-cyan-500 mb-4 border-b border-slate-700 pb-2 uppercase tracking-widest">Log_Stream</h3>
+                             <div class="space-y-2 text-xs text-slate-500 opacity-60">
+                                 <p>> User_2941 initialized module [Airport_Nav]...</p>
+                                 <p>> System_GC running cleanup...</p>
+                                 <p>> User_8812 badge_unlock [Operator]...</p>
+                                 <p>> Connection from IP 192.168.1.10...</p>
+                             </div>
+                             <!-- COMING SOON OVERLAY -->
+                             <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                                 <div class="border-2 border-dashed border-slate-600 px-6 py-4 rounded rotate-[-5deg] bg-slate-800/80">
+                                     <h2 class="text-2xl text-slate-200 font-bold uppercase tracking-widest text-center">System Update<br>In Progress</h2>
+                                     <p class="text-xs text-cyan-500 text-center mt-2 font-mono">Module Coming Soon</p>
+                                 </div>
+                             </div>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
 
             <!-- ABOUT US MODAL -->
@@ -1652,10 +1960,13 @@
                 homeBtn.addEventListener('mouseleave', () => clearTimeout(homePressTimer));
             }
 
-            document.getElementById('btn-blueprint').addEventListener('click', () => {
-                document.body.classList.toggle('blueprint-mode');
-                sfx.tick();
-            });
+            const btnBlueprint = document.getElementById('btn-blueprint');
+            if(btnBlueprint) {
+                 btnBlueprint.addEventListener('click', () => {
+                    document.body.classList.toggle('blueprint-mode');
+                    sfx.tick();
+                });
+            }
 
             const fullscreenBtn = document.getElementById('btn-fullscreen');
             if(fullscreenBtn) {
@@ -1674,17 +1985,23 @@
             }
 
             const menuModal = document.getElementById('menu-modal');
-            document.getElementById('btn-menu').addEventListener('click', () => {
-                menuModal.classList.remove('hidden-modal');
-                menuModal.classList.add('visible-modal');
-                sfx.tick();
-            });
+            const btnMenu = document.getElementById('btn-menu');
+            if(btnMenu && menuModal) {
+                 btnMenu.addEventListener('click', () => {
+                    menuModal.classList.remove('hidden-modal');
+                    menuModal.classList.add('visible-modal');
+                    sfx.tick();
+                });
+            }
 
-            document.getElementById('close-menu').addEventListener('click', () => {
-                menuModal.classList.add('hidden-modal');
-                menuModal.classList.remove('visible-modal');
-                sfx.tick();
-            });
+            const closeMenu = document.getElementById('close-menu');
+            if(closeMenu && menuModal) {
+                closeMenu.addEventListener('click', () => {
+                    menuModal.classList.add('hidden-modal');
+                    menuModal.classList.remove('visible-modal');
+                    sfx.tick();
+                });
+            }
         });
 
         window.openAboutModal = () => {
