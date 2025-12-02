@@ -15,9 +15,9 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
-        // 1. CONFIGURATION (Exact match to DDC)
+        // 1. CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
@@ -46,14 +46,25 @@
         console.log("[System] Session ID generated:", window.sessionId);
 
         // 4. AUTH HANDLER
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             window.isAuthReady = true;
             if (user) {
                 console.log("[Auth] User detected:", user.uid);
                 window.currentUser = user;
                 
-                // Sync Profile
-                const finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                // Retrieve or Set Display Name
+                let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                
+                // Attempt to fetch from DB for consistency if missing
+                if (finalName === "Agent Learner") {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            finalName = userDoc.data().displayName || finalName;
+                        }
+                    } catch(e) { console.log("Profile fetch skipped", e); }
+                }
+
                 window.currentUserName = finalName;
                 window.currentUserEmail = user.email;
                 
@@ -61,12 +72,12 @@
                 const welcomeText = document.getElementById('header-welcome-text');
                 if(welcomeText) welcomeText.textContent = `Agent: ${finalName}`;
                 
-                // Hide login modal if present
+                // Hide login modal if present (this handles the SSO case)
                 const loginModal = document.getElementById('login-modal');
                 if (loginModal && !loginModal.classList.contains('hidden-modal')) {
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
-                    // Auto-start session log if we just auto-logged in
+                    // Auto-start session log if we just auto-logged in via SSO
                     if(window.SessionManager) window.SessionManager.start(finalName, user.email);
                 }
             } else {
@@ -75,7 +86,25 @@
             }
         });
 
-        // 5. DATABASE LOGGING ENGINE
+        // 5. IDENTITY ENGINE
+        async function ensureUserContainer(user, name, email, isGuest) {
+             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+             
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || (isGuest ? null : user.email || null),
+                     isGuest: isGuest,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: "Digital Asset Defense"
+                 }, { merge: true });
+                 console.log("[Identity] User container verified/created.");
+             } catch (e) {
+                 console.error("[Identity] Failed to create user container:", e);
+             }
+        }
+
+        // 6. DATABASE LOGGING ENGINE
         window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
             if (!user) {
@@ -104,10 +133,8 @@
             if (payload.percentage) sessionData.percentage = payload.percentage;
 
             try {
-                // Update Main Session Doc
                 await setDoc(sessionRef, sessionData, { merge: true });
                 
-                // Add to Logs Sub-collection
                 const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
                 await addDoc(logsRef, {
                     action: action,
@@ -121,18 +148,21 @@
             }
         };
 
-        // 6. LOGIN FUNCTIONS
+        // 7. LOGIN FUNCTIONS
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
             const btn = document.getElementById('btn-guest-login');
             
+            const originalText = btn.innerText;
             btn.innerText = "Connecting...";
             btn.disabled = true;
 
             try {
-                let user = auth.currentUser;
-                if (!user) {
+                let user;
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    user = auth.currentUser;
+                } else {
                     const result = await signInAnonymously(auth);
                     user = result.user;
                 }
@@ -140,21 +170,22 @@
                 const displayName = nameInput || "Agent Learner";
                 await updateProfile(user, { displayName: displayName });
                 
+                // Establish Identity
+                await ensureUserContainer(user, displayName, emailInput, true);
+
                 window.currentUserName = displayName;
                 window.currentUserEmail = emailInput;
                 
-                // Update Global Auth State for Consistency
                 localStorage.setItem('aa_username', displayName);
                 localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'true');
                 
-                // UI Updates
+                console.log("[Auth] Guest login successful. UID:", user.uid);
+                if(window.SessionManager) window.SessionManager.start(displayName, emailInput);
+                
                 document.getElementById('header-welcome-text').textContent = `Agent: ${displayName}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
-                
-                // Start Session
-                if(window.SessionManager) window.SessionManager.start(displayName, emailInput);
-                
                 window.showPage(0);
                 if(window.sfx) window.sfx.nav();
 
@@ -162,36 +193,47 @@
                 console.error("Login Failed", error);
                 alert("Connection failed. Please try again.");
             } finally {
-                btn.innerText = "Start Challenge";
+                btn.innerText = originalText;
                 btn.disabled = false;
             }
         };
 
         window.handleGoogleLogin = async () => {
             const provider = new GoogleAuthProvider();
+            const btnContainer = document.getElementById('google-icon-container');
+            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
+            
             try {
                 const result = await signInWithPopup(auth, provider);
-                const user = result.user;
+                const user = result.user; 
                 
                 const finalName = user.displayName || "Agent";
+                
+                // Establish Identity
+                await ensureUserContainer(user, finalName, user.email, false);
+
                 window.currentUserName = finalName;
                 window.currentUserEmail = user.email;
                 
                 localStorage.setItem('aa_username', finalName);
                 localStorage.setItem('aa_email', user.email);
                 localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'false');
+
+                console.log("[Auth] Google login successful. UID:", user.uid);
+                if(window.SessionManager) window.SessionManager.start(finalName, user.email);
 
                 document.getElementById('header-welcome-text').textContent = `Agent: ${finalName}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
-                
-                if(window.SessionManager) window.SessionManager.start(finalName, user.email);
                 
                 window.showPage(0);
                 if(window.sfx) window.sfx.nav();
             } catch (error) {
                 console.error("Google Sign-In Error", error);
                 alert("Google Sign-In failed. Please try again.");
+            } finally {
+                 if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
             }
         };
         
