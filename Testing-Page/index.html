@@ -16,11 +16,9 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        setLogLevel('silent');
         
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        // 1. CONFIGURATION (Exact match to DDC)
+        const firebaseConfig = {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
@@ -30,69 +28,68 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        // Force Shared App ID to ensure Game and Dashboard talk to the same DB folder
         const appId = 'allgood-academy'; 
         
+        // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // 3. GLOBAL STATE
         window.currentUser = null;
+        window.currentUserName = "Anonymous";
+        window.currentUserEmail = "";
         window.isAuthReady = false;
-
-        // --- AUTH INIT ---
-        (async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } catch (e) { console.warn("SSO Token failed.", e); }
-            } 
-            
-            onAuthStateChanged(auth, (user) => {
-                window.isAuthReady = true;
-                if (user) {
-                    window.currentUser = user;
-                    
-                    // Auto-sync display name if available
-                    const dashboardName = localStorage.getItem('aa_username');
-                    const authName = user.displayName;
-                    const finalName = dashboardName || authName || "Agent Learner";
-                    
-                    window.currentUserName = finalName;
-                    window.currentUserEmail = user.email;
-                    
-                    // Update UI
-                    const welcomeText = document.getElementById('header-welcome-text');
-                    if(welcomeText) welcomeText.textContent = `Agent: ${finalName}`;
-                    
-                    // Hide login modal if it was open
-                    const loginModal = document.getElementById('login-modal');
-                    if (loginModal && !loginModal.classList.contains('hidden-modal')) {
-                        loginModal.classList.add('hidden-modal');
-                        loginModal.classList.remove('visible-modal');
-                        // Start session immediately upon auth detection if modal was open
-                        window.SessionManager.start(finalName, user.email);
-                        window.showPage(0);
-                    }
-                } else {
-                    window.currentUser = null;
-                    window.currentUserName = "Anonymous";
-                }
-            });
-        })();
-
-        // --- FIRESTORE LOGGING ENGINE ---
         
+        // Define Session ID here to ensure it exists before any logging logic runs
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        console.log("[System] Session ID generated:", window.sessionId);
+
+        // 4. AUTH HANDLER
+        onAuthStateChanged(auth, (user) => {
+            window.isAuthReady = true;
+            if (user) {
+                console.log("[Auth] User detected:", user.uid);
+                window.currentUser = user;
+                
+                // Sync Profile
+                const finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                
+                // Update UI
+                const welcomeText = document.getElementById('header-welcome-text');
+                if(welcomeText) welcomeText.textContent = `Agent: ${finalName}`;
+                
+                // Hide login modal if present
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal && !loginModal.classList.contains('hidden-modal')) {
+                    loginModal.classList.add('hidden-modal');
+                    loginModal.classList.remove('visible-modal');
+                    // Auto-start session log if we just auto-logged in
+                    if(window.SessionManager) window.SessionManager.start(finalName, user.email);
+                }
+            } else {
+                console.log("[Auth] No user signed in.");
+                window.currentUser = null;
+            }
+        });
+
+        // 5. DATABASE LOGGING ENGINE
         window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
-            if (!user) return;
+            if (!user) {
+                console.warn("[DB] Skipping write - No User");
+                return;
+            }
             
-            // 1. Ensure Session Document Exists/Updates
-            // Path: artifacts/{appId}/users/{uid}/game_scores/{sessionId}
+            console.log(`[DB] Writing event: ${action} - ${detail}`);
+
+            // Path: artifacts/allgood-academy/users/{uid}/game_scores/{sessionId}
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             
             const sessionData = {
-                gameName: "Digital Asset Defense", // CRITICAL for Dashboard Badge logic
+                gameName: "Digital Asset Defense", 
                 lastUpdated: serverTimestamp(),
                 user: {
                     uid: user.uid,
@@ -101,16 +98,16 @@
                 }
             };
 
-            // Merge high-level metrics into the main document for easy querying
-            if (payload.score) sessionData.finalScore = parseInt(payload.score.split('/')[0]); // Parse "6/7" to 6
-            if (payload.status) sessionData.status = payload.status; // "Pass" or "Fail"
+            // Merge High-Level Metrics
+            if (payload.score) sessionData.finalScore = parseInt(payload.score.split('/')[0]); 
+            if (payload.status) sessionData.status = payload.status; 
             if (payload.percentage) sessionData.percentage = payload.percentage;
 
             try {
+                // Update Main Session Doc
                 await setDoc(sessionRef, sessionData, { merge: true });
                 
-                // 2. Log Granular Event to Sub-collection
-                // Path: artifacts/{appId}/users/{uid}/game_scores/{sessionId}/logs/{autoId}
+                // Add to Logs Sub-collection
                 const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
                 await addDoc(logsRef, {
                     action: action,
@@ -118,24 +115,22 @@
                     payload: payload,
                     timestamp: serverTimestamp()
                 });
-                
+                console.log("[DB] Write Success.");
             } catch (e) {
-                console.warn("Telemetry Error:", e);
+                console.error("[DB] Write FAILED:", e);
             }
         };
 
-        // --- LOGIN HANDLERS ---
+        // 6. LOGIN FUNCTIONS
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
             const btn = document.getElementById('btn-guest-login');
             
-            const originalText = btn.innerText;
             btn.innerText = "Connecting...";
             btn.disabled = true;
 
             try {
-                // If already signed in (via SSO), update profile. If not, sign in anonymously.
                 let user = auth.currentUser;
                 if (!user) {
                     const result = await signInAnonymously(auth);
@@ -148,31 +143,32 @@
                 window.currentUserName = displayName;
                 window.currentUserEmail = emailInput;
                 
+                // Update Global Auth State for Consistency
+                localStorage.setItem('aa_username', displayName);
+                localStorage.setItem('aa_uid', user.uid);
+                
                 // UI Updates
                 document.getElementById('header-welcome-text').textContent = `Agent: ${displayName}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
-                // Start Session Log
-                window.SessionManager.start(displayName, emailInput);
+                // Start Session
+                if(window.SessionManager) window.SessionManager.start(displayName, emailInput);
                 
                 window.showPage(0);
-                window.sfx.nav();
+                if(window.sfx) window.sfx.nav();
 
             } catch (error) {
                 console.error("Login Failed", error);
                 alert("Connection failed. Please try again.");
             } finally {
-                btn.innerText = originalText;
+                btn.innerText = "Start Challenge";
                 btn.disabled = false;
             }
         };
 
         window.handleGoogleLogin = async () => {
             const provider = new GoogleAuthProvider();
-            const btnContainer = document.getElementById('google-icon-container');
-            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
-
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
@@ -181,32 +177,27 @@
                 window.currentUserName = finalName;
                 window.currentUserEmail = user.email;
                 
-                // Update Local Storage for Dashboard compatibility
                 localStorage.setItem('aa_username', finalName);
                 localStorage.setItem('aa_email', user.email);
                 localStorage.setItem('aa_uid', user.uid);
-                localStorage.setItem('aa_is_guest', 'false');
 
-                // UI Updates
                 document.getElementById('header-welcome-text').textContent = `Agent: ${finalName}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
-                // Start Session Log
-                window.SessionManager.start(finalName, user.email);
+                if(window.SessionManager) window.SessionManager.start(finalName, user.email);
                 
                 window.showPage(0);
-                window.sfx.nav();
+                if(window.sfx) window.sfx.nav();
             } catch (error) {
                 console.error("Google Sign-In Error", error);
                 alert("Google Sign-In failed. Please try again.");
-            } finally {
-                if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
             }
         };
-
-        // Expose Auth to global scope for debugging
+        
+        // Expose for Debugging
         window.auth = auth;
+        window.db = db;
     </script>
 
     <!-- Tailwind Config -->
