@@ -11,22 +11,37 @@
     <!-- Font Awesome (Legacy Support) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     
+    <!-- BRAND INTEGRATION: Google Fonts for Jonathan's Brand Look-alikes -->
+    <!-- Tenor Sans (~Black Mango), Outfit (~Kollektif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Tenor+Sans&display=swap" rel="stylesheet">
+
     <!-- Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'allgood-primary': '#D34716',   // Burnt Orange
-                        'allgood-secondary': '#357889', // Deep Cyan
-                        'allgood-dark': '#4C4C4C',      // Dark Gray
-                        'allgood-light': '#F7F7F7',      // Light Gray
-                        'allgood-hover': '#EB8D69',      // Light Orange
-                        'allgood-accent': '#2D6473',     // Darker Cyan
+                        // Allgood System Colors
+                        'allgood-primary': '#D34716',   
+                        'allgood-secondary': '#357889', 
+                        'allgood-dark': '#4C4C4C',      
+                        'allgood-light': '#F7F7F7',      
+                        'allgood-hover': '#EB8D69',      
+                        'allgood-accent': '#2D6473',
+                        
+                        // Jonathan's Brand Colors (Scoped)
+                        'jonathan-navy': '#192f51',
+                        'jonathan-orange': '#d25d23',
                     },
                     fontFamily: {
-                        'heading': ['Georgia', 'serif'],
-                        'body': ['Verdana', 'sans-serif'],
+                        'heading': ['Georgia', 'serif'], // System Heading
+                        'body': ['Verdana', 'sans-serif'], // System Body
+                        
+                        // Jonathan's Brand Fonts
+                        'j-heading': ['"Tenor Sans"', 'sans-serif'],
+                        'j-body': ['"Outfit"', 'sans-serif'],
                     },
                 },
             },
@@ -41,11 +56,12 @@
         */
         body {
             font-family: Verdana, sans-serif;
-            background-color: #1a1a1a;
+            /* BRAND INTEGRATION: "The Surveyor's Grid" Theme (Deep Navy Base) */
+            background-color: #192f51; /* Jonathan's Navy */
             background-image: 
                 linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-size: 40px 40px; /* Precise grid */
             background-attachment: fixed;
             min-height: 100vh;
             position: relative;
@@ -53,7 +69,30 @@
             padding: 0;
         }
 
+        /* SYSTEM FONTS (Navbar, Footer, Modals) remain Georgia/Verdana */
         h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
+
+        /* CONTENT SCOPING: Apply Jonathan's Fonts & Colors INSIDE the lesson pages only */
+        .page h1, .page h2, .page h3, .page h4 {
+            font-family: 'Tenor Sans', sans-serif !important;
+            color: #192f51; /* Default headers to Navy inside pages */
+        }
+        
+        .page p, .page li, .page span, .page div, .page button {
+            font-family: 'Outfit', sans-serif !important;
+        }
+
+        /* Exception: Utility classes that explicitly set text color should override the default */
+        .page .text-allgood-primary { color: #D34716 !important; }
+        .page .text-white { color: #ffffff !important; }
+        
+        /* BRAND INTEGRATION: Custom Primary Button for Content */
+        .jonathan-btn {
+            background-color: #d25d23 !important; /* Jonathan Orange */
+        }
+        .jonathan-btn:hover {
+            background-color: #b54915 !important;
+        }
 
         @keyframes pulse-glow {
             0%, 100% { 
@@ -608,18 +647,19 @@
                         
                         <!-- Headshot Avatar -->
                         <div class="mb-6 relative group">
-                            <div class="absolute -inset-1 bg-gradient-to-r from-allgood-primary to-allgood-secondary rounded-full opacity-25 blur transition duration-500 group-hover:opacity-50"></div>
+                            <div class="absolute -inset-1 bg-gradient-to-r from-allgood-primary to-allgood-secondary rounded-xl opacity-25 blur transition duration-500 group-hover:opacity-50"></div>
                             <img 
-                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
+                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/Jonathan_Headshot_Branded.png?raw=true" 
                                 alt="Jonathan Hurtado" 
-                                class="relative w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto"
+                                class="relative w-32 h-32 rounded-xl object-cover border-4 border-white shadow-lg mx-auto"
                             >
                         </div>
 
-                        <div class="mb-4"><h2 class="text-xl font-heading font-bold text-allgood-dark">Jonathan Hurtado's Buyer's Guide</h2></div>
-                        <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-12 leading-tight">Countdown to Keys:<br><span class="text-allgood-primary">The 100-Day Challenge</span></h1>
+                        <div class="mb-4"><h2 class="text-xl font-bold text-jonathan-navy">Jonathan Hurtado's Buyer's Guide</h2></div>
+                        <h1 class="text-4xl sm:text-5xl font-bold text-jonathan-navy mb-12 leading-tight">Countdown to Keys:<br><span class="text-jonathan-orange">The 100-Day Challenge</span></h1>
                         
-                        <button onclick="nextPage()" class="bg-allgood-primary text-white font-bold py-4 px-10 rounded-full shadow-lg hover:bg-allgood-hover transition-all transform hover:scale-105 animate-pulse mb-12 text-lg">
+                        <!-- BRAND INTEGRATION: Use Jonathan's Orange for this specific CTA -->
+                        <button onclick="nextPage()" class="jonathan-btn text-white font-bold py-4 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 animate-pulse mb-12 text-lg">
                             Start Phase 1
                         </button>
 
@@ -1164,6 +1204,10 @@
                 <div class="page" id="page-8">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Can You Afford It?</h2></section>
                     <div class="bg-white p-4 rounded shadow border max-w-md mx-auto">
+                        <p class="text-sm text-gray-600 mb-6 leading-relaxed">
+                            This calculator is your <strong>first defense against overspending.</strong> Use your gross income and estimated monthly debts (car, student loans, credit card minimums) to see where you land on the Lender's 28/36 rule.
+                        </p>
+
                         <label class="block text-xs font-bold mb-1 text-gray-600">Monthly Gross Income ($)</label>
                         <input type="number" id="calc-income" class="w-full border p-2 rounded mb-3 font-body text-sm focus:border-allgood-primary outline-none transition-colors" placeholder="e.g. 5000">
                         
@@ -1443,11 +1487,11 @@
                     <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
                         <div>
                             <h2 class="text-2xl font-heading font-bold text-allgood-dark">Briefing: The Loan Explorer</h2>
-                            <p class="text-xs text-gray-500 mt-1">Explore all 4 options to unlock the next step.</p>
+                            <p class="text-xs text-gray-500 mt-1">Explore all 5 options to unlock the next step.</p>
                         </div>
                         <!-- Progress Cue -->
                         <div class="flex flex-col items-end w-24">
-                             <div class="text-[10px] font-bold text-allgood-primary mb-1" id="loan-progress-text">0/4 Explored</div>
+                             <div class="text-[10px] font-bold text-allgood-primary mb-1" id="loan-progress-text">0/5 Explored</div>
                              <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                                  <div id="loan-progress-bar" class="h-full bg-allgood-primary w-0 transition-all duration-500"></div>
                              </div>
@@ -1482,7 +1526,7 @@
                                     <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-orange-200 object-cover flex-shrink-0">
                                     <div>
                                         <p class="text-[10px] font-bold text-orange-800 uppercase mb-0.5">Jonathan's Tip</p>
-                                        <p class="text-xs text-gray-600 italic">"Best if you’re starting out and need flexibility. It's a great launchpad."</p>
+                                        <p class="text-xs text-gray-600 italic">"Best if you’re starting out and need flexibility. It's the perfect launchpad."</p>
                                     </div>
                                 </div>
                             </div>
@@ -1567,6 +1611,37 @@
                                     <div>
                                         <p class="text-[10px] font-bold text-amber-800 uppercase mb-0.5">Jonathan's Tip</p>
                                         <p class="text-xs text-gray-600 italic">"Best if you’re buying outside the city. Great for expanding your search map."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Creative Financing (The Secret Menu) -->
+                        <div class="border border-purple-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md group loan-card" data-type="creative">
+                            <button onclick="toggleLoanAccordion(this)" class="w-full flex items-center justify-between p-4 bg-white hover:bg-purple-50/50 text-left transition-colors relative">
+                                <div class="flex items-center gap-4">
+                                    <!-- Handshake Icon -->
+                                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                        <i data-lucide="handshake" class="w-6 h-6 text-purple-600"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-allgood-dark text-base">Creative Financing</h3>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase tracking-wide mt-1">The "Secret Menu"</span>
+                                    </div>
+                                </div>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 accordion-arrow"></i>
+                            </button>
+                            <div class="hidden bg-purple-50 border-t border-purple-100 p-5 animate-pop-in">
+                                <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                                    When the bank says "No," we build our own deal. <strong>Owner Financing</strong> (Seller acts as the bank) or <strong>Assumable Mortgages</strong> (taking over a low-interest loan) can save deals that look dead on paper.
+                                </p>
+                                <!-- Mentor Bubble -->
+                                <div class="flex gap-3 bg-white p-3 rounded-lg border border-purple-200 shadow-sm relative">
+                                    <div class="absolute -left-1 top-4 w-2 h-2 bg-white border-l border-b border-purple-200 transform rotate-45"></div>
+                                    <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" class="w-8 h-8 rounded-full border border-purple-200 object-cover flex-shrink-0">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-purple-800 uppercase mb-0.5">Jonathan's Tip</p>
+                                        <p class="text-xs text-gray-600 italic">"Banks have rigid boxes. If you don't fit, we build our own box. This is exactly why you need a pro realtor in your corner."</p>
                                     </div>
                                 </div>
                             </div>
@@ -1710,7 +1785,12 @@
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">3+ Bedrooms</div>
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Granite Counters</div>
                         <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Safe Neighborhood</div>
-                        <button onclick="toggleTradeP20(this)" class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors">Smart Home Tech</button>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Smart Home Tech</div>
+                        <!-- NEW ITEMS ADDED BELOW -->
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Home Office</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Fenced Yard</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">2-Car Garage</div>
+                        <div class="p-3 border rounded text-xs font-bold text-center cursor-pointer hover:bg-gray-50 bg-white transition-colors" onclick="toggleTradeP20(this)">Move-in Ready</div>
                     </div>
                     <div id="tradeoff-feedback-p20" class="mt-4 text-center text-sm font-bold text-allgood-primary">Selected: 0/3</div>
                 </div>
@@ -1857,38 +1937,54 @@
                     </div>
                 </div>
 
-                <!-- Page 23: Do (Max's Gap Strategy) -->
+                <!-- Page 23: Do (The Price is Right - NEW) -->
                 <div class="page" id="page-23">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Max's Gap Strategy</h2></section>
-                    <p class="text-sm text-gray-600 mb-6 leading-relaxed">
-                        Max is in a bidding war. The house is listed at $400k. He needs your help to navigate the "Appraisal Gap" risk.
-                    </p>
-
-                    <!-- Step 1: The Offer -->
-                    <div id="cash-step-1" class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-                        <h3 class="font-bold text-allgood-dark text-sm mb-3 flex items-center gap-2">
-                            <span class="bg-allgood-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">1</span>
-                            Max's Move
-                        </h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="runCashSim(this, 'lowball')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Offer $380k<br><span class="font-normal text-gray-500">(Play it Safe)</span></button>
-                            <button onclick="runCashSim(this, 'competitive')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Offer $405k<br><span class="font-normal text-gray-500">(Win the War)</span></button>
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: The Price is Right</h2></section>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Market Intel -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 shadow-sm">
+                            <h3 class="font-bold text-blue-900 text-sm mb-3 flex items-center gap-2">
+                                <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Market Intel (Comps)
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="bg-white p-2 rounded border border-blue-100 text-xs shadow-sm">
+                                    <strong class="block text-gray-700">Comp 1: 123 Oak St</strong>
+                                    <span class="text-gray-500">Exact Match Model. Sold last week.</span>
+                                    <div class="font-bold text-allgood-dark mt-1">$435,000</div>
+                                </div>
+                                <div class="bg-white p-2 rounded border border-blue-100 text-xs shadow-sm">
+                                    <strong class="block text-gray-700">Comp 2: 125 Pine St</strong>
+                                    <span class="text-gray-500">Better Kitchen. Sold 2 weeks ago.</span>
+                                    <div class="font-bold text-allgood-dark mt-1">$440,000</div>
+                                </div>
+                                <div class="bg-blue-100 p-2 rounded border border-blue-200 text-xs mt-4">
+                                    <strong class="block text-blue-900">SUBJECT PROPERTY</strong>
+                                    <span class="text-blue-800">Listed 45 Days Ago.</span>
+                                    <div class="font-bold text-blue-900 mt-1 text-lg">$450,000</div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="cash-feedback-1" class="hidden mt-3 text-xs font-bold"></div>
-                    </div>
 
-                    <!-- Step 2: The Gap (Hidden initially) -->
-                    <div id="cash-step-2" class="bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-sm opacity-50 pointer-events-none transition-all">
-                        <h3 class="font-bold text-allgood-dark text-sm mb-3 flex items-center gap-2">
-                            <span class="bg-allgood-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">2</span>
-                            The Appraisal Shock
-                        </h3>
-                        <p class="text-xs text-gray-600 mb-3 italic">"Max won! But the Bank Appraisal came in at <strong>$395k</strong>. There is a $10,000 Gap."</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="runCashSim(this, 'demand')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Demand Price Drop<br><span class="font-normal text-gray-500">(Seller pays gap)</span></button>
-                            <button onclick="runCashSim(this, 'cover')" class="p-3 border rounded text-xs font-bold hover:bg-gray-50 transition-colors text-center">Cover Gap in Cash<br><span class="font-normal text-gray-500">(Max pays gap)</span></button>
+                        <!-- The Offer -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm flex flex-col justify-center">
+                            <h3 class="font-bold text-allgood-dark text-sm mb-4">Make Your Opening Offer</h3>
+                            <div class="space-y-3">
+                                <button onclick="runPricingSim(this, 'low')" class="w-full p-4 border rounded-lg text-left hover:bg-gray-50 transition-all group border-l-4 border-l-transparent hover:border-l-orange-400 shadow-sm relative overflow-hidden bg-white">
+                                    <strong class="block text-sm text-gray-800 relative z-10">Offer $400k</strong>
+                                    <span class="text-xs text-gray-500 relative z-10">Aggressive (-11%)</span>
+                                </button>
+                                <button onclick="runPricingSim(this, 'data')" class="w-full p-4 border rounded-lg text-left hover:bg-gray-50 transition-all group border-l-4 border-l-transparent hover:border-l-allgood-primary shadow-sm relative overflow-hidden bg-white">
+                                    <strong class="block text-sm text-gray-800 relative z-10">Offer $435k</strong>
+                                    <span class="text-xs text-gray-500 relative z-10">Data Driven (Matches Comp 1)</span>
+                                </button>
+                                <button onclick="runPricingSim(this, 'high')" class="w-full p-4 border rounded-lg text-left hover:bg-gray-50 transition-all group border-l-4 border-l-transparent hover:border-l-green-500 shadow-sm relative overflow-hidden bg-white">
+                                    <strong class="block text-sm text-gray-800 relative z-10">Offer $450k</strong>
+                                    <span class="text-xs text-gray-500 relative z-10">Full Asking Price</span>
+                                </button>
+                            </div>
+                            <div id="pricing-feedback" class="hidden mt-4 text-xs font-bold p-3 rounded leading-relaxed animate-pop-in font-body"></div>
                         </div>
-                        <div id="cash-feedback-2" class="hidden mt-3 text-xs font-bold"></div>
                     </div>
                 </div>
 
@@ -1931,9 +2027,9 @@
                                 <div class="flex gap-2 items-start bg-orange-100 p-2 rounded border border-orange-200">
                                     <i data-lucide="zap" class="w-4 h-4 text-allgood-primary mt-0.5 flex-shrink-0"></i>
                                     <div>
-                                        <strong class="text-xs text-allgood-primary block">Pro Strategy: Credit > Repair</strong>
+                                        <strong class="text-xs text-allgood-primary block">Pro Strategy: Quality Control</strong>
                                         <p class="text-[10px] text-gray-700 leading-snug">
-                                            Never ask the seller to do repairs. They will hire the cheapest handyman. <br><strong>Always ask for a Closing Cost Credit.</strong> This keeps cash in your pocket so <em>you</em> can hire a pro to fix it right.
+                                            Credits are usually safer (you control the hire). But if you ask the seller for repairs, you must <strong>mandate licensed professionals</strong> in the contract. Require paid receipts and lien waivers before closing to avoid "Band-Aid" fixes.
                                         </p>
                                     </div>
                                 </div>
@@ -2120,9 +2216,10 @@
                             >
                         </div>
                         
-                        <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-4">Let's Find Your Home.</h2>
+                        <h2 class="text-3xl font-heading font-bold text-jonathan-navy mb-4">Let's Find Your Home.</h2>
                         <p class="text-base text-gray-600 mb-8 max-w-md">You've done the work. You know the process. Now, let's execute the strategy.</p>
-                        <a href="https://calendly.com" target="_blank" class="w-full max-w-sm bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-4 px-8 rounded-lg shadow-xl transition-transform transform hover:scale-105 flex items-center justify-center gap-2">
+                        <!-- BRAND INTEGRATION: Button Color -->
+                        <a href="https://calendly.com" target="_blank" class="w-full max-w-sm jonathan-btn text-white font-bold py-4 px-8 rounded-lg shadow-xl transition-transform transform hover:scale-105 flex items-center justify-center gap-2">
                             <i data-lucide="calendar-check" class="w-6 h-6"></i>
                             <span>Schedule Priority Consultation</span>
                         </a>
@@ -2260,7 +2357,7 @@
             4: "Max picked 'Stability' as his anchor. Now, let's look at the rules lenders will use to judge Max's application.",
             5: "Max learns the 'Golden Rules' of affordability. These are the guardrails that will protect his financial stability.",
             6: "Max is a W-2 employee, but he has a side hustle. Run the checks to see if the lender will count his extra income.",
-            8: "Max earns $5,000/mo but spends $600 on a car. Use the calculator to see if he can afford the $400k house he wants.",
+            8: "This calculator is your first defense against overspending. Use your gross income and estimated monthly debts to see where you land on the Lender's 28/36 rule.",
             9: "Max's DTI is too high! He needs to make a trade-off. Help Max decide what to cut to afford his dream home.",
             10: "Max is 'Conditionally Approved,' but he almost bought furniture on credit! Guide him to the safe zone.",
             11: "Max realizes his credit score is the difference between a $2,500 payment and a $2,800 payment. He commits to protecting it.",
@@ -2268,11 +2365,11 @@
             14: "Max only has $15,000 saved. Expand the cards to help him find a loan that fits his savings account.",
             15: "Test Max's knowledge. Match the buyer profile to the right loan to secure his funding strategy.",
             16: "Max needs to prove he's reliable. Help him pack his 'Digital Go-Bag' for the underwriter.",
-            18: "Max wants a mansion, but his budget is a cottage. He has to pick 2: Location, Price, or Condition.",
+            18: "Max has champagne dreams with a beer budget. He has to pick 2: Location, Price, or Condition.",
             19: "Max is getting distracted by shiny amenities. Force him to prioritize his true 'Must-Haves'.",
             20: "Max sees a Zestimate of $450k, but I tell him to wait for the Appraisal. See why the algorithm isn't enough.",
             21: "Max is at an Open House. He almost revealed his hand! Run the Field Test to keep him safe.",
-            23: "Max is in a bidding war! The price is high, but the appraisal might be low. Help Max bridge the gap.",
+            23: "The market has shifted. This house has been sitting for 45 days. Use the 'Comps' to find the fair price. Don't overpay, but don't insult the seller.",
             24: "Max's offer was accepted! But he needs safety nets. Review the contingencies that let him sleep at night.",
             25: "It's the final sprint. Max has 3 days to close. Help him clear the final hurdles and avoid wire fraud.",
             26: "Max is ready. Are you? Prove you have the instincts to handle the real market in this live simulation.",
@@ -3011,49 +3108,52 @@
 
             if (fieldTestScore === 3) {
                 document.getElementById('field-test-complete').classList.remove('hidden');
-                // Removed sound effect here per request
+                document.querySelector('#field-test-complete .inline-block').classList.remove('hidden');
             } else if (type === 'financial') {
                 document.getElementById('field-test-complete').classList.remove('hidden');
-                document.querySelector('#field-test-complete .inline-block').className = "hidden"; 
-                document.querySelector('#field-test-complete button').textContent = "Review Notes & Proceed ->";
+                document.querySelector('#field-test-complete .inline-block').classList.add('hidden'); 
             }
         };
 
-        window.runCashSim = function(btn, choice) {
-            const fb1 = document.getElementById('cash-feedback-1');
-            const fb2 = document.getElementById('cash-feedback-2');
-            const step2 = document.getElementById('cash-step-2');
+        window.runPricingSim = function(btn, choice) {
+            const parent = btn.parentElement;
+            const feedback = document.getElementById('pricing-feedback');
             
-            if (choice === 'lowball') {
-                fb1.innerHTML = `<span class="text-blue-900"><strong>Coach's Note:</strong> In a multiple-offer scenario, a lowball offer ($380k) usually gets rejected immediately. You need to be competitive to even get a seat at the table.</span>`;
-                fb1.className = "mt-3 text-xs p-3 bg-blue-50 border border-blue-200 rounded";
-                fb1.classList.remove('hidden');
-                sfx.nav(); 
-            } else if (choice === 'competitive') {
-                fb1.innerHTML = `<span class="text-emerald-900"><strong>Smart.</strong> $405k gets the seller's attention. Offer Accepted! Now deal with the consequence below...</span>`;
-                fb1.className = "mt-3 text-xs p-3 bg-emerald-50 border border-emerald-200 rounded";
-                fb1.classList.remove('hidden');
-                
-                btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
-                btn.classList.add('bg-emerald-100', 'border-emerald-500');
-                
-                step2.classList.remove('opacity-50', 'pointer-events-none');
-                step2.classList.add('bg-white');
+            // Disable buttons
+            parent.querySelectorAll('button').forEach(b => {
+                b.disabled = true;
+                b.classList.add('opacity-50');
+            });
+            btn.classList.remove('opacity-50');
+            
+            feedback.classList.remove('hidden');
+
+            if (choice === 'low') {
+                feedback.className = "mt-4 p-4 rounded bg-red-50 border border-red-200 text-red-800";
+                feedback.innerHTML = `
+                    <strong class="block mb-1 text-red-900">Offer Rejected.</strong>
+                    The seller was insulted by the lowball offer and refused to counter. They went with another buyer who offered $425k. 
+                    <br><em class="mt-2 block opacity-80">Lesson: Aggressive is good, but "insulting" kills deals.</em>
+                `;
+                sfx.powerOff();
+            } else if (choice === 'data') {
+                feedback.className = "mt-4 p-4 rounded bg-emerald-50 border border-emerald-200 text-emerald-800";
+                feedback.innerHTML = `
+                    <strong class="block mb-1 text-emerald-900">Offer Accepted!</strong>
+                    You used the data (Comp 1) to justify the price. The seller knows the comps too. They respect the logic and sign the deal.
+                    <br><em class="mt-2 block opacity-80">Lesson: Comps are your ammunition. Use them.</em>
+                `;
+                sfx.success();
+            } else if (choice === 'high') {
+                feedback.className = "mt-4 p-4 rounded bg-orange-50 border border-orange-200 text-orange-800";
+                feedback.innerHTML = `
+                    <strong class="block mb-1 text-orange-900">Offer Accepted (But at what cost?)</strong>
+                    The seller is thrilled. You just paid $15,000 more than the house is worth based on Comp 1. You secured the house but lost equity instantly.
+                    <br><em class="mt-2 block opacity-80">Lesson: List Price is just a marketing number, not the value.</em>
+                `;
                 sfx.nav();
-            } else if (choice === 'demand') {
-                fb2.innerHTML = `<span class="text-blue-900"><strong>Coach's Note:</strong> Risky. In a hot market, the seller often has backup offers. If you demand they lower the price to $395k, they might just cancel and go with Buyer #2.</span>`;
-                fb2.className = "mt-3 text-xs p-3 bg-blue-50 border border-blue-200 rounded";
-                fb2.classList.remove('hidden');
-                sfx.nav();
-            } else if (choice === 'cover') {
-                fb2.innerHTML = `<span class="text-emerald-900"><strong>Deal Saved!</strong> By covering the $10k gap in cash, you keep the house and the seller gets their number. This is how pros win in hot markets.</span>`;
-                fb2.className = "mt-3 text-xs p-3 bg-emerald-50 border border-emerald-200 rounded";
-                fb2.classList.remove('hidden');
-                
-                btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
-                btn.classList.add('bg-emerald-100', 'border-emerald-500');
-                sfx.success(); // Replaced powerup
             }
+            lucide.createIcons();
         };
 
         let gauntletScore = 0;
@@ -3465,10 +3565,11 @@
             const bar = document.getElementById('loan-progress-bar');
             const text = document.getElementById('loan-progress-text');
             if(bar && text) {
-                bar.style.width = `${count * 25}%`;
-                text.textContent = `${count}/4 Explored`;
+                // Updated Math for 5 items (20% per item)
+                bar.style.width = `${count * 20}%`;
+                text.textContent = `${count}/5 Explored`;
                 
-                if(count === 4) {
+                if(count === 5) {
                     text.textContent = "All Explored! 🔑";
                     text.classList.remove('text-allgood-primary');
                     text.classList.add('text-emerald-600');
