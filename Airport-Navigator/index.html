@@ -146,11 +146,12 @@
         };
 
         // NEW: Function to signal module completion (for the Dashboard to track)
-        window.logModuleCompletion = async () => {
+        // UPDATED: Now accepts the SVG artifact to store permanently
+        window.logModuleCompletion = async (badgeSVGString) => {
             const user = auth.currentUser;
             if (!user) return;
             
-            console.log("[DB] Writing Airport Navigator Completion Status...");
+            console.log("[DB] Writing Airport Navigator Completion Status & Artifact...");
             // Use the established session ID for the status update
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             
@@ -162,12 +163,14 @@
                     finalScore: 100, // Mark as successful pass
                     rank: "Certified Navigator",
                     lastUpdated: serverTimestamp(),
+                    // NEW: Store the visual proof (The Badge)
+                    badgeArtifact: badgeSVGString,
                     user: {
                         uid: user.uid,
                         displayName: window.currentUserName
                     }
                 }, { merge: true });
-                console.log("[DB] Completion Status Write Success.");
+                console.log("[DB] Completion Status & Badge Artifact Write Success.");
             } catch (e) { console.error("[DB] Completion Status Write FAILED:", e); }
         };
 
@@ -2741,8 +2744,9 @@
             SessionManager.log("Badge Downloaded", "Certification Earned");
 
             // Inject user name dynamically into the SVG
-            // Ensure currentUserName has a fallback
-            const nameText = (typeof currentUserName !== 'undefined' && currentUserName) ? currentUserName.toUpperCase() : "TRAVELER";
+            // TARGETED FIX: Use the global currentUserName directly, fallback to AGENT if absolutely necessary
+            const rawName = window.currentUserName || "Agent";
+            const nameText = rawName.toUpperCase();
             const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
 
             // REPLACED: Old badge with new Certificate Layout (1200x800)
@@ -2781,7 +2785,8 @@
 
                     <!-- Learner Name -->
                     <text x="30" y="140" font-family="Verdana, sans-serif" font-size="10" fill="#757575">CERTIFIED AGENT</text>
-                    <text x="30" y="160" font-family="Verdana, sans-serif" font-weight="bold" font-size="16" fill="#4C4C4C">${nameText}</text>
+                    <!-- UPDATED: Font size reduced from 16 to 12 (25% reduction) -->
+                    <text x="30" y="160" font-family="Verdana, sans-serif" font-weight="bold" font-size="12" fill="#4C4C4C">${nameText}</text>
 
                     <!-- Skills List -->
                     <g transform="translate(290, 90)">
@@ -2812,6 +2817,9 @@
                 </g>
             </svg>`;
             
+            // NEW: 2. Write Completion Signal AND Artifact to Firestore
+            window.logModuleCompletion(badgeSVG);
+
             const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
