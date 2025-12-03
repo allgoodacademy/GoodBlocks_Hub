@@ -12,12 +12,10 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        setLogLevel('silent');
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        // 1. CONFIGURATION
+        const firebaseConfig = {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
@@ -27,49 +25,132 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        // FIX: Force Shared App ID to ensure Game and Dashboard talk to the same DB folder
         const appId = 'allgood-academy'; 
-        // const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
         
+        // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // 3. GLOBAL STATE
         window.currentUser = null;
+        window.currentUserName = "Anonymous";
+        window.currentUserEmail = "";
         window.isAuthReady = false;
+        
+        // Define Session ID here to ensure it exists before any logging logic runs
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        console.log("[System] Session ID generated:", window.sessionId);
 
-        // --- AUTH INIT ---
-        (async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } catch (e) { console.warn("SSO Token failed.", e); }
-            } 
-            
-            onAuthStateChanged(auth, (user) => {
-                window.isAuthReady = true;
-                if (user) {
-                    window.currentUser = user;
-                    
-                    const dashboardName = localStorage.getItem('aa_username');
-                    const authName = user.displayName;
-                    const finalName = dashboardName || authName || "Agent Learner";
-                    
-                    window.updateUserDisplay(finalName);
-                    
-                    const loginModal = document.getElementById('login-modal');
-                    if (loginModal) {
-                        loginModal.classList.add('hidden-modal');
-                        loginModal.classList.remove('visible-modal');
-                    }
-                } else {
-                    window.currentUser = null;
-                    window.updateUserDisplay("Agent Learner");
+        // 4. AUTH HANDLER
+        onAuthStateChanged(auth, async (user) => {
+            window.isAuthReady = true;
+            if (user) {
+                console.log("[Auth] User detected:", user.uid);
+                window.currentUser = user;
+                
+                // Retrieve or Set Display Name
+                let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                
+                // Attempt to fetch from DB for consistency if missing locally
+                if (finalName === "Agent Learner") {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            finalName = userDoc.data().displayName || finalName;
+                        }
+                    } catch(e) { console.log("Profile fetch skipped", e); }
                 }
-            });
-        })();
 
-        // --- LOGIN HANDLERS ---
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                
+                // Update UI
+                window.updateUserDisplay(finalName);
+                
+                // Hide login modal if present (this handles the SSO case)
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal && !loginModal.classList.contains('hidden-modal')) {
+                    loginModal.classList.add('hidden-modal');
+                    loginModal.classList.remove('visible-modal');
+                    // Auto-start session log if we just auto-logged in via SSO
+                    if(window.logFinalScoreToFirestore) {
+                        window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
+                    }
+                }
+            } else {
+                console.log("[Auth] No user signed in.");
+                window.currentUser = null;
+                window.updateUserDisplay("Agent Learner");
+            }
+        });
+
+        // 5. IDENTITY ENGINE
+        async function ensureUserContainer(user, name, email, isGuest) {
+             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+             
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || (isGuest ? null : user.email || null),
+                     isGuest: isGuest,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: "Digital Decisions Challenge"
+                 }, { merge: true });
+                 console.log("[Identity] User container verified/created.");
+             } catch (e) {
+                 console.error("[Identity] Failed to create user container:", e);
+             }
+        }
+
+        // 6. DATABASE LOGGING ENGINE (Adapted for DDC Structure)
+        
+        // Log Individual Question Attempt
+        window.logScenarioAttempt = async (data) => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            // Path: /users/{uid}/game_scores/{sessionId}/scenario_attempts/{scenarioIndex}
+            const attemptRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'scenario_attempts', `scenario_${data.scenarioIndex}`);
+            
+            try {
+                await setDoc(attemptRef, {
+                    ...data,
+                    timestamp: serverTimestamp()
+                });
+                console.log(`[DB] Saved Attempt ${data.scenarioIndex}`);
+            } catch (e) { console.error("Attempt log failed", e); }
+        };
+
+        // Log Final Score / Session Start
+        window.logFinalScoreToFirestore = async (scoreData) => {
+            const user = auth.currentUser;
+            if (!user) {
+                console.warn("[DB] Skipping write - No User");
+                return;
+            }
+
+            console.log(`[DB] Writing Session Data...`);
+
+            // Path: /users/{uid}/game_scores/{sessionId}
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            try {
+                await setDoc(sessionRef, {
+                    gameName: "Digital Decisions Challenge",
+                    ...scoreData,
+                    lastUpdated: serverTimestamp(),
+                    user: {
+                        uid: user.uid,
+                        displayName: window.currentUserName,
+                        email: window.currentUserEmail
+                    }
+                }, { merge: true });
+                console.log(`[DB] Session Write Success.`);
+            } catch (e) { console.error("[DB] Session Write Failed", e); }
+        }
+
+        // 7. LOGIN FUNCTIONS (Updated with Identity Check)
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
@@ -80,22 +161,39 @@
             btn.disabled = true;
 
             try {
-                const result = await signInAnonymously(auth);
-                const user = result.user;
+                let user;
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    user = auth.currentUser;
+                } else {
+                    const result = await signInAnonymously(auth);
+                    user = result.user;
+                }
+                
                 const displayName = nameInput || "Agent Learner";
                 await updateProfile(user, { displayName: displayName });
                 
+                // Establish Identity
+                await ensureUserContainer(user, displayName, emailInput, true);
+                
+                window.currentUserName = displayName;
+                window.currentUserEmail = emailInput;
+
                 localStorage.setItem('aa_username', displayName);
                 localStorage.setItem('aa_email', emailInput);
+                localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'true');
                 
                 window.updateUserDisplay(displayName);
+                
+                // Start Session Log
+                console.log("[Auth] Guest login successful. UID:", user.uid);
                 window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: "init_" + Date.now() });
 
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
                 window.showPage(0);
-                sfx.nav();
+                if(window.sfx) sfx.nav();
 
             } catch (error) {
                 console.error("Login Failed", error);
@@ -108,77 +206,45 @@
 
         window.handleGoogleLogin = async () => {
             const provider = new GoogleAuthProvider();
+            const btnContainer = document.getElementById('google-icon-container');
+            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
+
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                const finalName = user.displayName || "Agent Learner";
+                const finalName = user.displayName || "Agent";
+                
+                // Establish Identity
+                await ensureUserContainer(user, finalName, user.email, false);
+                
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+
                 localStorage.setItem('aa_username', finalName);
                 localStorage.setItem('aa_email', user.email);
+                localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'false');
                 
                 window.updateUserDisplay(finalName);
+                
+                console.log("[Auth] Google login successful. UID:", user.uid);
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
                 window.showPage(0);
-                sfx.nav();
+                if(window.sfx) sfx.nav();
             } catch (error) {
                 console.error("Google Sign-In Error", error);
+                alert("Google Sign-In failed. Please try again.");
+            } finally {
+                 if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
             }
         };
-
-        // --- DATA LOGGING (Detailed & Summary) ---
         
-        // 1. Log Individual Question Attempt
-        window.logScenarioAttempt = async (data) => {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            if (!window.sessionId) {
-                console.error("Session ID is missing!");
-                return;
-            }
-
-            // Path: /users/{uid}/game_scores/{sessionId}/scenario_attempts/{scenarioIndex}
-            const attemptRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'scenario_attempts', `scenario_${data.scenarioIndex}`);
-            
-            try {
-                await setDoc(attemptRef, {
-                    ...data,
-                    timestamp: serverTimestamp()
-                });
-                console.log(`[DB SUCCESS] Saved Attempt to: artifacts/${appId}/users/${user.uid}/game_scores`);
-            } catch (e) { console.error("Attempt log failed", e); }
-        };
-
-        // 2. Log Final Score / Session Start
-        window.logFinalScoreToFirestore = async (scoreData) => {
-            const user = auth.currentUser;
-            if (!user) return; 
-            
-            if (!window.sessionId) {
-                console.error("Session ID is missing!");
-                return;
-            }
-
-            // Path: /users/{uid}/game_scores/{sessionId}
-            // Use setDoc with merge to allow updating the same session document
-            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            
-            try {
-                await setDoc(sessionRef, {
-                    gameName: "Digital Decisions Challenge",
-                    ...scoreData,
-                    lastUpdated: serverTimestamp(),
-                    user: {
-                        uid: user.uid,
-                        displayName: user.displayName || localStorage.getItem('aa_username') || "Agent Learner",
-                        email: user.email || localStorage.getItem('aa_email') || ""
-                    }
-                }, { merge: true });
-                console.log(`[DB SUCCESS] Session Updated at: artifacts/${appId}/users/${user.uid}/game_scores`);
-            } catch (e) { console.error("Save failed", e); }
-        }
+        // Expose for Debugging
+        window.auth = auth;
+        window.db = db;
     </script>
     
     <script>
