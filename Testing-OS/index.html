@@ -454,10 +454,10 @@
                 const anBadge = window.allModuleElements['Airport Navigator'];
                 if (anBadge) {
                     if (isAirportNavigatorComplete) {
-                        anBadge.textContent = "CERTIFIED";
+                        anBadge.textContent = "MISSION COMPLETE";
                         anBadge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                    } else if (anBadge.textContent === "CERTIFIED") {
-                        // Fallback if reset: Only reset if it was previously showing Certified
+                    } else if (anBadge.textContent === "MISSION COMPLETE") {
+                        // Fallback if reset: Only reset if it was previously showing Mission Complete
                         anBadge.textContent = "Ready";
                         anBadge.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
                     }
