@@ -386,10 +386,11 @@
                     const courseName = data.courseName;
                     const badgeElement = window.allModuleElements[courseName];
                     
-                    // Don't overwrite Certified/Complete statuses with just "Launched"
                     if (badgeElement) {
-                        if (badgeElement.textContent.includes('CERTIFIED') || badgeElement.textContent.includes('COMPLETE')) return;
                         if (badgeElement.id === 'ddc-status-badge') return;
+                        
+                        // FIX: Do not overwrite if already completed
+                        if (badgeElement.textContent === "MISSION COMPLETE" || badgeElement.textContent === "CERTIFIED") return;
 
                         if (badgeElement.textContent !== "LAUNCHED") {
                             badgeElement.textContent = "LAUNCHED";
@@ -403,7 +404,7 @@
             });
         }
 
-        // UPDATED: Centralized Module Status Listener (DDC + Airport Navigator)
+        // UPDATED: Universal Status Listener (Handles DDC + All Content Blocks)
         window.startModuleStatusListener = function(uid) {
             if (unsubscribeDecisions) unsubscribeDecisions();
             
@@ -412,33 +413,38 @@
             unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
                 let maxDDCScore = -1;
                 let hasDDCAttempt = false;
-                let isAirportNavigatorComplete = false;
+                
+                // Set to track which modules are done in this snapshot
+                const completedModules = new Set();
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    
-                    // 1. Digital Decisions Logic
-                    if (data.gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
+                    const gameName = data.gameName;
+
+                    // 1. Digital Decisions Logic (Score based)
+                    if (gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
                         hasDDCAttempt = true;
                         if (data.finalScore > maxDDCScore) maxDDCScore = data.finalScore;
                     }
 
-                    // 2. Airport Navigator Logic
-                    if (data.gameName === "Airport Navigator" && data.completed === true) {
-                        isAirportNavigatorComplete = true;
+                    // 2. Generic Completion Logic (Boolean based)
+                    // Scans for 'Digital Asset Defense', 'Airport Navigator', etc.
+                    if (data.completed === true && gameName) {
+                        completedModules.add(gameName);
                     }
                 });
 
-                // Update Local Storage
+                // Update Local Storage for Badges
                 if (hasDDCAttempt && maxDDCScore >= 80) localStorage.setItem('aa_ddc_complete', 'true');
                 else localStorage.removeItem('aa_ddc_complete');
                 
-                if (isAirportNavigatorComplete) localStorage.setItem('aa_airport_complete', 'true');
+                // Check specifically for Airport Navigator for the specialized badge slot
+                if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
                 else localStorage.removeItem('aa_airport_complete');
                 
                 window.updateBadges();
 
-                // UPDATE UI: Digital Decisions
+                // UPDATE UI: Digital Decisions (Special Case)
                 const ddcBadge = document.getElementById('ddc-status-badge');
                 if (ddcBadge) {
                     if (maxDDCScore >= 80) { 
@@ -450,16 +456,21 @@
                     }
                 }
 
-                // UPDATE UI: Airport Navigator
-                const anBadge = window.allModuleElements['Airport Navigator'];
-                if (anBadge) {
-                    if (isAirportNavigatorComplete) {
-                        anBadge.textContent = "MISSION COMPLETE";
-                        anBadge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                    } else if (anBadge.textContent === "MISSION COMPLETE") {
-                        // Fallback if reset: Only reset if it was previously showing Mission Complete
-                        anBadge.textContent = "Ready";
-                        anBadge.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
+                // UPDATE UI: All Other Content Blocks
+                for (const [courseName, badgeElement] of Object.entries(window.allModuleElements)) {
+                    if (courseName === "Digital Decisions") continue; // Skip DDC
+
+                    if (completedModules.has(courseName)) {
+                        // Mark as Complete
+                        if (badgeElement.textContent !== "MISSION COMPLETE") {
+                            badgeElement.textContent = "MISSION COMPLETE";
+                            badgeElement.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
+                        }
+                    } else if (badgeElement.textContent === "MISSION COMPLETE") {
+                        // Fallback: If it was complete but database says no (e.g. reset), revert to Ready
+                        // Note: startLaunchListener will bump it back to 'LAUNCHED' if applicable
+                        badgeElement.textContent = "Ready";
+                        badgeElement.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
                     }
                 }
 
