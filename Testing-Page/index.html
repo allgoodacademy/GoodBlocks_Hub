@@ -145,6 +145,32 @@
             }
         };
 
+        // NEW: Function to signal module completion (for the Dashboard to track)
+        window.logModuleCompletion = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            console.log("[DB] Writing Airport Navigator Completion Status...");
+            // Use the established session ID for the status update
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            try {
+                // IMPORTANT: This document must contain the gameName and completed: true flag
+                await setDoc(sessionRef, {
+                    gameName: "Airport Navigator",
+                    completed: true,
+                    finalScore: 100, // Mark as successful pass
+                    rank: "Certified Navigator",
+                    lastUpdated: serverTimestamp(),
+                    user: {
+                        uid: user.uid,
+                        displayName: window.currentUserName
+                    }
+                }, { merge: true });
+                console.log("[DB] Completion Status Write Success.");
+            } catch (e) { console.error("[DB] Completion Status Write FAILED:", e); }
+        };
+
         // 7. LOGIN FUNCTIONS
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
@@ -1281,7 +1307,7 @@
                             <p class="font-bold text-sm mb-3">Your ticket is to London (LHR). Is this tag correct?</p>
                             <div class="flex gap-4 justify-center">
                                 <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50" onclick="checkAnswer(this)" data-correct="false" data-feedback="STOP. The tag says SYD (Sydney). Your bag is going to Australia while you go to London. Always check the 3-letter code.">Yes</button>
-                                <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50" onclick="checkAnswer(this)" data-correct="true" data-feedback="GOOD CATCH. The code SYD (Sydney) does not match your destination (LHR). You just saved your vacation. Alert the agent immediately.">No</button>
+                                <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded" onclick="checkAnswer(this)" data-correct="true" data-feedback="GOOD CATCH. The code SYD (Sydney) does not match your destination (LHR). You just saved your vacation. Alert the agent immediately.">No</button>
                             </div>
                             <div class="feedback mt-3 text-sm hidden font-bold font-body"></div>
                         </div>
@@ -2707,6 +2733,9 @@
                 alert(`Certification Incomplete.\n\nYou must achieve all core proficiencies to earn the badge.\nMissing:\n- ${missing.join('\n- ')}`);
                 return;
             }
+
+            // NEW: 1. Write Completion Signal to Firestore
+            window.logModuleCompletion();
 
             // FIX: Log Badge Download
             SessionManager.log("Badge Downloaded", "Certification Earned");
