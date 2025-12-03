@@ -388,6 +388,9 @@
                     
                     if (badgeElement) {
                         if (badgeElement.id === 'ddc-status-badge') return;
+                        
+                        // FIX: Do not overwrite if already completed
+                        if (badgeElement.textContent === "MISSION COMPLETE" || badgeElement.textContent === "CERTIFIED") return;
 
                         if (badgeElement.textContent !== "LAUNCHED") {
                             badgeElement.textContent = "LAUNCHED";
@@ -401,45 +404,83 @@
             });
         }
 
-        window.startDecisionsStatusListener = function(uid) {
+        // UPDATED: Universal Status Listener (Handles DDC + All Content Blocks)
+        window.startModuleStatusListener = function(uid) {
             if (unsubscribeDecisions) unsubscribeDecisions();
             
             const scoresRef = collection(db, 'artifacts', appId, 'users', uid, 'game_scores');
             
             unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
-                let maxScore = -1;
-                let hasAttempt = false;
+                let maxDDCScore = -1;
+                let hasDDCAttempt = false;
+                
+                // Set to track which modules are done in this snapshot
+                const completedModules = new Set();
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    if (data.gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
-                        hasAttempt = true;
-                        if (data.finalScore > maxScore) maxScore = data.finalScore;
+                    const gameName = data.gameName;
+
+                    // 1. Digital Decisions Logic (Score based)
+                    if (gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
+                        hasDDCAttempt = true;
+                        if (data.finalScore > maxDDCScore) maxDDCScore = data.finalScore;
+                    }
+
+                    // 2. Generic Completion Logic (Boolean based)
+                    // Scans for 'Digital Asset Defense', 'Airport Navigator', etc.
+                    if (data.completed === true && gameName) {
+                        completedModules.add(gameName);
                     }
                 });
 
-                if (hasAttempt && maxScore >= 80) {
-                    localStorage.setItem('aa_ddc_complete', 'true');
-                } else {
-                    localStorage.removeItem('aa_ddc_complete');
-                }
+                // Update Local Storage for Badges
+                if (hasDDCAttempt && maxDDCScore >= 80) localStorage.setItem('aa_ddc_complete', 'true');
+                else localStorage.removeItem('aa_ddc_complete');
                 
-                window.updateBadges(); // Refresh badges based on new score
+                // Check specifically for Airport Navigator for the specialized badge slot
+                if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
+                else localStorage.removeItem('aa_airport_complete');
+                
+                window.updateBadges();
 
-                const badge = document.getElementById('ddc-status-badge');
-                if (badge && hasAttempt) {
-                    if (maxScore >= 80) { 
-                        badge.textContent = "MISSION COMPLETE";
-                        badge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                    } else {
-                        badge.textContent = "RETAKE REQUIRED";
-                        badge.className = "bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-amber-200 animate-pulse";
+                // UPDATE UI: Digital Decisions (Special Case)
+                const ddcBadge = document.getElementById('ddc-status-badge');
+                if (ddcBadge) {
+                    if (maxDDCScore >= 80) { 
+                        ddcBadge.textContent = "MISSION COMPLETE";
+                        ddcBadge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
+                    } else if (hasDDCAttempt) {
+                        ddcBadge.textContent = "RETAKE REQUIRED";
+                        ddcBadge.className = "bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-amber-200 animate-pulse";
                     }
                 }
+
+                // UPDATE UI: All Other Content Blocks
+                for (const [courseName, badgeElement] of Object.entries(window.allModuleElements)) {
+                    if (courseName === "Digital Decisions") continue; // Skip DDC
+
+                    if (completedModules.has(courseName)) {
+                        // Mark as Complete
+                        if (badgeElement.textContent !== "MISSION COMPLETE") {
+                            badgeElement.textContent = "MISSION COMPLETE";
+                            badgeElement.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
+                        }
+                    } else if (badgeElement.textContent === "MISSION COMPLETE") {
+                        // Fallback: If it was complete but database says no (e.g. reset), revert to Ready
+                        // Note: startLaunchListener will bump it back to 'LAUNCHED' if applicable
+                        badgeElement.textContent = "Ready";
+                        badgeElement.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
+                    }
+                }
+
             }, (error) => {
-                console.log("Status listener silent fail (likely permission or empty):", error);
+                console.log("Status listener silent fail:", error);
             });
         }
+
+        // Backwards compatibility alias
+        window.startDecisionsStatusListener = window.startModuleStatusListener;
 
         window.updateUI = function(name) { 
             const els = document.querySelectorAll('.user-name-display');
