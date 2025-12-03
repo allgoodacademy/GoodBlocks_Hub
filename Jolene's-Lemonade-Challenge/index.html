@@ -97,7 +97,7 @@
                      email: email || (isGuest ? null : user.email || null),
                      isGuest: isGuest,
                      lastLogin: serverTimestamp(),
-                     lastActiveModule: "Jolenes Lemonade Challenge"
+                     lastActiveModule: "Jolene's Lemonade"
                  }, { merge: true });
                  console.log("[Identity] User container verified/created.");
              } catch (e) {
@@ -139,7 +139,7 @@
             
             try {
                 await setDoc(sessionRef, {
-                    gameName: "Jolenes Lemonade Challenge",
+                    gameName: "Jolene's Lemonade",
                     ...scoreData,
                     lastUpdated: serverTimestamp(),
                     user: {
