@@ -627,6 +627,18 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
+            // --- RANDOMIZATION ENGINE ---
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+            // Shuffle choices on load so "Option B" isn't always correct
+            SCENARIO_DATA.forEach(scenario => {
+                shuffle(scenario.choices);
+            });
+
             const pages = document.querySelectorAll('.page');
             const nextButton = document.getElementById('next-button');
             const backButton = document.getElementById('back-button');
@@ -980,7 +992,16 @@
                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked';
                 }
                 
-                window.logFinalScoreToFirestore({ finalScore: currentScore, maxScore: MAX_SCORE, percentage: percentage, rank: rank, isCertified: isCertified, complete: isComplete, sessionId: window.sessionId });
+                window.logFinalScoreToFirestore({ 
+                    finalScore: currentScore, 
+                    maxScore: MAX_SCORE, 
+                    percentage: percentage, 
+                    rank: rank, 
+                    isCertified: isCertified, 
+                    complete: isComplete, 
+                    earnedBadge: isCertified ? "Certified Entrepreneur" : null, // Added Badge Field
+                    sessionId: window.sessionId 
+                });
                 lucide.createIcons();
             }
 
