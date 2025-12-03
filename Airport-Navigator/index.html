@@ -10,6 +10,275 @@
     <!-- Font Awesome for quiz icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
+    <!-- FIREBASE AND AUTHENTICATION SETUP -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        
+        // 1. CONFIGURATION
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
+            authDomain: "allgood-academy.firebaseapp.com",
+            projectId: "allgood-academy",
+            storageBucket: "allgood-academy.firebasestorage.app",
+            messagingSenderId: "978829044870",
+            appId: "1:978829044870:web:6c780f64230a77ad0ab507",
+            measurementId: "G-EN4M7T3BLQ"
+        };
+        
+        const appId = 'allgood-academy'; 
+        
+        // 2. INITIALIZE SERVICES
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 3. GLOBAL STATE
+        window.currentUser = null;
+        window.currentUserName = "Anonymous";
+        window.currentUserEmail = "";
+        window.isAuthReady = false;
+        
+        // Define Session ID here to ensure it exists before any logging logic runs
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        console.log("[System] Session ID generated:", window.sessionId);
+
+        // 4. AUTH HANDLER
+        onAuthStateChanged(auth, async (user) => {
+            window.isAuthReady = true;
+            if (user) {
+                console.log("[Auth] User detected:", user.uid);
+                window.currentUser = user;
+                
+                // Retrieve or Set Display Name
+                let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                
+                // Attempt to fetch from DB for consistency if missing
+                if (finalName === "Agent Learner") {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            finalName = userDoc.data().displayName || finalName;
+                        }
+                    } catch(e) { console.log("Profile fetch skipped", e); }
+                }
+
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                
+                // Update UI
+                const welcomeText = document.getElementById('header-welcome-text');
+                if(welcomeText) welcomeText.textContent = `Welcome, ${finalName}`;
+                
+                // Hide login modal if present (this handles the SSO case)
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal && !loginModal.classList.contains('hidden-modal')) {
+                    loginModal.classList.add('hidden-modal');
+                    loginModal.classList.remove('visible-modal');
+                    // Auto-start session log if we just auto-logged in via SSO
+                    if(window.SessionManager) window.SessionManager.start(finalName, user.email);
+                }
+            } else {
+                console.log("[Auth] No user signed in.");
+                window.currentUser = null;
+            }
+        });
+
+        // 5. IDENTITY ENGINE
+        async function ensureUserContainer(user, name, email, isGuest) {
+             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || (isGuest ? null : user.email || null),
+                     isGuest: isGuest,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: "Airport Navigator"
+                 }, { merge: true });
+                 console.log("[Identity] User container verified/created.");
+             } catch (e) {
+                 console.error("[Identity] Failed to create user container:", e);
+             }
+        }
+
+        // 6. DATABASE LOGGING ENGINE
+        window.logToFirestore = async (action, detail, payload = {}) => {
+            const user = auth.currentUser;
+            if (!user) {
+                console.warn("[DB] Skipping write - No User");
+                return;
+            }
+            
+            console.log(`[DB] Writing event: ${action} - ${detail}`);
+
+            // Path: artifacts/allgood-academy/users/{uid}/game_scores/{sessionId}
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            const sessionData = {
+                gameName: "Airport Navigator", 
+                lastUpdated: serverTimestamp(),
+                user: {
+                    uid: user.uid,
+                    displayName: window.currentUserName,
+                    email: window.currentUserEmail
+                }
+            };
+
+            // Merge High-Level Metrics from payload if present
+            if (payload.score) sessionData.finalScore = payload.score; 
+            if (payload.rating) sessionData.rating = payload.rating;
+
+            try {
+                await setDoc(sessionRef, sessionData, { merge: true });
+                
+                const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
+                await addDoc(logsRef, {
+                    action: action,
+                    detail: detail,
+                    payload: payload,
+                    timestamp: serverTimestamp()
+                });
+                console.log("[DB] Write Success.");
+            } catch (e) {
+                console.error("[DB] Write FAILED:", e);
+            }
+        };
+
+        // NEW: Function to signal module completion (for the Dashboard to track)
+        window.logModuleCompletion = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            console.log("[DB] Writing Airport Navigator Completion Status...");
+            // Use the established session ID for the status update
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            try {
+                // IMPORTANT: This document must contain the gameName and completed: true flag
+                await setDoc(sessionRef, {
+                    gameName: "Airport Navigator",
+                    completed: true,
+                    finalScore: 100, // Mark as successful pass
+                    rank: "Certified Navigator",
+                    lastUpdated: serverTimestamp(),
+                    user: {
+                        uid: user.uid,
+                        displayName: window.currentUserName
+                    }
+                }, { merge: true });
+                console.log("[DB] Completion Status Write Success.");
+            } catch (e) { console.error("[DB] Completion Status Write FAILED:", e); }
+        };
+
+        // 7. LOGIN FUNCTIONS
+        window.handleGuestLogin = async () => {
+            const nameInput = document.getElementById('user-name-input').value.trim();
+            const emailInput = document.getElementById('user-email-input').value.trim();
+            const btn = document.getElementById('btn-guest-login');
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Connecting...";
+            btn.disabled = true;
+
+            try {
+                let user;
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    user = auth.currentUser;
+                } else {
+                    const result = await signInAnonymously(auth);
+                    user = result.user;
+                }
+                
+                const displayName = nameInput || "Agent Learner";
+                await updateProfile(user, { displayName: displayName });
+                
+                // Establish Identity
+                await ensureUserContainer(user, displayName, emailInput, true);
+
+                window.currentUserName = displayName;
+                window.currentUserEmail = emailInput;
+                
+                localStorage.setItem('aa_username', displayName);
+                localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'true');
+                
+                console.log("[Auth] Guest login successful. UID:", user.uid);
+                if(window.SessionManager) window.SessionManager.start(displayName, emailInput);
+                
+                document.getElementById('header-welcome-text').textContent = `Welcome, ${displayName}`;
+                document.getElementById('login-modal').classList.add('hidden-modal');
+                document.getElementById('login-modal').classList.remove('visible-modal');
+                
+                // FIX: Calls global showPage to ensure we land on Cover
+                if(window.showPage) window.showPage(0);
+                if(window.sfx) window.sfx.nav();
+
+            } catch (error) {
+                console.error("Login Failed", error);
+                alert("Connection failed. Please try again.");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        window.handleGoogleLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            const btnContainer = document.getElementById('google-icon-container');
+            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
+            
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user; 
+                
+                const finalName = user.displayName || "Agent";
+                
+                // Establish Identity
+                await ensureUserContainer(user, finalName, user.email, false);
+
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                
+                localStorage.setItem('aa_username', finalName);
+                localStorage.setItem('aa_email', user.email);
+                localStorage.setItem('aa_uid', user.uid);
+                localStorage.setItem('aa_is_guest', 'false');
+
+                console.log("[Auth] Google login successful. UID:", user.uid);
+                if(window.SessionManager) window.SessionManager.start(finalName, user.email);
+
+                document.getElementById('header-welcome-text').textContent = `Welcome, ${finalName}`;
+                document.getElementById('login-modal').classList.add('hidden-modal');
+                document.getElementById('login-modal').classList.remove('visible-modal');
+                
+                // FIX: Calls global showPage to ensure we land on Cover
+                if(window.showPage) window.showPage(0);
+                if(window.sfx) window.sfx.nav();
+            } catch (error) {
+                console.error("Google Sign-In Error", error);
+                alert("Google Sign-In failed. Please try again.");
+            } finally {
+                 if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        };
+        
+        // Handle initial custom token from environment
+        (async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (e) {
+                    console.warn("Auth token failed, falling back", e);
+                }
+            }
+        })();
+
+        // Expose for Debugging
+        window.auth = auth;
+        window.db = db;
+    </script>
+
     <!-- Tailwind Config with Allgood Brand Colors -->
     <script>
         tailwind.config = {
@@ -465,7 +734,7 @@
                     </div>
                 </header>
 
-                <!-- 3. Login Modal (Initial Gate) -->
+                <!-- 3. Login Modal (UPDATED: Google Sign-In) -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6">
@@ -480,7 +749,6 @@
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
                                     <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
                                     <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
-                                    <!-- UPDATED: Transparent Data Policy Statement -->
                                     <p class="mb-2 text-gray-300">We use your name to personalize your badge. <strong>Performance data is logged in real-time</strong> to improve the GoodBlock experience. All personal data is <strong>kept confidential</strong> and <strong>never sold.</strong></p>
                                     <div class="border-t border-gray-700 my-1 pt-1"></div>
                                     <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
@@ -489,7 +757,26 @@
                         </div>
                         <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
                         <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        <button id="start-session-btn" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body">Start GoodBlock</button>
+                        
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
+                            Start Mission
+                        </button>
+
+                        <div class="mt-4 flex items-center justify-center space-x-2">
+                             <div class="h-px w-10 bg-gray-200"></div>
+                             <p class="text-xs text-gray-500 uppercase font-bold">OR</p>
+                             <div class="h-px w-10 bg-gray-200"></div>
+                        </div>
+
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" 
+                                class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -1020,7 +1307,7 @@
                             <p class="font-bold text-sm mb-3">Your ticket is to London (LHR). Is this tag correct?</p>
                             <div class="flex gap-4 justify-center">
                                 <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50" onclick="checkAnswer(this)" data-correct="false" data-feedback="STOP. The tag says SYD (Sydney). Your bag is going to Australia while you go to London. Always check the 3-letter code.">Yes</button>
-                                <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50" onclick="checkAnswer(this)" data-correct="true" data-feedback="GOOD CATCH. The code SYD (Sydney) does not match your destination (LHR). You just saved your vacation. Alert the agent immediately.">No</button>
+                                <button class="quiz-btn px-6 py-2 bg-white border border-gray-300 rounded" onclick="checkAnswer(this)" data-correct="true" data-feedback="GOOD CATCH. The code SYD (Sydney) does not match your destination (LHR). You just saved your vacation. Alert the agent immediately.">No</button>
                             </div>
                             <div class="feedback mt-3 text-sm hidden font-bold font-body"></div>
                         </div>
@@ -1593,45 +1880,31 @@
         let currentUserEmail = "";
         let currentPageIndex = 0; 
         
-        // --- GOOGLE SHEETS TRACKING CONFIG ---
-        // FIX: confirmed URL for real-time logging
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUlqOGwEZdUp2LwlFBMx0grQuHt6dWqewf7IzaU9_0KNRtcaEi3_kwUJmigfpE-xJDrw/exec";
-        let sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-
-        // --- SESSION MANAGER (REAL-TIME EVENT VERSION) ---
+        // --- SESSION MANAGER (REFACTORED FOR FIRESTORE) ---
+        // This is the core logic that connects the GoodBlock to the Database
         const SessionManager = {
-            // Send data to Google Sheet immediately
+            // Logs events directly to Firestore via the global window.logToFirestore function
             log: function(action, detail, payload = {}) {
-                const data = {
-                    sessionId: sessionId,
-                    userName: currentUserName,
-                    userEmail: currentUserEmail,
-                    action: action,
-                    detail: detail,
-                    payload: payload
-                };
-
-                // Use 'text/plain' to bypass CORS preflight for Apps Script
-                fetch(APPS_SCRIPT_URL, {
-                    method: "POST",
-                    mode: "no-cors", 
-                    headers: { "Content-Type": "text/plain" },
-                    body: JSON.stringify(data) 
-                }).then(() => {
-                    console.log("Event logged:", action);
-                }).catch(err => console.error("Tracking Error:", err));
+                if (window.logToFirestore) {
+                    window.logToFirestore(action, detail, payload);
+                } else {
+                    console.warn("Firestore Logger not ready:", action);
+                }
             },
 
+            // Starts the session (called on Login)
             start: function(name, email) {
-                this.log("Session Started", "User Logged In", { startTime: new Date().toISOString() });
+                this.log("System", "Session Started", { startTime: new Date().toISOString() });
             },
 
             // Helper to track local state (optional, but good for debugging)
             track: function(key, value) {
                 console.log(`Local Track [${key}]:`, value);
-                // We don't log every tiny internal state change, only significant events via specific calls below
             }
         };
+        
+        // FIX: Explicitly expose SessionManager to window to prevent startup crash
+        window.SessionManager = SessionManager;
 
         // --- COMPLETION FLAGS ---
         // Tracks engagement for badge eligibility
@@ -1702,7 +1975,7 @@
 
                 const result = isCorrect ? "PASS" : "FAIL";
                 // Log with clear Action Name
-                SessionManager.log(quizTitle, result, { selectedAnswer: btn.innerText });
+                SessionManager.log("Quiz Attempt", quizTitle, { result: result, selectedAnswer: btn.innerText });
                 
                 // Check for Readiness Quiz Completion (Page 29)
                 if (currentPageIndex === 28) { // Page 29 is index 28
@@ -1850,7 +2123,7 @@
             const iconContainer = document.getElementById('scenario-icon');
             
             // FIX: Real-time logging for Scenario Choice
-            SessionManager.log("Scenario Choice", `${data.title} (${option})`);
+            SessionManager.log("Scenario Decision", `${data.title} (${option})`);
 
             document.getElementById('scenario-title').textContent = data.title;
             document.getElementById('scenario-feedback').textContent = data.text;
@@ -1906,9 +2179,9 @@
         function submitFeedback() {
             const feedbackText = document.getElementById('feedback-text').value;
             
-            // FIX: Log Session Completion to Google Sheet with cleaner detail
+            // FIX: Log Session Completion to Firestore
             const ratingDetail = currentRating > 0 ? `${currentRating}/5 Stars` : "No Rating";
-            SessionManager.log("Session Completed", ratingDetail, { feedbackComment: feedbackText });
+            SessionManager.log("Session Completed", ratingDetail, { feedbackComment: feedbackText, rating: currentRating });
 
             const container = document.getElementById('feedback-container');
             const success = document.getElementById('feedback-success');
@@ -2402,6 +2675,9 @@
             lucide.createIcons();
         }
 
+        // FIX: Expose showPage globally so login handlers can access it
+        window.showPage = showPage;
+
         function openMenuModal() { menuModal.classList.remove('hidden-modal'); menuModal.classList.add('visible-modal'); }
         function closeMenuModal() { menuModal.classList.remove('visible-modal'); menuModal.classList.add('hidden-modal'); }
 
@@ -2457,6 +2733,9 @@
                 alert(`Certification Incomplete.\n\nYou must achieve all core proficiencies to earn the badge.\nMissing:\n- ${missing.join('\n- ')}`);
                 return;
             }
+
+            // NEW: 1. Write Completion Signal to Firestore
+            window.logModuleCompletion();
 
             // FIX: Log Badge Download
             SessionManager.log("Badge Downloaded", "Certification Earned");
@@ -2553,8 +2832,6 @@
             }
             lucide.createIcons();
         }
-
-        // REMOVED: initEmailDispatch Function
 
         // 4. Reset Logic
         function performHardReset() {
@@ -2688,29 +2965,29 @@
 
                 startupScreen.addEventListener('click', () => {
                     sfx.powerOn();
-                    startupScreen.style.opacity = '0';
-                    setTimeout(() => { startupScreen.style.display = 'none'; }, 700);	
-                });
-            }
-
-            const startBtn = document.getElementById('start-session-btn');
-            if(startBtn) {
-                startBtn.addEventListener('click', () => {
-                    let name = document.getElementById('user-name-input').value.trim();
-                    let email = document.getElementById('user-email-input').value.trim();
-                    if (!name) name = "Learner";
                     
-                    currentUserName = name;
-                    currentUserEmail = email;
-                    
-                    // FIX: Log Session Start
-                    SessionManager.start(name, email);
-
-                    document.getElementById('header-welcome-text').textContent = `Welcome, ${name}`;
-                    document.getElementById('login-modal').classList.remove('visible-modal');
-                    document.getElementById('login-modal').classList.add('hidden-modal');
-                    showPage(currentPageIndex); // Re-show current page
-                    sfx.nav();
+                    if (window.currentUser) {
+                        // User exists (SSO/Auth)?
+                        // Log Session Start immediately
+                        window.SessionManager.start(window.currentUserName, window.currentUserEmail);
+                        
+                        // Reveal Page 1 immediately
+                        window.showPage(0);
+                        // Fade out Startup Screen
+                        startupScreen.style.opacity = '0';
+                        setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
+                    } else {
+                        // No user (Direct Link)?
+                        // Show Modal *over* current view
+                        const loginModal = document.getElementById('login-modal');
+                        if (loginModal) {
+                            loginModal.classList.remove('hidden-modal');
+                            loginModal.classList.add('visible-modal');
+                        }
+                        // Fade out Startup Screen (revealing modal + obscured page 1)
+                        startupScreen.style.opacity = '0';
+                        setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
+                    }
                 });
             }
 
@@ -2745,7 +3022,7 @@
                         // Update the state attribute on the container
                         switchElement.setAttribute('data-state', selectedValue === "1" ? 'international' : 'domestic');
                         
-                        // FIX: Log Flight Type Selection
+                        // FIX: Log Flight Type Selection to Firestore
                         SessionManager.log("Flight Type Selected", selectedValue === "1" ? 'International' : 'Domestic');
 
                         updateFlightDisplay(selectedValue);
@@ -2917,7 +3194,7 @@
                         document.getElementById('bag-feedback').classList.add('bg-green-100', 'border-green-500', 'text-green-800', 'p-3', 'rounded');
                         document.getElementById('bag-feedback').textContent = "Excellent! All cargo is sorted and compliant. Proceed to check-in.";
                         
-                        // FIX: Mark Bag Sort as Complete & Log with mistake count
+                        // FIX: Mark Bag Sort as Complete & Log to Firestore
                         completionFlags.bagSort = true;
                         const detailText = bagSortMistakes === 0 ? "Perfect Score" : `Completed with ${bagSortMistakes} errors`;
                         SessionManager.log("Bag Sort Completed", detailText, { mistakes: bagSortMistakes });
@@ -2961,7 +3238,7 @@
             // Final initialization: set year, apply icons, and show first page
             document.getElementById('current-year').textContent = new Date().getFullYear();
             lucide.createIcons(); // Initialize all Lucide icons
-            showPage(0);	
+            // Page logic handled by Auth Logic/DOM Ready listeners now
         });
     </script>
 </body>
