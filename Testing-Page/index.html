@@ -146,11 +146,12 @@
         };
 
         // NEW: Function to signal module completion (for the Dashboard to track)
-        window.logModuleCompletion = async () => {
+        // UPDATED: Now accepts the SVG artifact to store permanently
+        window.logModuleCompletion = async (badgeSVGString) => {
             const user = auth.currentUser;
             if (!user) return;
             
-            console.log("[DB] Writing Airport Navigator Completion Status...");
+            console.log("[DB] Writing Airport Navigator Completion Status & Artifact...");
             // Use the established session ID for the status update
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             
@@ -162,12 +163,14 @@
                     finalScore: 100, // Mark as successful pass
                     rank: "Certified Navigator",
                     lastUpdated: serverTimestamp(),
+                    // NEW: Store the visual proof (The Badge)
+                    badgeArtifact: badgeSVGString,
                     user: {
                         uid: user.uid,
                         displayName: window.currentUserName
                     }
                 }, { merge: true });
-                console.log("[DB] Completion Status Write Success.");
+                console.log("[DB] Completion Status & Badge Artifact Write Success.");
             } catch (e) { console.error("[DB] Completion Status Write FAILED:", e); }
         };
 
@@ -2814,6 +2817,9 @@
                 </g>
             </svg>`;
             
+            // NEW: 2. Write Completion Signal AND Artifact to Firestore
+            window.logModuleCompletion(badgeSVG);
+
             const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
