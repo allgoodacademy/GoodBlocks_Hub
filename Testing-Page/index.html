@@ -278,7 +278,7 @@
             localStorage.removeItem('aa_launch_count');
             localStorage.removeItem('aa_uid');
             localStorage.removeItem('aa_ddc_complete');
-            localStorage.removeItem('aa_jlc_complete');
+            localStorage.removeItem('aa_jlc_complete'); // Clean JLC State
 
             launchCount = 0; 
             
@@ -390,7 +390,7 @@
                     if (badgeElement) {
                         if (badgeElement.id === 'ddc-status-badge') return;
                         
-                        // Do not overwrite if already completed
+                        // FIX: Do not overwrite if already completed
                         if (badgeElement.textContent === "MISSION COMPLETE" || badgeElement.textContent === "CERTIFIED") return;
 
                         if (badgeElement.textContent !== "LAUNCHED") {
@@ -405,7 +405,7 @@
             });
         }
 
-        // Universal Status Listener (Handles DDC + JLC + All Content Blocks)
+        // UPDATED: Universal Status Listener (Handles DDC + JLC + All Content Blocks)
         window.startModuleStatusListener = function(uid) {
             if (unsubscribeDecisions) unsubscribeDecisions();
             
@@ -414,7 +414,7 @@
             unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
                 let maxDDCScore = -1;
                 let hasDDCAttempt = false;
-                let isJLCComplete = false;
+                let isJLCComplete = false; // Track Jolene's Completion
                 
                 // Set to track which modules are done in this snapshot
                 const completedModules = new Set();
@@ -429,12 +429,15 @@
                         if (data.finalScore > maxDDCScore) maxDDCScore = data.finalScore;
                     }
 
-                    // 2. Jolene's Lemonade Logic (Explicit completion flag)
-                    if (gameName === "Jolene's Lemonade" && data.complete === true) {
-                        isJLCComplete = true;
+                    // 2. Jolene's Lemonade Logic (Explicit completion flag OR Score Safety Net)
+                    if (gameName === "Jolene's Lemonade") {
+                         if (data.complete === true || (typeof data.finalScore === 'number' && data.finalScore >= 800)) {
+                             isJLCComplete = true;
+                         }
                     }
 
                     // 3. Generic Completion Logic (Boolean based)
+                    // Scans for 'Digital Asset Defense', 'Airport Navigator', etc.
                     if (data.completed === true && gameName) {
                         completedModules.add(gameName);
                     }
@@ -486,7 +489,8 @@
                             badgeElement.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
                         }
                     } else if (badgeElement.textContent === "MISSION COMPLETE") {
-                        // Fallback logic
+                        // Fallback: If it was complete but database says no (e.g. reset), revert to Ready
+                        // Note: startLaunchListener will bump it back to 'LAUNCHED' if applicable
                         badgeElement.textContent = "Ready";
                         badgeElement.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
                     }
@@ -530,10 +534,14 @@
             const badgeCountEl = document.getElementById('badge-count-display');
             if(badgeCountEl) badgeCountEl.textContent = `BADGES: ${badgeCount}`;
             
-            // Update Modal UI
+            // Update Modal UI (if open or pre-render)
+            // Badge 2 (Agent)
             updateBadgeSlot('badge-slot-2', isLoggedIn);
+            // Badge 3 (Operator)
             updateBadgeSlot('badge-slot-3', launchCount > 0);
+            // Badge 4 (Cyber)
             updateBadgeSlot('badge-slot-4', ddcComplete);
+            // Badge 5 (Entrepreneur - JLC)
             updateBadgeSlot('badge-slot-5', jlcComplete);
 
             const launchStat = document.getElementById('stat-total-launches');
@@ -546,15 +554,15 @@
             const icon = el.querySelector('.badge-icon');
             const lock = el.querySelector('.badge-lock');
             
+            // Set data-unlocked attribute for the click handler
             el.dataset.unlocked = unlocked ? "true" : "false";
             
             if(unlocked) {
                 el.classList.remove('opacity-60', 'grayscale', 'bg-slate-200');
-                el.classList.add('shadow-md', 'bg-slate-100');
+                el.classList.add('shadow-md', 'bg-slate-100'); // Unlocked style
                 if(lock) lock.style.display = 'none';
                 if(icon) {
                     icon.classList.remove('text-slate-500');
-                    // Special case for emoji badge
                     if (!icon.classList.contains('emoji-badge')) {
                         icon.classList.add('text-allgood-primary');
                     } else {
@@ -562,7 +570,7 @@
                     }
                 }
             } else {
-                el.classList.add('opacity-60', 'grayscale', 'bg-slate-200');
+                el.classList.add('opacity-60', 'grayscale', 'bg-slate-200'); // Locked style
                 el.classList.remove('shadow-md', 'bg-slate-100');
                 if(lock) lock.style.display = 'block';
                 if(icon) {
@@ -577,6 +585,7 @@
         }
         
         window.showBadgeDetails = (type, element) => {
+            // Update Visual Selection
             document.querySelectorAll('.badge-grid-item').forEach(el => {
                 el.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2');
             });
@@ -584,11 +593,13 @@
                 element.classList.add('ring-2', 'ring-allgood-primary', 'ring-offset-2');
             }
 
+            // Data Content
             const detailsPane = document.getElementById('badge-details-pane');
             const detailsTitle = document.getElementById('badge-details-title');
             const detailsStatus = document.getElementById('badge-details-status');
             const detailsDesc = document.getElementById('badge-details-desc');
             
+            // Unlocked Check
             const isUnlocked = element && element.dataset.unlocked === "true";
             const statusText = isUnlocked ? "STATUS: UNLOCKED" : "STATUS: LOCKED";
             const statusClass = isUnlocked ? "text-green-600" : "text-red-500";
@@ -600,6 +611,7 @@
                 case 'observer': 
                     title = "Observer Badge";
                     desc = "Granted to all personnel observing Academy operations. No clearance required.";
+                    // Observer is always unlocked
                     detailsStatus.className = "text-xs font-bold uppercase tracking-widest mt-1 text-green-600";
                     detailsStatus.textContent = "STATUS: UNLOCKED";
                     break;
@@ -621,7 +633,7 @@
                     detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
                     detailsStatus.textContent = statusText;
                     break;
-                case 'entrepreneur': 
+                case 'entrepreneur': // NEW CASE
                     title = "Certified Entrepreneur";
                     desc = "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge. Demonstrates business acumen.";
                     detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
@@ -638,15 +650,16 @@
             detailsTitle.textContent = title;
             detailsDesc.textContent = desc;
             
+            // Simple fade in effect for the text
             detailsPane.classList.remove('opacity-50');
-            void detailsPane.offsetWidth;
+            void detailsPane.offsetWidth; // trigger reflow
             detailsPane.classList.add('opacity-100');
             
             sfx.click();
         }
         
         window.openBadgeCollection = () => {
-            window.updateBadges(); 
+            window.updateBadges(); // Ensure state is fresh
             const menu = document.getElementById('menu-modal');
             if (menu) {
                 menu.classList.add('hidden-modal');
@@ -656,6 +669,7 @@
             modal.classList.remove('hidden-modal');
             modal.classList.add('visible-modal');
             
+            // Auto-select first badge on open for better UX
             setTimeout(() => {
                 const firstBadge = document.querySelector('.badge-grid-item');
                 if(firstBadge) window.showBadgeDetails('observer', firstBadge);
