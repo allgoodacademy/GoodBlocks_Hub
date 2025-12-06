@@ -13,7 +13,8 @@
     <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        // Added 'signOut' to imports
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         // 1. CONFIGURATION (Using Environment or Fallback)
@@ -33,6 +34,9 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // Expose auth for the logout function
+        window.auth = auth;
 
         // 3. GLOBAL STATE
         window.currentUser = null;
@@ -64,7 +68,14 @@
                     loginModal.classList.remove('visible-modal');
                 }
             } else {
+                console.log("[Auth] No user. Waiting for login.");
                 window.currentUser = null;
+                // If we are signed out, ensure the login modal is ready to show when power up happens
+                const loginModal = document.getElementById('login-modal');
+                if(loginModal) {
+                    loginModal.classList.remove('hidden-modal');
+                    loginModal.classList.add('visible-modal');
+                }
             }
         });
 
@@ -82,14 +93,14 @@
              } catch (e) { console.error("Identity Error", e); }
         }
 
-        // 6. DB LOGGING - UPDATED FOR OS COMPLIANCE
+        // 6. DB LOGGING
         window.logFinalScoreToFirestore = async (data) => {
             const user = auth.currentUser;
             if (!user) return;
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             try {
                 await setDoc(sessionRef, {
-                    gameName: "Your Digital Identity", // CRITICAL FIX: Matches Dashboard Key
+                    gameName: "Your Digital Identity",
                     ...data,
                     lastUpdated: serverTimestamp(),
                     user: { uid: user.uid, displayName: window.currentUserName }
@@ -166,10 +177,41 @@
                 if(window.sfx && window.sfx.nav) window.sfx.nav();
             } catch (error) {
                 console.error("Google Sign-In Error", error);
-                // Fallback to anonymous if popup fails (common in iframes)
                 console.log("Falling back to Guest Login due to popup restriction");
                 window.handleGuestLogin();
             }
+        };
+
+        // 8. LOGOUT FUNCTION (NEW)
+        window.handleHardReset = async () => {
+            if(window.sfx && window.sfx.powerOff) window.sfx.powerOff();
+            
+            // 1. Sign Out
+            try { await signOut(auth); } catch(e) { console.log("Signout error", e); }
+            
+            // 2. Clear Local Data
+            localStorage.removeItem('aa_username');
+            window.currentUser = null;
+            window.currentUserName = "Learner";
+            
+            // 3. Reset UI
+            if(window.updateUserDisplay) window.updateUserDisplay("Learner");
+            
+            // 4. Show Login Modal
+            const loginModal = document.getElementById('login-modal');
+            loginModal.classList.remove('hidden-modal');
+            loginModal.classList.add('visible-modal');
+            
+            // 5. Restore Power Up Screen
+            const startup = document.getElementById('startup-screen');
+            if(startup) {
+                startup.style.display = 'flex';
+                // Small timeout to allow display:flex to apply before opacity transition
+                setTimeout(() => { startup.style.opacity = '1'; }, 10);
+            }
+            
+            window.showPage(0);
+            console.log("[System] Hard Reset Complete");
         };
     </script>
     
@@ -366,7 +408,8 @@
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><i class="fas fa-home text-lg"></i></button>
+                            <!-- ADDED title tooltip to home button -->
+                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Click to Reset Page | Hold 2s to Logout"><i class="fas fa-home text-lg"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><i class="fas fa-moon"></i></button>
                             <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><i class="fas fa-expand"></i></button>
@@ -1125,7 +1168,38 @@
 
         nextBtn.addEventListener('click', () => showPage(currentPage + 1));
         backBtn.addEventListener('click', () => showPage(currentPage - 1));
-        document.getElementById('home-button').addEventListener('click', () => showPage(0));
+        
+        // --- UPDATED: Home Button Logic (Hold to Hard Reset) ---
+        const homeBtn = document.getElementById('home-button');
+        let homePressTimer;
+        let homeIsHold = false;
+        
+        const startHomePress = (e) => {
+            // Prevent default only on touch to avoid ghost clicks, but careful with mouse
+            if(e.type === 'touchstart') e.preventDefault(); 
+            homeIsHold = false;
+            homePressTimer = setTimeout(() => {
+                homeIsHold = true;
+                if(window.handleHardReset) window.handleHardReset();
+            }, 2000); // 2 seconds hold
+        };
+        
+        const endHomePress = (e) => {
+            clearTimeout(homePressTimer);
+            if(!homeIsHold) {
+                // Normal Click
+                showPage(0);
+                sfx.nav();
+            }
+        };
+
+        if(homeBtn) {
+            homeBtn.addEventListener('mousedown', startHomePress);
+            homeBtn.addEventListener('touchstart', startHomePress);
+            homeBtn.addEventListener('mouseup', endHomePress);
+            homeBtn.addEventListener('touchend', endHomePress);
+            homeBtn.addEventListener('mouseleave', () => clearTimeout(homePressTimer));
+        }
 
         // --- Page 3: Tooltips ---
         window.toggleTooltip = function(id, event) {
