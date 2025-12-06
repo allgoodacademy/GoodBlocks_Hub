@@ -758,10 +758,11 @@
             
             const btn = document.getElementById('btn-badge-action');
             const originalText = document.getElementById('badge-action-text').textContent;
-            const targetUrl = window.userEarnedBadges[type];
+            // Rename variable for clarity: it might be a URL or Content
+            const assetData = window.userEarnedBadges[type];
             
-            if(!targetUrl) {
-                console.error("No asset URL found for", type);
+            if(!assetData) {
+                console.error("No asset data found for", type);
                 return;
             }
 
@@ -774,7 +775,24 @@
                 btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Asset Retrieved`;
                 lucide.createIcons();
                 
-                window.open(targetUrl, '_blank');
+                // DETECT: Is this a raw SVG string or a URL?
+                if (typeof assetData === 'string' && assetData.trim().startsWith('<svg')) {
+                    // It is raw code. Convert to a downloadable file blob.
+                    const blob = new Blob([assetData], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create invisible link to force download
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `AllgoodAcademy_${type}_Badge.svg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    // It is a standard URL. Open normally.
+                    window.open(assetData, '_blank');
+                }
                 
                 setTimeout(() => {
                     btn.disabled = false;
