@@ -47,9 +47,8 @@
         window.updateUserDisplay = function(name) {
             const el = document.getElementById('header-welcome-text');
             if(el) {
-                // Check if name already has "Agent", if not, add it
-                const displayName = name.toLowerCase().includes('agent') ? name : `Agent ${name}`;
-                el.textContent = `Welcome: ${displayName}`;
+                // Removed "Agent" prefix logic per request
+                el.textContent = `Welcome: ${name}`;
             }
         };
 
@@ -412,7 +411,7 @@
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
                             <!-- Updated Default Text -->
-                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Agent Learner</div>
+                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Learner</div>
                             <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 15</span>
