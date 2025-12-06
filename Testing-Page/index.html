@@ -1866,11 +1866,16 @@
                                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Founder</span>
                                     </div>
 
-                                    <!-- Ghosts (Visual Fillers) -->
-                                    <div class="flex flex-col items-center gap-2 opacity-30 pointer-events-none">
-                                        <div class="badge-token token-locked bg-slate-100 border-dashed border-slate-300"></div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase">Empty</span>
+                                    <!-- 6. Identity Guardian -->
+                                    <div id="badge-slot-6" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('identity', this)">
+                                        <div class="badge-token token-locked group-hover:scale-105">
+                                            <i data-lucide="fingerprint" class="badge-content w-8 h-8 text-slate-500"></i>
+                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Guardian</span>
                                     </div>
+
+                                    <!-- Ghosts (Visual Fillers) -->
                                     <div class="flex flex-col items-center gap-2 opacity-30 pointer-events-none">
                                         <div class="badge-token token-locked bg-slate-100 border-dashed border-slate-300"></div>
                                         <span class="text-[10px] font-bold text-slate-300 uppercase">Empty</span>
