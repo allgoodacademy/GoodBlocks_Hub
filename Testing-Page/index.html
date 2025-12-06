@@ -2,11 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Your Digital Identity - GoodBlock V3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Digital Identity</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons (V3 Standard) -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Font Awesome (Required for V2 Content Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'allgood-primary': '#D34716',   // Burnt Orange
+                        'allgood-secondary': '#357889', // Deep Cyan
+                        'allgood-dark': '#4C4C4C',      // Dark Gray
+                        'allgood-light': '#F7F7F7',     // Light Gray
+                        'allgood-hover': '#EB8D69',     // Light Orange
+                        'allgood-accent': '#2D6473',    // Darker Cyan
+                    },
+                    fontFamily: {
+                        'heading': ['Georgia', 'serif'],
+                        'body': ['Verdana', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
 
     <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
@@ -35,7 +59,6 @@
         // 3. GLOBAL STATE
         window.currentUser = null;
         window.currentUserName = "Anonymous";
-        window.currentUserEmail = "";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         // 4. AUTH HANDLER
@@ -53,9 +76,9 @@
                 }
 
                 window.currentUserName = finalName;
-                window.currentUserEmail = user.email;
                 window.updateUserDisplay(finalName);
                 
+                // Hide login modal if it's open (SSO auto-login)
                 const loginModal = document.getElementById('login-modal');
                 if (loginModal && !loginModal.classList.contains('hidden-modal')) {
                     loginModal.classList.add('hidden-modal');
@@ -64,14 +87,11 @@
                     // Start render
                     if(window.renderStep) window.renderStep();
                 }
-            } else {
-                window.currentUser = null;
-                window.updateUserDisplay("Agent Learner");
             }
         });
 
-        // 5. DATABASE LOGGING ENGINE
-        window.ensureUserContainer = async (user, name, email, isGuest) => {
+        // 5. IDENTITY ENGINE
+        window.ensureUserContainer = async function(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
              try {
                  await setDoc(userRef, {
@@ -87,9 +107,7 @@
         window.logFinalScoreToFirestore = async (scoreData) => {
             const user = auth.currentUser;
             if (!user) return;
-
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            
             try {
                 await setDoc(sessionRef, {
                     gameName: "Digital Identity",
@@ -97,11 +115,10 @@
                     lastUpdated: serverTimestamp(),
                     user: { uid: user.uid, displayName: window.currentUserName }
                 }, { merge: true });
-                console.log(`[DB] Session Write Success.`);
             } catch (e) { console.error("[DB] Session Write Failed", e); }
         }
 
-        // 6. LOGIN FUNCTIONS
+        // 6. LOGIN FUNCTIONS (Exposed Globally)
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
@@ -146,70 +163,101 @@
         };
     </script>
     
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'allgood-primary': '#D34716',
-                        'allgood-secondary': '#357889',
-                        'allgood-dark': '#4C4C4C',
-                        'allgood-light': '#F7F7F7',
-                        'allgood-hover': '#EB8D69',
-                    },
-                    fontFamily: {
-                        'heading': ['Georgia', 'serif'],
-                        'body': ['Verdana', 'sans-serif'],
-                    },
-                },
-            },
-        }
-    </script>
-
     <style>
-        /* --- FIXED CHASSIS STYLES (V3 OS) --- */
-        body { font-family: Verdana, sans-serif; background-color: #1a1a1a; min-height: 100vh; margin: 0; padding: 0; }
-        h1, h2, h3, h4 { font-family: Georgia, serif; }
+        /* ==========================================================================
+           FIXED CHASSIS MANDATE (V3)
+           ========================================================================== 
+        */
+        body {
+            font-family: Verdana, sans-serif;
+            background-color: #1a1a1a;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-attachment: fixed;
+            min-height: 100vh;
+            position: relative;
+            margin: 0; padding: 0;
+        }
+
+        h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
+
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); transform: scale(1); }
+            50% { text-shadow: 0 0 30px rgba(211, 71, 22, 0.9); transform: scale(1.02); }
+        }
+        
+        .animate-pulse-glow { animation: pulse-glow 2.5s infinite ease-in-out; }
 
         .tablet-frame {
             height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
-            background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
-            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative;
-            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 30px 60px -12px rgba(0,0,0,0.8);
-            margin: 20px auto;
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
+                linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
+            border-radius: 12px; padding: 12px; 
+            box-shadow: inset 1px 1px 2px rgba(255,255,255, 0.6), 0 30px 60px -12px rgba(0, 0, 0, 0.8);
+            border: 1px solid #333; position: relative; margin: 20px auto;
             transition: all 0.3s ease;
         }
+
         .tablet-frame::before {
             content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
             border-radius: 6px; background: #111; z-index: 0;
         }
+
         .screen-container {
-            width: 100%; height: 100%; background-color: #F7F7F7; position: relative; z-index: 1;
-            overflow: hidden; display: flex; flex-direction: column; border-radius: 4px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            width: 100%; height: 100%; background-color: #F7F7F7;
+            position: relative; z-index: 1; overflow: hidden;
+            display: flex; flex-direction: column; 
+            border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
+        /* V3 Modal Transitions */
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        
+        /* Layout */
+        .navbar-content { flex: 0 0 60px; z-index: 20; }
+        .footer-content { flex: 0 0 60px; z-index: 20; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        #content-area { flex: 1 1 auto; overflow-y: auto; padding: 1.5rem; position: relative; }
 
         /* Scrollbars */
-        .content-scroll::-webkit-scrollbar { width: 14px; }
-        .content-scroll::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
-        .content-scroll::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
+        #content-area::-webkit-scrollbar { width: 14px; }
+        #content-area::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
+        #content-area::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
 
         /* Progress Bar */
         #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
         #flex-progress-fill { height: 100%; background-color: #D34716; width: 0%; transition: width 0.3s ease; }
 
-        /* --- CONTENT SPECIFIC STYLES (FROM V2) --- */
+        /* Focus Mode */
+        .tablet-frame.focus-mode { 
+            position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
+            max-width: none !important; margin: 0 !important; padding: 0 !important; 
+            background: none !important; border: none !important; border-radius: 0 !important; box-shadow: none !important;
+            z-index: 9999;
+        }
+        .tablet-frame.focus-mode::before { display: none; }
+        .tablet-frame.focus-mode .screen-container { border-radius: 0; }
+
+        /* Blueprint Mode */
+        .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
+        .blueprint-mode .screen-container, .blueprint-mode #content-area { background-color: #0f172a !important; }
+        .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+        .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
+        .blueprint-mode .goodblock-card { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+
+        /* ==========================================================================
+           V2 COMPONENT STYLES (CONTENT FIDELITY)
+           ========================================================================== 
+        */
         .goodblock-card { background-color: #ffffff; border-left: 5px solid #357889; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1rem; }
         .goodblock-card.primary { border-left-color: #D34716; }
         
         .tooltip-container { border-bottom: 2px dashed #357889; color: #357889; font-weight: bold; cursor: pointer; }
-        .tooltip-content { display: none; }
         
-        /* Comparison Slider */
         .comparison-slider-container { position: relative; height: 250px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); user-select: none; }
         .comparison-before, .comparison-after { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 1rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; }
         .comparison-before { background-color: #dc2626; }
@@ -217,23 +265,25 @@
         .comparison-divider { position: absolute; top: 0; bottom: 0; width: 4px; background-color: white; cursor: ew-resize; z-index: 10; }
         .comparison-divider-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background-color: rgba(0,0,0,0.5); border-radius: 50%; padding: 0.5rem; }
 
-        /* Blueprint Mode Overrides */
-        .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
-        .blueprint-mode .screen-container, .blueprint-mode main { background-color: #0f172a !important; }
-        .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
-        .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
-        .blueprint-mode .goodblock-card { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+        /* Quiz Styles from V2 */
+        .quiz-button-active { background-color: #D34716; border: 2px solid #D34716; color: white; }
+        .quiz-button-passive { background-color: #357889; border: 2px solid #357889; color: white; }
+        .quiz-button-correct { background-color: #10B981; border-color: #10B981; color: white; }
+        .quiz-button-incorrect { background-color: #EF4444; border-color: #EF4444; color: white; }
+        .quiz-button-disabled { opacity: 0.4; pointer-events: none; }
 
-        /* Focus Mode Overrides */
-        .tablet-frame.focus-mode { width: 100% !important; height: 100% !important; border: none; border-radius: 0; margin: 0; padding: 0; max-width: none; max-height: none; background: none; box-shadow: none; }
-        .tablet-frame.focus-mode::before { display: none; }
-        .tablet-frame.focus-mode .screen-container { border-radius: 0; }
+        /* Mastery Quiz Styles from V2 */
+        .mc-option { background-color: #f9fafb; border: 1px solid #e5e7eb; transition: all 0.15s ease; }
+        .mc-option:hover:not(.mc-disabled) { background-color: #f3f4f6; border-color: #357889; }
+        .mc-disabled { pointer-events: none; opacity: 0.6; }
+        .mc-correct { background-color: #d1fae5; border-color: #10b981; font-weight: bold; }
+        .mc-incorrect { background-color: #fee2e2; border-color: #f87171; }
 
-        @media (max-width: 768px) {
-            .tablet-frame { width: 100% !important; height: 100% !important; border: none; border-radius: 0; margin: 0; padding: 0; background: none; box-shadow: none; }
-            .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0; }
-        }
+        /* 3D Flip for Tiles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -242,69 +292,94 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
-                <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                <!-- 1. STARTUP SCREEN (V3 TEMPLATE EXACT) -->
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-allgood-accent">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
-                            <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Allgood Academy</h2>
-                            <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md">GoodBlock</h1>
-                            <p class="mt-2 text-white/80 relative z-10 font-body text-sm font-semibold">Your Digital Identity</p>
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Allgood Academy</h2>
+                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md animate-pulse-glow">GoodBlock</h1>
+                            </div>
                             <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
+                        </div>
+                        <div class="absolute bottom-10 w-full text-center">
+                            <p class="text-white/40 text-xs font-body tracking-wide">Powered by the <span class="text-white/60 font-bold">Allgood Academy</span></p>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2. LOGIN MODAL -->
+                <!-- 2. LOGIN MODAL (V3 TEMPLATE EXACT) -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
                         <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        <p class="text-gray-500 text-sm font-body mb-6">Please sign in to start.</p>
-                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 font-body">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform font-body uppercase">Start Module</button>
+                        <div class="flex items-center justify-center gap-2 mb-6 relative">
+                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
+                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
+                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
+                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the GoodBlock experience. All personal data is kept confidential and never sold.</p>
+                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
+                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
+                                </div>
+                            </button>
+                        </div>
+                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start Challenge</button>
                         <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
-                        <button onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:scale-105 bg-white flex items-center justify-center mx-auto">
-                            <i class="fab fa-google text-red-500 text-xl"></i>
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                         </button>
                     </div>
                 </div>
 
-                <!-- 3. HEADER -->
-                <header class="bg-allgood-secondary shadow-md flex-none z-20 h-[60px] flex items-center">
+                <!-- 3. HEADER (V3 CONTROL CLUSTER EXACT) -->
+                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
-                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4">Digital Identity</div>
-                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10">
+                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Learner</div>
+                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Step</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 15</span>
                             </div>
                         </div>
-                        <div class="flex items-center space-x-1 shrink-0">
-                            <button id="home-button" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10" title="Reset"><i data-lucide="refresh-cw" class="w-5 h-5"></i></button>
+                        <div class="flex items-center space-x-1 shrink-0 relative">
+                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 p-2 rounded-full hover:bg-white/10"><i data-lucide="scan" class="w-5 h-5"></i></button>
-                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 p-2 rounded-full hover:bg-white/10"><i data-lucide="maximize" class="w-5 h-5"></i></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-6 h-6"></i></button>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
+                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         </div>
                     </div>
                 </header>
 
-                <!-- 4. CONTENT AREA (Dynamic) -->
+                <!-- 4. CONTENT AREA (Dynamic Injection) -->
                 <div id="content-area" class="flex-grow overflow-y-auto p-6 relative content-scroll bg-allgood-light">
                     <!-- Dynamic Content Injected Here -->
                 </div>
 
-                <!-- 5. FOOTER -->
-                <footer class="bg-white border-t border-gray-200 flex-none z-20 h-[60px] flex items-center justify-between px-6 relative">
+                <!-- 5. FOOTER (V3 TEMPLATE EXACT) -->
+                <footer class="footer-content flex items-center justify-between px-6">
                     <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
+                    
                     <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body">
-                        <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>Back
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>Back
                     </button>
-                    <p class="text-gray-400 text-[10px] hidden sm:block font-body">&copy; Allgood Academy</p>
-                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body">
-                        <span>Next</span><i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
-                    </button>
+                    
+                    <div class="text-center hidden sm:block">
+                        <p class="text-gray-400 text-[10px] font-body">
+                            <a href="https://www.allgoodacademy.com" target="_blank" class="font-bold hover:text-allgood-primary transition-colors">GoodBlock&trade;</a> 
+                            powered by the 
+                            <a href="https://www.allgoodacademy.com" target="_blank" class="font-bold hover:text-allgood-primary transition-colors">Allgood Academy</a>
+                        </p>
+                    </div>
+
+                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span>Next</span><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
                 </footer>
 
                 <!-- Modals -->
@@ -334,46 +409,321 @@
         // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
-        function playTone(freq, type, duration) {
-            initAudio(); const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(freq, now); osc.connect(gain); gain.connect(audioCtx.destination);
-            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-            osc.start(now); osc.stop(now + duration);
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error("Audio resume failed:", e));
         }
+
+        function playTone(freq, type, duration, vol = 0.1, attack = 0.01, decay = 0.001) {
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, now);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(vol, now + attack);
+                gain.gain.exponentialRampToValueAtTime(decay, now + duration);
+                osc.start(now); osc.stop(now + duration);
+            } catch(e) { console.warn("Audio error", e); }
+        }
+
         const sfx = {
-            powerOn: () => { initAudio(); playTone(220, 'triangle', 0.5); },
-            nav: () => { initAudio(); playTone(440, 'sine', 0.1); },
-            tick: () => { initAudio(); playTone(880, 'sine', 0.05); }
+            powerOn: () => { initAudio(); const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(110, now); osc.frequency.exponentialRampToValueAtTime(220, now + 0.4); gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.4, now + 0.1); gain.gain.linearRampToValueAtTime(0, now + 0.4); osc.start(now); osc.stop(now + 0.4); },
+            powerOff: () => { initAudio(); playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001); },
+            nav: () => { initAudio(); playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01); },
+            tick: () => { initAudio(); playTone(1000, 'sine', 0.01, 0.01); }
         };
         window.sfx = sfx;
+        window.initAudio = initAudio;
+        
+        window.updateUserDisplay = (name) => {
+            currentUserName = name;
+            document.getElementById('header-welcome-text').textContent = `Welcome: ${name}`;
+        }
 
         // --- CONTENT ENGINE ---
         let currentStep = 0;
         let masteryQuizPassed = false;
         
-        const goodBlockConfig = { topicName: "Digital Identity", skillName: "Footprint Management" };
+        const goodBlockConfig = { 
+            topicName: "The Digital Footprint: Permanent & Powerful", 
+            skillName: "Your Digital Identity",
+            objectives: "Understand Active/Passive Data; Recognize permanence; Create a 4-step management plan."
+        };
 
         const courseSteps = [
-            { type: 'intro', title: 'Welcome', body: `<div class="flex flex-col items-center justify-center text-center h-full"><i data-lucide="fingerprint" class="w-16 h-16 text-allgood-secondary mb-4"></i><h2 class="text-2xl font-bold font-heading text-allgood-dark">Your Digital Identity</h2><p class="mt-4 text-base text-gray-600">Understand the difference between Active and Passive data, and learn to manage your permanent digital record.</p></div>` },
-            { type: 'content', title: "What is a Digital Footprint?", body: `<p class="text-gray-700 text-base mb-4">Your digital footprint is the trail of data you leave behind when you use the internet.</p><div class="goodblock-card primary"><p class="text-sm font-semibold text-allgood-primary">Think of it as your <strong>digital brand</strong>. It is often permanent.</p></div>` },
-            { type: 'content-tooltip', title: "Active vs. Passive", body: `<p class="mb-4">Two types of data trails:</p><p class="mb-2"><span class="tooltip-container">Active Footprint<span class="tooltip-content">Data you intentionally share (posts, emails).</span></span>: What you choose to share.</p><p><span class="tooltip-container">Passive Footprint<span class="tooltip-content">Data collected automatically (IP address, location).</span></span>: What is collected about you.</p>` },
-            { type: 'reveal', title: "The Danger of Passive Data", layers: [{title: "Data Collection", icon: "satellite", content: "Apps track your location 24/7."}, {title: "Data Brokers", icon: "share-2", content: "Companies sell your data profile."}, {title: "The Product", icon: "user", content: "If it's free, YOU are the product."}] },
-            { type: 'accordion', title: "Mindset Shift", body: `<div class="space-y-2"><div class="goodblock-card"><h4 class="font-bold text-allgood-primary accordion-trigger cursor-pointer">Old Habit: Convenience</h4><div class="hidden mt-2 text-sm">Clicking 'Agree' without reading.</div></div><div class="goodblock-card primary"><h4 class="font-bold text-allgood-secondary accordion-trigger cursor-pointer">New Habit: Control</h4><div class="hidden mt-2 text-sm">Managing settings and questioning value.</div></div></div>` },
-            { type: 'tabs', title: "Myth vs. Reality", tabs: [{label: "Myth", content: "Deleting a post removes it forever."}, {label: "Reality", content: "Screenshots and archives are permanent."}] },
-            { type: 'read-more', title: "The Cost of Free", intro: "Social media isn't free.", fullText: "You pay with your data. Every like, scroll, and click builds a profile sold to advertisers." },
-            { type: 'slider', title: "Public vs. Private", before: {title: "Public Self", text: "Curated for employers."}, after: {title: "Private Self", text: "Trusted friends only."} },
-            { type: 'callout-tiles', title: "The 4 Rules", tiles: [{title: "Pause", content: "Wait 10s before posting."}, {title: "Audit", content: "Google yourself monthly."}, {title: "Settings", content: "Lock down privacy."}, {title: "Security", content: "Use 2FA."}] },
-            { type: 'numbered-accordion', title: "Action Plan", steps: [{title: "Audit", content: "Search your name."}, {title: "Lock Down", content: "Set to Friends Only."}, {title: "Strengthen", content: "Use a Password Manager."}] },
-            { type: 'quiz-filter', title: "Active or Passive?", questions: [{text: "Posting a photo", ans: "ACTIVE"}, {text: "GPS Tracking", ans: "PASSIVE"}, {text: "Sending Email", ans: "ACTIVE"}] },
-            { type: 'carousel', title: "Core Truths", quotes: ["Privacy is a prerequisite to freedom.", "What is public is preserved forever."] },
-            { type: 'mastery-quiz', title: "Mastery Challenge", quiz: [
-                {q: "What is the key difference?", options: ["Active is text", "Active is intentional"], correct: 1},
-                {q: "Who uses your active footprint?", options: ["Employers", "ISPs"], correct: 0},
-                {q: "First step of the plan?", options: ["Audit", "Delete"], correct: 0}
-            ]},
-            { type: 'conclusion', title: "Complete", body: `<div class="text-center"><i data-lucide="award" class="w-16 h-16 text-allgood-primary mx-auto mb-4"></i><h2 class="text-2xl font-bold font-heading">Identity Secured</h2><p class="mt-4">You have a pragmatic plan.</p></div>` },
-            { type: 'iframe-embed', title: "Badge", src: "https://docs.google.com/forms/d/e/1FAIpQLSfyZqRFBSxNMcJQD7EPDD6Rrpi77x016ZNGuL6A5Bp0XSagMA/viewform?embedded=true" }
+            // STEP 0: Welcome Screen (Type: intro)
+            {
+                type: 'intro',
+                title: 'Welcome',
+                body: `<div class="flex flex-col items-center justify-center text-center h-full min-h-[400px]">
+                    <img src="https://i.ibb.co/3yvdN59b/Horizontal-Logo.png" alt="Allgood Academy Logo" class="w-3/4 max-w-xs mb-4 mx-auto">
+                    <h2 class="text-2xl font-bold font-georgia text-gray-800">
+                        <span style="color: var(--brand-secondary);">Welcome to the</span> <span style="color: var(--brand-secondary);">{{topic}}</span> <span style="color: var(--brand-primary);">GoodBlock</span>
+                    </h2>
+                    <p class="mt-2 text-base text-gray-600">Our mission: turning <strong style="color: var(--brand-primary);">passive learning</strong> into <strong style="color: var(--brand-secondary);">pragmatic action</strong>.</p>
+                    <p class="mt-2 text-sm font-semibold" style="color: var(--brand-secondary);">
+                        Learn how to: {{objectives}}
+                    </p>
+                </div>`,
+            },
+            // STEP 1: What is a Digital Footprint? (Type: content)
+            {
+                type: 'content',
+                title: "What is a Digital Footprint?",
+                body: `<p class="text-gray-700 text-base mb-4">Your digital footprint is the trail of data you leave behind when you use the internet. It includes everything from your social media posts and search history to website cookies and location data tracked by apps.</p>
+                    <div class="goodblock-card primary">
+                        <p class="text-sm font-semibold" style="color: var(--brand-primary);">Think of it as your <strong>digital identity</strong>. It's how you appear to the world online, and it's often permanent.</p>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-700">Understanding this footprint is the first step to managing your online reputation and protecting your privacy.</p>`,
+            },
+            // STEP 2: Defining the Core Concepts (Type: content-tooltip)
+            {
+                type: 'content-tooltip',
+                title: "Defining the Core Concepts",
+                body: `<p class="text-gray-700 text-base mb-4">Your digital footprint is split into two main categories. Understanding both is critical to seeing the full picture of your online identity.</p>
+                    <h3 class="text-lg font-semibold mb-3 font-georgia" style="color: var(--brand-secondary);">Two Types of Data Trails</h3>
+                    <p class="text-sm text-gray-700 mb-4">The first part is your <span class="tooltip-container">Active Footprint<span class="tooltip-content">Data you intentionally and knowingly share online. This includes your social media posts, blog entries, emails you send, or forms you fill out.</span></span>. This is the identity you *choose* to build.</p>
+                    <div class="goodblock-card">
+                        <p class="font-bold mb-1 text-sm" style="color: var(--brand-secondary);">The second, hidden part is your <span class="tooltip-container">Passive Footprint<span class="tooltip-content">Data collected without your active input or knowledge. This includes your IP address, browsing history, device information, and location data tracked by apps and websites.</span></span>.</p>
+                    </div>
+                    <p class="mt-4 italic text-xs text-gray-600">Your passive footprint often says more about you than your active one.</p>`,
+            },
+            // STEP 3: The Danger of the Passive Footprint (TYPE: reveal)
+            {
+                type: 'reveal',
+                title: "The Danger of the Passive Footprint",
+                intro: "Your 'hidden' footprint is constantly being tracked, analyzed, and sold. Click below to see how this data is used.",
+                layers: [
+                    {
+                        title: "1. The Data Collection",
+                        icon: "fas fa-satellite-dish",
+                        content: `<p class="text-sm italic text-gray-700">
+                                <strong>Scenario:</strong> You use a free weather app. You actively check the forecast (your active footprint). Passively, the app requests your location data, which you grant. It now tracks everywhere you go, 24/7.
+                            </p>`,
+                    },
+                    {
+                        title: "2. The Data Broker",
+                        icon: "fas fa-handshake",
+                        content: `<p class="text-sm italic text-gray-700">
+                                The weather app company sells your location data stream to a 'data broker.' This broker combines your location data with your browsing history (also purchased) and public records (your name, address).
+                            </p>`,
+                    },
+                    {
+                        title: "3. The Core Pragmatic Insight",
+                        icon: "fas fa-brain",
+                        content: `<p class="font-bold mb-1 text-sm" style="color: var(--brand-secondary);">
+                                You are not the customer; you are the product.
+                            </p>
+                            <p class="text-xs text-gray-700">This combined profile is sold to advertisers, insurance companies, or even future employers to make decisions about you. Your passive footprint is used to judge your habits, interests, and risks.</p>
+                            <p class="mt-3 text-xs text-gray-700 font-semibold">Managing your digital identity means controlling *both* your active and passive data trails.</p>`,
+                    },
+                ]
+            },
+            // STEP 4: Accordion Drop-Downs (Type: accordion) - Mindset Shift
+            {
+                type: 'accordion',
+                title: "Before vs. After: The Internal Shift",
+                body: `<p class="text-gray-700 mb-4 text-sm">To manage your footprint, you must shift your mindset from being a passive 'user' to a pragmatic 'owner' of your identity.</p>
+                    <div class="space-y-3">
+                        <div class="goodblock-card p-3">
+                            <button class="accordion-trigger flex justify-between w-full text-left items-center">
+                                <div>
+                                    <h4 class="font-bold text-base mb-0" style="color: var(--brand-primary);">Focus on Convenience (The Old Habit)</h4>
+                                    <p class="text-xs text-gray-600">Using free apps, clicking "Agree" without reading, oversharing.</p>
+                                </div>
+                                <span class="accordion-icon transition-transform duration-300 text-gray-400">&#9658;</span>
+                            </button>
+                            <div class="accordion-content hidden pt-3 mt-3 border-t border-gray-100">
+                                <p class="mt-2 font-medium text-xs text-gray-700"><strong>Goal:</strong> I want this app/service right now, for free.</p>
+                                <p class="mt-1 font-medium text-xs text-gray-700"><strong>Action:</strong> Clicking "Allow All Cookies" or "Agree" to get to the content faster.</p>
+                            </div>
+                        </div>
+                        <div class="goodblock-card primary p-3">
+                            <button class="accordion-trigger flex justify-between w-full text-left items-center">
+                                <div>
+                                    <h4 class="font-bold text-base mb-0" style="color: var(--brand-secondary);">Focus on Control (The New Habit)</h4>
+                                    <p class="text-xs text-gray-600">Questioning the data exchange, managing settings, sharing intentionally.</p>
+                                </div>
+                                <span class="accordion-icon transition-transform duration-300 text-gray-400">&#9658;</span>
+                            </button>
+                            <div class="accordion-content hidden pt-3 mt-3 border-t border-gray-100">
+                                <p class="mt-2 font-medium text-xs text-gray-700"><strong>Goal:</strong> Is the value of this app worth the data I am giving it?</p>
+                                <p class="mt-1 font-medium text-xs text-gray-700"><strong>Action:</strong> Denying non-essential cookies, turning off location services for apps that don't need it.</p>
+                            </div>
+                        </div>
+                    </div>`,
+            },
+            // STEP 5: Tabbed Content Interface (Type: tabs) - Myth vs. Reality
+            {
+                type: 'tabs',
+                title: "Myth vs. Reality",
+                intro: "Your online actions have permanent consequences. Contrast the common myth with the pragmatic reality.",
+                tabs: [
+                    {
+                        label: "Myth: 'I Can Delete It'",
+                        content: `<div class="text-center p-3 text-red-700"><i class="fas fa-trash-alt text-3xl mb-2"></i></div><h4 class="font-bold text-base text-red-700 font-georgia">"If I delete my post, it's gone forever."</h4><p class="text-sm mt-2 text-gray-700">This is a dangerous myth. Once something is online, it can be screenshotted, saved, and archived by web crawlers (like the Wayback Machine) or other users. Deleting it only removes it from your view.</p>`,
+                    },
+                    {
+                        label: "Reality: 'It's Permanent'",
+                        content: `<div class="text-center p-3 text-green-700"><i class="fas fa-archive text-3xl mb-2"></i></div><h4 class="font-bold text-base text-green-700 font-georgia">"Assume everything I post is permanent."</h4><p class="text-sm mt-2 text-gray-700">This is the correct, pragmatic mindset. Before you post, email, or send, ask yourself: "Would I be okay with this being on a billboard next to my face forever?" If the answer is no, don't post it.</p>`,
+                    }
+                ]
+            },
+            // STEP 6: The Layered Reveal (Type: reveal) - The "Who Is Watching?" Model
+            {
+                type: 'reveal',
+                title: "Who Is Watching Your Footprint?",
+                intro: "Your data is valuable to many different groups. Click to see who is analyzing your profile.",
+                layers: [
+                    {
+                        title: "1. Advertisers & Marketers",
+                        icon: "fas fa-bullhorn",
+                        content: `<p class="text-xs text-gray-700">This is the most common. They use your passive footprint (browsing, location) to build a profile and sell you products. This is why you see ads for things you *just* talked about.</p>`,
+                    },
+                    {
+                        title: "2. Employers & Colleges",
+                        icon: "fas fa-user-tie",
+                        content: `<p class="text-xs text-gray-700">This is high-stakes. 70% of employers use social media to screen candidates. Your active footprint (posts, photos, comments) is used to judge your character, professionalism, and alignment with their values.</p>`,
+                    },
+                    {
+                        title: "3. Data Brokers & Bad Actors",
+                        icon: "fas fa-user-secret",
+                        content: `<p class="text-xs text-gray-700">Data brokers buy and sell your data without your knowledge. Worse, scammers and identity thieves can use your publicly available active data (birthday, hometown, pet's name) to answer security questions and gain access to your accounts.</p>`,
+                    }
+                ]
+            },
+            // STEP 7: Expandable Text Block (Type: read-more) - The Cost of "Free"
+            {
+                type: 'read-more',
+                title: "The High Cost of 'Free'",
+                intro: "Social media and search engines feel free, but you are paying with a valuable currency: your personal data.",
+                fullText: "There's a common saying in tech: 'If you're not paying for the product, you *are* the product.' This is the fundamental business model of the modern internet. Companies like Google and Meta (Facebook/Instagram) provide incredible services 'for free.' They don't charge you money; they charge you in data. Your searches, your 'likes,' the time you spend looking at a photo, your location—all of it is collected. This data is used to build an astonishingly accurate profile of your personality, your desires, your fears, and your political beliefs. This profile is then sold to advertisers who want to influence your behavior, whether it's buying a product or thinking a certain way. The 'free' service is just the bait to capture the real product: your attention and your data."
+            },
+            // STEP 8: The Comparison Slider (Type: slider) - Public vs. Private
+            {
+                type: 'slider',
+                title: "Public vs. Private Identity",
+                intro: "Your online identity is a balance. Drag the divider to visualize the difference between what you show and what you protect.",
+                before: {
+                    icon: 'fas fa-eye',
+                    title: "Public Self",
+                    text: "What you post publicly. This is your 'brand.' It should be professional, positive, and curated. This is what employers and strangers see."
+                },
+                after: {
+                    icon: 'fas fa-lock',
+                    title: "Private Self",
+                    text: "What you share only with trusted friends or keep to yourself. This includes personal feelings, private jokes, and sensitive information."
+                }
+            },
+            // STEP 9: Image Callout Tiles (Type: callout-tiles) - The Four Rules of Ownership
+            {
+                type: 'callout-tiles',
+                title: "The Four Rules of Ownership",
+                intro: "Take control of your digital identity by following these four non-negotiable rules. Click to reveal the <strong>Pragmatic Action</strong> for each rule.",
+                tiles: [
+                    { icon: 'fas fa-pause-circle', title: "1. The Pause", content: "Action: Before you post, pause for 10 seconds. Ask: 'Is this permanent? Is this public?'", color: '#D34716' },
+                    { icon: 'fas fa-user-shield', title: "2. The Audit", content: "Action: Once a month, Google your own name. See what employers see. Clean up old, unprofessional posts or photos.", color: '#357889' },
+                    { icon: 'fas fa-cog', title: "3. The Settings", content: "Action: Go into your app settings (Facebook, Google, Instagram) and review your privacy and location settings. Turn off everything that isn't essential.", color: '#EB8D69' },
+                    { icon: 'fas fa-key', title: "4. The Security", content: "Action: Use a password manager and enable two-factor authentication (2FA) on all accounts. Don't use personal info (like pet names) in passwords.", color: '#2D6473' }
+                ]
+            },
+            // STEP 10: Step-by-Step Accordion (Type: numbered-accordion) - The 4-Step Action Plan
+            {
+                type: 'numbered-accordion',
+                title: "The GoodBlock 4-Step Action Plan",
+                intro: "Use this pragmatic checklist to clean up your past and protect your future.",
+                steps: [
+                    {title: "Audit Your Public Self", content: "Search your name in 'Incognito Mode.' Review your social media profiles from a stranger's perspective. Remove or privatize any posts, photos, or comments that seem unprofessional or too personal." },
+                    {title: "Lock Down Your Settings", content: "Go to the Privacy & Security settings on your main social and search accounts. Set your default audience to 'Friends Only.' Disable location tracking for apps that don't need it (e.g., social media)." },
+                    {title: "Strengthen Your Security", content: "Install a reputable password manager (like Bitwarden or 1Password). Change your main passwords to be long, random, and unique. Enable Two-Factor Authentication (2FA) everywhere you can." },
+                    {title: "Adopt 'The Pause'", content: "Make a conscious habit of pausing before you post. This is the single most important action to protect your future self. 'Is this kind, necessary, and public-safe?'" }
+                ],
+            },
+            // STEP 11: QUIZ FILTER (Type: quiz-filter)
+            {
+                type: 'quiz-filter',
+                title: "Knowledge Check: The Footprint Filter",
+                intro: "Filter the following items. Are they part of your <strong>Active</strong> footprint (intentional) or <strong>Passive</strong> footprint (automatic)?",
+                questions: [
+                    { phrase: "1. Posting a photo on Instagram.", correct: "ACTIVE", feedback: { correct: "This is a conscious, intentional action you are taking.", incorrect: "This is an ACTIVE choice. You are intentionally uploading data." } },
+                    { phrase: "2. Your phone's IP address being logged by a website.", correct: "PASSIVE", feedback: { correct: "This happens automatically just by visiting the site.", incorrect: "This is PASSIVE. You don't actively choose to send your IP address." } },
+                    { phrase: "3. A website saving 'cookies' on your browser.", correct: "PASSIVE", feedback: { correct: "This is a background process used for tracking.", incorrect: "This is PASSIVE. While you may click 'Allow,' the collection is automatic." } },
+                    { phrase: "4. Sending an email to your boss.", correct: "ACTIVE", feedback: { correct: "You are actively writing and sending this data.", incorrect: "This is an ACTIVE choice. You are intentionally sending data." } },
+                    { phrase: "5. Your phone tracking your location for a weather app.", correct: "PASSIVE", feedback: { correct: "This data is collected in the background, not by your direct action.", incorrect: "This is PASSIVE. The app collects this data automatically." } }
+                ]
+            },
+            // STEP 12: Quote Carousel (Type: carousel)
+            {
+                type: 'carousel',
+                title: "Reinforcement: Identity & Permanence",
+                intro: "Your digital footprint is a living record of your life. Cycle through these core truths.",
+                quotes: [
+                    { text: "Privacy is not something you're merely entitled to, it's an absolute prerequisite to human freedom.", author: "Julian Assange" },
+                    { text: "The Internet is the first thing that humanity has built that humanity doesn't understand.", author: "Eric Schmidt" },
+                    { text: "What is private is being deleted. What is public is being preserved and made searchable.", author: "Jeff Jarvis" },
+                    { text: "Your reputation is what people say about you when you're not in the room. On the internet, you're never in the room.", author: "Jeff Bezos" }
+                ]
+            },
+            // STEP 13: MASTERY QUIZ
+            {
+                type: 'mastery-quiz',
+                title: "Mastery Challenge: The Action Plan",
+                intro: "You've learned the concepts. Now, apply them. You must score <strong>80% (4/5)</strong> to prove mastery and get your badge.",
+                quiz: [
+                    {
+                        question: "1. What is the most significant difference between an Active and a Passive footprint?",
+                        options: ["Active is text, Passive is images.", "Active is intentional sharing; Passive is automatic background collection.", "Active is on social media; Passive is on Google.", "Active is permanent; Passive can be deleted."],
+                        correctIndex: 1,
+                        feedback: { correct: "Correct. The key is 'intentional' vs. 'automatic.'", incorrect: "Incorrect. The key difference is intent. Active is what you *do*; Passive is what is *done to you*." }
+                    },
+                    {
+                        question: "2. According to the 'Myth vs. Reality' step, what is the most pragmatic mindset to have *before* posting?",
+                        options: ["\"I can delete this later if I change my mind.\"", "\"My friends will find this funny.\"", "\"This post will get a lot of likes.\"", "\"I am okay with this being permanent and public.\""],
+                        correctIndex: 3,
+                        feedback: { correct: "Correct. This is the 'billboard test' and assumes permanence.", incorrect: "Incorrect. The most pragmatic mindset is assuming permanence and public visibility." }
+                    },
+                    {
+                        question: "3. Which group uses your *Active* footprint (e.g., public posts, photos) to make high-stakes judgments about your character?",
+                        options: ["Advertisers & Marketers", "Data Brokers & Scammers", "Employers & Colleges", "Your Internet Service Provider (ISP)"],
+                        correctIndex: 2,
+                        feedback: { correct: "Correct. Employers and colleges screen your public social media to judge your character.", incorrect: "Incorrect. While advertisers use your data, employers and colleges are the ones making high-stakes character judgments based on your *active* posts." }
+                    },
+                    {
+                        question: "4. What is the *first* step in the 4-Step Action Plan for managing your footprint?",
+                        options: ["Strengthen Your Security (e.g., 2FA)", "Adopt 'The Pause'", "Audit Your Public Self (e.g., Google your name)", "Lock Down Your Settings"],
+                        correctIndex: 2,
+                        feedback: { correct: "Correct. You can't make a plan until you know what the current problem is. The audit comes first.", incorrect: "Incorrect. The first step is to Audit (e.g., Google yourself) to understand what your public footprint currently looks like." }
+                    },
+                    {
+                        question: "5. What is the fundamental 'cost' of using most 'free' social media platforms and search engines?",
+                        options: ["Your device's battery life.", "Your personal data and attention.", "Your email address for marketing lists.", "Your time."],
+                        correctIndex: 1,
+                        feedback: { correct: "Correct. You are the product. You pay with your data and attention, which is sold to advertisers.", incorrect: "Incorrect. The core business model is data. You pay with your personal data and attention, which is the product sold to advertisers." }
+                    }
+                ]
+            },
+            // STEP 14: Conclusion
+            {
+                type: 'conclusion',
+                title: "GoodBlock Complete: You Own Your Identity",
+                body: `<div class="text-center py-8">
+                    <i class="fas fa-certificate text-6xl" style="color: var(--brand-secondary);"></i>
+                    <h2 class="text-3xl font-bold font-georgia mt-4" style="color: var(--brand-secondary);">Mastery Achieved!</h2>
+                    <p class="mt-2 text-base text-gray-700">You've successfully passed the mastery challenge and proven you can distinguish active/passive data and apply the action plan.</p>
+                    <p class="mt-4 text-gray-600 font-semibold text-sm">You've turned a challenge into a <strong>pragmatic action plan</strong>. You are now the owner of your digital identity.</p>
+                    <button onclick="navigate(1)" class="mt-6 w-full py-3 rounded-xl font-bold text-lg bg-allgood-primary text-white shadow-lg hover:shadow-xl transition-all inline-flex items-center justify-center"><i class="fas fa-award mr-2"></i> Continue to Badge Form</button>
+                </div>`,
+            },
+            // STEP 15: Iframe Embed
+            {
+                type: 'iframe-embed',
+                title: "Claim Your Badge",
+                src: "https://docs.google.com/forms/d/e/1FAIpQLSfyZqRFBSxNMcJQD7EPDD6Rrpi77x016ZNGuL6A5Bp0XSagMA/viewform?embedded=true"
+            }
         ];
 
         // --- RENDERERS ---
@@ -395,7 +745,10 @@
             // Helper for Title
             const addTitle = () => container.innerHTML += `<h2 class="text-xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2 border-gray-200">${data.title}</h2>`;
 
-            if (data.type === 'intro' || data.type === 'conclusion') {
+            if (data.type === 'intro') {
+                let body = data.body.replace('{{topic}}', goodBlockConfig.topicName).replace('{{objectives}}', goodBlockConfig.objectives);
+                container.innerHTML = body;
+            } else if (data.type === 'conclusion') {
                 container.innerHTML = data.body;
             } else if (data.type === 'content' || data.type === 'content-tooltip') {
                 addTitle();
@@ -412,39 +765,43 @@
                 container.innerHTML += `<div class="flex space-x-4 border-b border-gray-200">${tabHeader}</div>${tabContent}`;
             } else if (data.type === 'reveal') {
                 addTitle();
-                container.innerHTML += `<p class="mb-4 text-sm text-gray-600">Click to reveal details.</p>`;
+                container.innerHTML += `<p class="mb-4 text-sm text-gray-600">${data.intro}</p>`;
                 data.layers.forEach((l, i) => {
-                    container.innerHTML += `<div onclick="toggleReveal(${i})" class="bg-white p-3 rounded shadow-sm mb-2 cursor-pointer border border-gray-200 hover:border-allgood-secondary transition-colors"><div class="flex items-center font-bold text-allgood-secondary"><i data-lucide="${l.icon}" class="w-4 h-4 mr-2"></i>${l.title}</div><div id="reveal-${i}" class="hidden mt-2 text-sm text-gray-700 pl-6">${l.content}</div></div>`;
+                    container.innerHTML += `<div onclick="toggleReveal(${i})" class="bg-white p-3 rounded shadow-sm mb-2 cursor-pointer border border-gray-200 hover:border-allgood-secondary transition-colors"><div class="flex items-center font-bold text-allgood-secondary"><i class="${l.icon} w-4 h-4 mr-2"></i>${l.title}</div><div id="reveal-${i}" class="hidden mt-2 text-sm text-gray-700 pl-6">${l.content}</div></div>`;
                 });
             } else if (data.type === 'slider') {
                 addTitle();
-                container.innerHTML += `<div class="comparison-slider-container" id="slider-container"><div class="comparison-before" style="clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);"><h3 class="font-bold text-xl">${data.before.title}</h3><p class="text-sm">${data.before.text}</p></div><div class="comparison-after" style="clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);"><h3 class="font-bold text-xl">${data.after.title}</h3><p class="text-sm">${data.after.text}</p></div><div class="comparison-divider" style="left: 50%;"><div class="comparison-divider-icon"><i class="fas fa-arrows-alt-h"></i></div></div></div><p class="text-center text-xs mt-2 text-gray-500">Drag divider to compare.</p>`;
+                container.innerHTML += `<div class="comparison-slider-container" id="slider-container"><div class="comparison-before" style="clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);"><i class="${data.before.icon} text-4xl mb-2 opacity-80"></i><h3 class="font-bold text-xl">${data.before.title}</h3><p class="text-sm">${data.before.text}</p></div><div class="comparison-after" style="clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);"><i class="${data.after.icon} text-4xl mb-2 opacity-80"></i><h3 class="font-bold text-xl">${data.after.title}</h3><p class="text-sm">${data.after.text}</p></div><div class="comparison-divider" style="left: 50%;"><div class="comparison-divider-icon"><i class="fas fa-arrows-alt-h"></i></div></div></div><p class="text-center text-xs mt-2 text-gray-500">Drag divider to compare.</p>`;
                 setupSlider();
             } else if (data.type === 'read-more') {
                 addTitle();
                 container.innerHTML += `<p class="mb-4 text-sm font-bold">${data.intro}</p><div id="read-more-content" class="h-20 overflow-hidden relative transition-all duration-500"><p class="text-sm text-gray-700">${data.fullText}</p><div class="absolute bottom-0 w-full h-10 bg-gradient-to-t from-allgood-light to-transparent"></div></div><button onclick="toggleReadMore()" class="mt-2 text-xs font-bold text-allgood-primary uppercase">Read More</button>`;
             } else if (data.type === 'callout-tiles') {
                 addTitle();
-                const tiles = data.tiles.map((t, i) => `<div onclick="this.classList.toggle('flipped')" class="h-32 perspective-1000 cursor-pointer group"><div class="relative w-full h-full transition-transform duration-500 transform-style-3d group-[.flipped]:rotate-y-180 bg-white rounded shadow-sm border border-gray-200"><div class="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-2"><h4 class="font-bold text-allgood-secondary">${t.title}</h4><p class="text-xs text-gray-400 mt-1">Click to Flip</p></div><div class="absolute inset-0 backface-hidden rotate-y-180 bg-allgood-secondary text-white flex items-center justify-center p-2 text-center text-xs rounded">${t.content}</div></div></div>`).join('');
+                container.innerHTML += `<p class="text-sm mb-4">${data.intro}</p>`;
+                const tiles = data.tiles.map((t, i) => `<div onclick="this.classList.toggle('flipped')" class="h-32 perspective-1000 cursor-pointer group"><div class="relative w-full h-full transition-transform duration-500 transform-style-3d group-[.flipped]:rotate-y-180 bg-white rounded shadow-sm border border-gray-200"><div class="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-2"><i class="${t.icon} text-3xl mb-1" style="color: ${t.color}"></i><h4 class="font-bold text-allgood-secondary">${t.title}</h4><p class="text-xs text-gray-400 mt-1">Click to Flip</p></div><div class="absolute inset-0 backface-hidden rotate-y-180 bg-allgood-secondary text-white flex items-center justify-center p-2 text-center text-xs rounded">${t.content}</div></div></div>`).join('');
                 container.innerHTML += `<div class="grid grid-cols-2 gap-4">${tiles}</div>`;
             } else if (data.type === 'numbered-accordion') {
                 addTitle();
+                container.innerHTML += `<p class="text-sm mb-4">${data.intro}</p>`;
                 const steps = data.steps.map((s, i) => `<div class="mb-2"><button onclick="toggleNumAcc(${i})" class="w-full text-left p-3 bg-white rounded shadow-sm flex items-center justify-between"><span class="font-bold text-sm"><span class="bg-allgood-primary text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs mr-2">${i+1}</span>${s.title}</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button><div id="num-acc-${i}" class="hidden p-3 text-sm text-gray-700 bg-gray-50 border-x border-b border-gray-200 rounded-b">${s.content}</div></div>`).join('');
                 container.innerHTML += steps;
             } else if (data.type === 'quiz-filter') {
                 addTitle();
-                const qs = data.questions.map((q, i) => `<div class="bg-white p-4 rounded shadow-sm mb-4 border border-gray-200"><p class="font-bold text-sm mb-3">${q.text}</p><div class="flex space-x-2"><button onclick="checkFilter(${i}, 'ACTIVE', '${q.ans}')" id="btn-${i}-ACTIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-primary text-allgood-primary rounded hover:bg-allgood-primary hover:text-white transition-colors">ACTIVE</button><button onclick="checkFilter(${i}, 'PASSIVE', '${q.ans}')" id="btn-${i}-PASSIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-secondary text-allgood-secondary rounded hover:bg-allgood-secondary hover:text-white transition-colors">PASSIVE</button></div><p id="feedback-${i}" class="text-xs font-bold mt-2 h-4"></p></div>`).join('');
+                container.innerHTML += `<p class="text-sm mb-4">${data.intro}</p>`;
+                const qs = data.questions.map((q, i) => `<div class="bg-white p-4 rounded shadow-sm mb-4 border border-gray-200"><p class="font-bold text-sm mb-3">${q.phrase}</p><div class="flex space-x-2"><button onclick="checkFilter(${i}, 'ACTIVE', '${q.correct}')" id="btn-${i}-ACTIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-primary text-allgood-primary rounded hover:bg-allgood-primary hover:text-white transition-colors">ACTIVE</button><button onclick="checkFilter(${i}, 'PASSIVE', '${q.correct}')" id="btn-${i}-PASSIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-secondary text-allgood-secondary rounded hover:bg-allgood-secondary hover:text-white transition-colors">PASSIVE</button></div><p id="feedback-${i}" class="text-xs font-bold mt-2 h-4"></p></div>`).join('');
                 container.innerHTML += qs;
             } else if (data.type === 'mastery-quiz') {
                 addTitle();
-                const quizContent = data.quiz.map((q, i) => `<div class="mb-6"><p class="font-bold text-sm mb-2">${i+1}. ${q.q}</p><div class="space-y-2">${q.options.map((opt, oi) => `<button onclick="checkMastery(${i}, ${oi}, ${q.correct})" class="w-full text-left p-3 text-sm border border-gray-200 rounded hover:bg-gray-50 mastery-opt-${i}" id="m-opt-${i}-${oi}">${String.fromCharCode(65+oi)}. ${opt}</button>`).join('')}</div><p id="m-feed-${i}" class="text-xs font-bold mt-1 hidden"></p></div>`).join('');
+                container.innerHTML += `<p class="text-sm mb-4">${data.intro}</p>`;
+                const quizContent = data.quiz.map((q, i) => `<div class="mb-6"><p class="font-bold text-sm mb-2">${q.question}</p><div class="space-y-2">${q.options.map((opt, oi) => `<button onclick="checkMastery(${i}, ${oi}, ${q.correctIndex})" class="w-full text-left p-3 text-sm border border-gray-200 rounded hover:bg-gray-50 mastery-opt-${i}" id="m-opt-${i}-${oi}">${String.fromCharCode(65+oi)}. ${opt}</button>`).join('')}</div><p id="m-feed-${i}" class="text-xs font-bold mt-1 hidden"></p></div>`).join('');
                 container.innerHTML += `<div id="quiz-container">${quizContent}</div><button id="submit-mastery" onclick="finalizeMastery()" class="w-full bg-allgood-primary text-white font-bold py-3 rounded hidden">Submit & Finish</button>`;
             } else if (data.type === 'iframe-embed') {
                 addTitle();
                 container.innerHTML += `<iframe src="${data.src}" class="w-full h-96 border-0 rounded shadow-sm"></iframe>`;
             } else if (data.type === 'carousel') {
                  addTitle();
-                 container.innerHTML += `<div class="bg-white p-6 rounded shadow-lg text-center"><i data-lucide="quote" class="w-8 h-8 text-allgood-primary mx-auto mb-4"></i><p id="quote-text" class="text-lg font-heading italic text-gray-700">${data.quotes[0]}</p></div><div class="flex justify-center mt-4 space-x-4"><button onclick="cycleQuote(-1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button onclick="cycleQuote(1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-right" class="w-4 h-4"></i></button></div>`;
+                 container.innerHTML += `<div class="bg-white p-6 rounded shadow-lg text-center"><i data-lucide="quote" class="w-8 h-8 text-allgood-primary mx-auto mb-4"></i><p id="quote-text" class="text-lg font-heading italic text-gray-700">${data.quotes[0].text}</p><p id="quote-author" class="text-xs font-bold mt-2 text-gray-500">- ${data.quotes[0].author}</p></div><div class="flex justify-center mt-4 space-x-4"><button onclick="cycleQuote(-1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button onclick="cycleQuote(1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-right" class="w-4 h-4"></i></button></div>`;
                  window.currentQuote = 0;
             }
 
@@ -461,6 +818,10 @@
                 if (data.type === 'mastery-quiz' && !masteryQuizPassed) {
                     nextBtn.disabled = true;
                     nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else if (data.type === 'quiz-filter') {
+                     // Initial disable for filter quiz
+                     nextBtn.disabled = true;
+                     nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 } else {
                     nextBtn.disabled = false;
                     nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -553,21 +914,30 @@
         }
 
         // Quiz Filter
+        let filterScore = 0;
         window.checkFilter = (i, choice, correct) => {
             const fb = document.getElementById(`feedback-${i}`);
             if(choice === correct) {
                 fb.textContent = "Correct!"; fb.className = "text-xs font-bold mt-2 h-4 text-green-600";
                 sfx.tick();
+                filterScore++;
             } else {
                 fb.textContent = "Try again."; fb.className = "text-xs font-bold mt-2 h-4 text-red-600";
+            }
+            // Enable next if all answered (simple check)
+            if(filterScore >= 5) {
+                 const nextBtn = document.getElementById('next-button');
+                 nextBtn.disabled = false; 
+                 nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
         
         // Carousel
         window.cycleQuote = (dir) => {
-            const quotes = courseSteps[11].quotes;
+            const quotes = courseSteps[12].quotes;
             window.currentQuote = (window.currentQuote + dir + quotes.length) % quotes.length;
-            document.getElementById('quote-text').textContent = quotes[window.currentQuote];
+            document.getElementById('quote-text').textContent = quotes[window.currentQuote].text;
+            document.getElementById('quote-author').textContent = "- " + quotes[window.currentQuote].author;
             sfx.tick();
         }
 
@@ -591,20 +961,20 @@
                 fb.textContent = "Incorrect"; fb.classList.add('text-red-600');
             }
             answeredCount++;
-            if(answeredCount === 3) document.getElementById('submit-mastery').classList.remove('hidden');
+            if(answeredCount === 5) document.getElementById('submit-mastery').classList.remove('hidden');
         }
 
         window.finalizeMastery = () => {
-            if (masteryScore >= 2) {
+            if (masteryScore >= 4) {
                 masteryQuizPassed = true;
-                alert(`Passed! Score: ${masteryScore}/3`);
+                alert(`Passed! Score: ${masteryScore}/5`);
                 document.getElementById('next-button').disabled = false;
                 document.getElementById('next-button').classList.remove('opacity-50', 'cursor-not-allowed');
                 
                 // DB LOG
                 window.logFinalScoreToFirestore({ 
                     score: masteryScore, 
-                    maxScore: 3, 
+                    maxScore: 5, 
                     status: "Passed", 
                     module: "Digital Identity", 
                     sessionId: window.sessionId 
@@ -612,7 +982,7 @@
                 
                 if(currentStep < courseSteps.length - 1) { currentStep++; renderStep(); }
             } else {
-                alert(`Score: ${masteryScore}/3. Please try again.`);
+                alert(`Score: ${masteryScore}/5. Please try again.`);
                 answeredCount = 0; masteryScore = 0;
                 renderStep(); // Reset
             }
