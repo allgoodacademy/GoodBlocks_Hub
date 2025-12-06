@@ -52,6 +52,8 @@
         let unsubscribeDecisions = null;
         
         window.allModuleElements = {};
+        // GLOBAL REGISTRY FOR LIVE SVG ASSETS
+        window.userEarnedBadges = {};
 
         async function writeUserDataToFirestore(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
@@ -426,6 +428,9 @@
                 
                 // Set to track which modules are done in this snapshot
                 const completedModules = new Set();
+                
+                // Reset user badges cache on update
+                window.userEarnedBadges = {};
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
@@ -435,6 +440,11 @@
                     if (gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
                         hasDDCAttempt = true;
                         if (data.finalScore > maxDDCScore) maxDDCScore = data.finalScore;
+                        
+                        // Check for SVG Asset
+                        if (data.badgeSVG) {
+                            window.userEarnedBadges['cyber'] = data.badgeSVG;
+                        }
                     }
 
                     // 2. Jolene's Lemonade Logic (Explicit completion flag OR Score Safety Net)
@@ -442,11 +452,19 @@
                          if (data.complete === true || (typeof data.finalScore === 'number' && data.finalScore >= 800)) {
                              isJLCComplete = true;
                          }
+                         // Check for SVG Asset
+                         if (data.badgeSVG) {
+                             window.userEarnedBadges['entrepreneur'] = data.badgeSVG;
+                         }
                     }
 
                     // 3. Generic Completion Logic (Boolean based)
                     if (data.completed === true && gameName) {
                         completedModules.add(gameName);
+                        // Future proofing: Generic badge storage logic could go here
+                        if (data.badgeSVG && gameName === "Airport Navigator") {
+                             window.userEarnedBadges['operator'] = data.badgeSVG; // Example mapping
+                        }
                     }
                 });
 
@@ -517,30 +535,6 @@
             window.updateBadges();
         }
         
-        // --- NEW ASSET DATABASE SIMULATION ---
-        const badgeDatabase = {
-            'observer': {
-                url: 'https://raw.githubusercontent.com/allgoodacademy/ImageAndAssets/main/badges/observer-badge.svg', // Simulated Real Path
-                filename: 'Allgood_Observer_Badge.svg'
-            },
-            'agent': {
-                url: 'https://raw.githubusercontent.com/allgoodacademy/ImageAndAssets/main/badges/agent-badge.svg',
-                filename: 'Allgood_Agent_Badge.svg'
-            },
-            'operator': {
-                url: 'https://raw.githubusercontent.com/allgoodacademy/ImageAndAssets/main/badges/operator-badge.svg',
-                filename: 'Allgood_Operator_Badge.svg'
-            },
-            'cyber': {
-                url: 'https://raw.githubusercontent.com/allgoodacademy/ImageAndAssets/main/badges/cyber-agent-badge.svg',
-                filename: 'Allgood_Cyber_Agent_Badge.svg'
-            },
-            'entrepreneur': {
-                url: 'https://raw.githubusercontent.com/allgoodacademy/ImageAndAssets/main/badges/entrepreneur-badge.svg',
-                filename: 'Allgood_Entrepreneur_Badge.svg'
-            }
-        };
-
         window.updateBadges = function() { 
             // Logic for Badge Count
             let badgeCount = 1; // 1. Observer (Always unlocked)
@@ -624,96 +618,106 @@
         }
         
         window.showBadgeDetails = (type, element) => {
-            sfx.click();
-            
-            // 1. Visual Selection Logic
-            document.querySelectorAll('.badge-token').forEach(el => el.classList.remove('token-selected'));
+            // Update Visual Selection
+            document.querySelectorAll('.badge-token').forEach(el => {
+                el.classList.remove('token-selected');
+            });
             if(element) {
                 const token = element.querySelector('.badge-token');
                 if(token) token.classList.add('token-selected');
             }
 
-            // 2. Data Retrieval
-            const isUnlocked = element && element.dataset.unlocked === "true"; // Check logic from updateBadgeSlot
-            // Fallback for Observer which is always true but might not have ID update logic yet
-            const finalUnlocked = type === 'observer' ? true : isUnlocked;
-
-            // 3. UI Elements
-            const titleEl = document.getElementById('badge-details-title');
-            const descEl = document.getElementById('badge-details-desc');
-            const statusText = document.getElementById('badge-details-status');
-            const statusDot = document.getElementById('detail-status-indicator');
+            // Data Content
+            const detailsPane = document.getElementById('badge-details-pane');
+            const detailsTitle = document.getElementById('badge-details-title');
+            const detailsStatus = document.getElementById('badge-details-status');
+            const detailsDesc = document.getElementById('badge-details-desc');
             const iconContainer = document.getElementById('detail-icon-container');
             const actionBtn = document.getElementById('btn-badge-action');
             const actionText = document.getElementById('badge-action-text');
             const subtext = document.getElementById('badge-action-subtext');
+            const statusDot = document.getElementById('detail-status-indicator');
+            
+            // Unlocked Check
+            const isUnlocked = element && element.dataset.unlocked === "true";
+            // Fallback for Observer which is always true but might not have ID update logic yet
+            const finalUnlocked = type === 'observer' ? true : isUnlocked;
 
-            // 4. Content Mapping
-            let data = { title: "Unknown Asset", desc: "No data found." };
-            // Define specific icons for the Large Inspector View
+            let title = "";
+            let desc = "";
             let largeIconHtml = `<i data-lucide="help-circle" class="w-10 h-10 text-slate-400"></i>`;
 
             switch(type) {
                 case 'observer': 
-                    data = { title: "Observer Badge", desc: "Granted to all personnel observing Academy operations. No clearance required." };
+                    title = "Observer Badge";
+                    desc = "Granted to all personnel observing Academy operations. No clearance required.";
                     largeIconHtml = `<i data-lucide="eye" class="w-12 h-12 text-allgood-primary"></i>`;
                     break;
                 case 'agent': 
-                    data = { title: "Academy Agent", desc: "Granted upon verified identity confirmation (SSO Login). Allows persistent progress tracking." };
+                    title = "Academy Agent";
+                    desc = "Granted upon verified identity confirmation (SSO Login). Allows persistent progress tracking.";
                     largeIconHtml = `<i data-lucide="id-card" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
                 case 'operator': 
-                    data = { title: "Academy Operator", desc: "Granted after successful initialization of first mission module. Demonstrates field readiness." };
+                    title = "Academy Operator";
+                    desc = "Granted after successful initialization of first mission module. Demonstrates field readiness.";
                     largeIconHtml = `<i data-lucide="zap" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
                 case 'cyber': 
-                    data = { title: "Cyber Agent", desc: "Awarded for demonstrating superior judgment in the Digital Decisions Challenge (Score > 80%)." };
+                    title = "Cyber Agent";
+                    desc = "Awarded for demonstrating superior judgment in the Digital Decisions Challenge (Score > 80%).";
                     largeIconHtml = `<i data-lucide="shield-check" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
-                case 'entrepreneur': 
-                    data = { title: "Certified Entrepreneur", desc: "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge." };
+                case 'entrepreneur': // NEW CASE
+                    title = "Certified Entrepreneur";
+                    desc = "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge. Demonstrates business acumen.";
                     largeIconHtml = `<span class="text-5xl ${finalUnlocked ? '' : 'grayscale opacity-50'}">🍋</span>`;
                     break;
+                case 'classified': 
+                    title = "Classified Asset";
+                    desc = "This certification slot is reserved for future operations. Clearance unavailable at this time.";
+                    break;
             }
-
-            // 5. Update DOM
-            titleEl.textContent = data.title;
-            descEl.textContent = data.desc;
+            
+            detailsTitle.textContent = title;
+            detailsDesc.textContent = desc;
             iconContainer.innerHTML = largeIconHtml;
-            // Re-render Lucide icons inside the container
             lucide.createIcons();
 
-            // 6. Update Inspector Styles based on State
+            // LOGIC CHECK FOR ASSET
+            const svgUrl = window.userEarnedBadges && window.userEarnedBadges[type];
+
             if (finalUnlocked) {
                 // UNLOCKED STATE
-                statusText.textContent = "STATUS: VERIFIED";
-                statusText.className = "text-xs font-bold uppercase tracking-widest text-emerald-600";
+                detailsStatus.textContent = "STATUS: VERIFIED";
+                detailsStatus.className = "text-xs font-bold uppercase tracking-widest text-emerald-600";
                 statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-                
                 iconContainer.className = "w-24 h-24 mx-auto mb-6 rounded-full bg-orange-50 border-4 border-orange-100 flex items-center justify-center shadow-md scale-110 transition-all duration-300";
 
-                // Enable Button
-                actionBtn.disabled = false;
-                actionBtn.className = "w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-4 rounded shadow-md transition-all uppercase text-xs flex items-center justify-center gap-2 transform active:scale-95";
-                
-                // Determine Action Text
-                if(type === 'cyber' || type === 'entrepreneur') {
-                    actionText.textContent = "Download Badge"; // SPECIFIC USER REQUEST
-                    actionBtn.onclick = () => window.viewOrDownloadBadge(type, true); // true = isDownload
+                if (svgUrl) {
+                    // ASSET AVAILABLE
+                    actionBtn.disabled = false;
+                    actionBtn.className = "w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-4 rounded shadow-md transition-all uppercase text-xs flex items-center justify-center gap-2 transform active:scale-95";
+                    actionText.textContent = "Download Badge";
+                    actionBtn.onclick = () => window.viewOrDownloadBadge(type);
+                    
+                    subtext.style.opacity = "1";
+                    subtext.textContent = "Secure asset available for retrieval.";
                 } else {
-                    actionText.textContent = "View ID Card";
-                    actionBtn.onclick = () => window.viewOrDownloadBadge(type, false);
+                    // ASSET PENDING
+                    actionBtn.disabled = true;
+                    actionBtn.className = "w-full bg-slate-200 text-slate-400 font-bold py-4 rounded shadow-none transition-all uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed";
+                    actionText.textContent = "Digital Asset Pending";
+                    actionBtn.onclick = null;
+                    
+                    subtext.style.opacity = "1";
+                    subtext.textContent = "No downloadable asset found.";
                 }
-                
-                subtext.style.opacity = "1";
-                subtext.textContent = "Secure asset available for retrieval.";
-
             } else {
                 // LOCKED STATE
-                statusText.textContent = "STATUS: LOCKED";
-                statusText.className = "text-xs font-bold uppercase tracking-widest text-red-500";
+                detailsStatus.textContent = "STATUS: LOCKED";
+                detailsStatus.className = "text-xs font-bold uppercase tracking-widest text-red-500";
                 statusDot.className = "w-2 h-2 rounded-full bg-red-500";
-                
                 iconContainer.className = "w-24 h-24 mx-auto mb-6 rounded-full bg-slate-100 border-4 border-slate-200 flex items-center justify-center grayscale opacity-70 transition-all duration-300";
 
                 // Disable Button
@@ -724,53 +728,41 @@
                 
                 subtext.style.opacity = "0";
             }
+            
+            sfx.click();
         }
         
-        window.viewOrDownloadBadge = (type, isDownload) => {
+        window.viewOrDownloadBadge = (type) => {
             sfx.confirm();
             
             const btn = document.getElementById('btn-badge-action');
             const originalText = document.getElementById('badge-action-text').textContent;
+            const targetUrl = window.userEarnedBadges[type];
             
+            if(!targetUrl) {
+                console.error("No asset URL found for", type);
+                return;
+            }
+
             btn.disabled = true;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Retrieving Asset...`;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Retrieving...`;
             lucide.createIcons();
             
-            // SIMULATE DATABASE FETCH
-            // This is where we grab the specific SVG URL from the "DB"
-            const assetData = badgeDatabase[type];
-            // Fallback if DB entry missing
-            const targetUrl = assetData ? assetData.url : `https://placehold.co/400x400/357889/FFF.svg?text=${type}`;
-            const targetFilename = assetData ? assetData.filename : `${type}_badge.svg`;
-
             setTimeout(() => {
                 // Success state
-                btn.classList.remove('bg-allgood-secondary', 'hover:bg-allgood-accent');
-                btn.classList.add('bg-emerald-600');
                 btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Asset Retrieved`;
                 lucide.createIcons();
                 
-                if (isDownload) {
-                    // Create invisible link to force download (simulated)
-                    // Note: For cross-origin SVGs, 'download' attr might be ignored by browsers
-                    // In a real app, we'd fetch the blob and download that.
-                    // For now, we open in new tab which is the pragmatic solution for external assets.
-                    window.open(targetUrl, '_blank');
-                } else {
-                    // Just View
-                    window.open(targetUrl, '_blank');
-                }
+                window.open(targetUrl, '_blank');
                 
                 setTimeout(() => {
                     btn.disabled = false;
-                    btn.classList.add('bg-allgood-secondary', 'hover:bg-allgood-accent');
-                    btn.classList.remove('bg-emerald-600');
                     btn.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i> <span id="badge-action-text">${originalText}</span>`;
                     lucide.createIcons();
                 }, 2000);
-            }, 1200);
+            }, 1000);
         }
-
+        
         window.openBadgeCollection = () => {
             window.updateBadges(); // Ensure state is fresh
             const menu = document.getElementById('menu-modal');
@@ -784,7 +776,6 @@
             
             // Auto-select first badge on open for better UX
             setTimeout(() => {
-                // Modified for new structure
                 const firstBadge = document.querySelector('.group.cursor-pointer');
                 if(firstBadge) window.showBadgeDetails('observer', firstBadge);
             }, 100);
@@ -1352,7 +1343,7 @@
         /* MODAL LAYOUT OVERRIDES */
         .executive-split-modal {
             max-height: 85vh;
-            height: 600px; /* Fixed height for consistent layout */
+            height: 480px; /* REDUCED HEIGHT */
             display: flex;
             flex-direction: column;
         }
@@ -1796,7 +1787,7 @@
                 <div id="badge-collection-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/80 flex items-center justify-center p-4 modal-transition backdrop-blur-sm" onclick="closeBadgeCollection()">
                     
                     <!-- Main Container -->
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl executive-split-modal overflow-hidden border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl executive-split-modal overflow-hidden border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
                         
                         <!-- CLOSE BUTTON (Absolute) -->
                         <button onclick="closeBadgeCollection()" class="absolute top-4 right-4 z-50 text-gray-400 hover:text-red-500 bg-white/50 rounded-full p-1 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -2189,6 +2180,36 @@
                     menuModal.classList.add('hidden-modal');
                     menuModal.classList.remove('visible-modal');
                     sfx.tick();
+                });
+            }
+            
+            // Startup Screen Listener
+            const startupScreen = document.getElementById('startup-screen');
+            if(startupScreen) {
+                startupScreen.addEventListener('click', () => {
+                    if(window.sfx && window.sfx.powerOn) {
+                        window.sfx.powerOn(); 
+                    } else if (window.initAudio) {
+                        window.initAudio();
+                    }
+                    
+                    startupScreen.style.opacity = '0';
+                    
+                    const storedUID = localStorage.getItem('aa_uid');
+                    const storedName = localStorage.getItem('aa_username');
+                    
+                    if (storedName && storedUID) {
+                        window.restoreSessionState();
+                        window.initDashboard(); 
+                    } else {
+                        const loginModal = document.getElementById('login-modal');
+                        if (loginModal) {
+                            loginModal.classList.remove('hidden-modal');
+                            loginModal.classList.add('visible-modal');
+                        }
+                    }
+                    
+                    setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
                 });
             }
         });
