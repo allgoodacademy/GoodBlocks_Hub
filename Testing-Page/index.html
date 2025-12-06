@@ -285,6 +285,8 @@
             localStorage.removeItem('aa_uid');
             localStorage.removeItem('aa_ddc_complete');
             localStorage.removeItem('aa_jlc_complete');
+            localStorage.removeItem('aa_identity_complete');
+            localStorage.removeItem('aa_defense_complete');
 
             launchCount = 0; 
             
@@ -467,6 +469,11 @@
                         if (gameName === "Your Digital Identity" && data.badgeSVG) {
                             window.userEarnedBadges['identity'] = data.badgeSVG;
                         }
+
+                        // 3b. Digital Asset Defense Logic (NEW)
+                        if (gameName === "Digital Asset Defense" && data.badgeSVG) {
+                            window.userEarnedBadges['defense'] = data.badgeSVG;
+                        }
                         
                         // Future proofing: Generic badge storage logic could go here
                         if (data.badgeSVG && gameName === "Airport Navigator") {
@@ -483,9 +490,13 @@
                 if (isJLCComplete) localStorage.setItem('aa_jlc_complete', 'true');
                 else localStorage.removeItem('aa_jlc_complete');
                 
-                // Store Identity Status (NEW)
+                // Store Identity Status
                 if (completedModules.has("Your Digital Identity")) localStorage.setItem('aa_identity_complete', 'true');
                 else localStorage.removeItem('aa_identity_complete');
+
+                // Store Defense Status (NEW)
+                if (completedModules.has("Digital Asset Defense")) localStorage.setItem('aa_defense_complete', 'true');
+                else localStorage.removeItem('aa_defense_complete');
                 
                 // Check specifically for Airport Navigator for the specialized badge slot
                 if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
@@ -569,6 +580,9 @@
             const identityComplete = localStorage.getItem('aa_identity_complete') === 'true';
             if (identityComplete) badgeCount++; // 6. Identity Guardian
 
+            const defenseComplete = localStorage.getItem('aa_defense_complete') === 'true';
+            if (defenseComplete) badgeCount++; // 7. Asset Defender
+
             // Update Header Display
             const badgeCountEl = document.getElementById('badge-count-display');
             if(badgeCountEl) badgeCountEl.textContent = `BADGES: ${badgeCount}`;
@@ -584,6 +598,8 @@
             updateBadgeSlot('badge-slot-5', jlcComplete);
             // Badge 6 (Identity Guardian)
             updateBadgeSlot('badge-slot-6', identityComplete);
+            // Badge 7 (Asset Defender)
+            updateBadgeSlot('badge-slot-7', defenseComplete);
 
             const launchStat = document.getElementById('stat-total-launches');
             if (launchStat) launchStat.textContent = launchCount;
@@ -693,6 +709,11 @@
                     title = "Identity Guardian";
                     desc = "Awarded for completing 'Your Digital Identity'. Signifies mastery of personal perimeter security.";
                     largeIconHtml = `<i data-lucide="fingerprint" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
+                    break;
+                case 'defense': // NEW CASE 7
+                    title = "Asset Defender";
+                    desc = "Awarded for completing 'Digital Asset Defense'. Demonstrates mastery of wallet security protocols.";
+                    largeIconHtml = `<i data-lucide="shield" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
                 case 'classified': 
                     title = "Classified Asset";
@@ -1901,11 +1922,16 @@
                                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Guardian</span>
                                     </div>
 
-                                    <!-- Ghosts (Visual Fillers) -->
-                                    <div class="flex flex-col items-center gap-2 opacity-30 pointer-events-none">
-                                        <div class="badge-token token-locked bg-slate-100 border-dashed border-slate-300"></div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase">Empty</span>
+                                    <!-- 7. Asset Defender (NEW) -->
+                                    <div id="badge-slot-7" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('defense', this)">
+                                        <div class="badge-token token-locked group-hover:scale-105">
+                                            <i data-lucide="shield" class="badge-content w-8 h-8 text-slate-500"></i>
+                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Defender</span>
                                     </div>
+
+                                    <!-- Ghosts (Visual Fillers) -->
                                     <div class="flex flex-col items-center gap-2 opacity-30 pointer-events-none">
                                         <div class="badge-token token-locked bg-slate-100 border-dashed border-slate-300"></div>
                                         <span class="text-[10px] font-bold text-slate-300 uppercase">Empty</span>
