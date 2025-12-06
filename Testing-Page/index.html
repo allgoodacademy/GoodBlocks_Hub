@@ -776,9 +776,17 @@
                 lucide.createIcons();
                 
                 // DETECT: Is this a raw SVG string or a URL?
-                if (typeof assetData === 'string' && assetData.trim().startsWith('<svg')) {
+                // Robust check: look for svg tags anywhere, incase of leading chars/quotes
+                if (typeof assetData === 'string' && assetData.includes('<svg') && assetData.includes('</svg>')) {
+                    
+                    // Cleanup: If the string is accidentally wrapped in quotes from data entry, strip them
+                    let content = assetData.trim();
+                    if (content.startsWith('"') && content.endsWith('"')) {
+                        content = content.slice(1, -1);
+                    }
+
                     // It is raw code. Convert to a downloadable file blob.
-                    const blob = new Blob([assetData], { type: 'image/svg+xml' });
+                    const blob = new Blob([content], { type: 'image/svg+xml' });
                     const url = URL.createObjectURL(blob);
                     
                     // Create invisible link to force download
