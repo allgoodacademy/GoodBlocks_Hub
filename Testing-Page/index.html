@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Allgood Academy Dashboard</title>
+    <title>Your Digital Identity - GoodBlock V3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Firebase SDKs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        setLogLevel('Debug');
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        // 1. CONFIGURATION
+        const firebaseConfig = {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
@@ -28,894 +27,125 @@
         
         const appId = 'allgood-academy'; 
         
-        let auth, db;
-
+        // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        (async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } catch (e) {
-                    console.warn("Auth token failed, falling back", e);
+        // 3. GLOBAL STATE
+        window.currentUser = null;
+        window.currentUserName = "Anonymous";
+        window.currentUserEmail = "";
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+
+        // 4. AUTH HANDLER
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log("[Auth] User detected:", user.uid);
+                window.currentUser = user;
+                let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
+                
+                if (finalName === "Agent Learner") {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+                        if (userDoc.exists()) finalName = userDoc.data().displayName || finalName;
+                    } catch(e) { console.log("Profile fetch skipped", e); }
                 }
+
+                window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                window.updateUserDisplay(finalName);
+                
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal && !loginModal.classList.contains('hidden-modal')) {
+                    loginModal.classList.add('hidden-modal');
+                    loginModal.classList.remove('visible-modal');
+                    window.logFinalScoreToFirestore({ status: "Session Started", module: "Digital Identity", sessionId: window.sessionId });
+                    // Start render
+                    if(window.renderStep) window.renderStep();
+                }
+            } else {
+                window.currentUser = null;
+                window.updateUserDisplay("Agent Learner");
             }
-        })();
+        });
 
-        window.auth = auth; 
-        window.db = db;
-
-        let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
-        let unsubscribeLaunches = null;
-        let unsubscribeDecisions = null;
-        
-        window.allModuleElements = {};
-
-        async function writeUserDataToFirestore(user, name, email, isGuest) {
+        // 5. DATABASE LOGGING ENGINE
+        window.ensureUserContainer = async (user, name, email, isGuest) => {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-             
-             if (isGuest && user.displayName !== name) {
-                await updateProfile(user, { displayName: name });
-             }
-
-             await setDoc(userRef, {
-                 displayName: name,
-                 email: email || (isGuest ? null : user.email || null),
-                 isGuest: isGuest,
-                 lastLogin: serverTimestamp(),
-                 onboardingComplete: true
-             }, { merge: true });
-
-             localStorage.setItem('aa_is_guest', isGuest);
-             localStorage.setItem('aa_username', name);
-             localStorage.setItem('aa_uid', user.uid);
-             
-             window.updateUI(name); 
-             document.getElementById('page-dashboard').classList.add('active');
-             document.getElementById('page-dashboard').style.display = 'block'; 
-             
-             // Show navbar
-             document.querySelector('.navbar-content').classList.remove('opacity-0');
-             
-             closeLoginModal();
-             
-             window.startLaunchListener(user.uid);
-             window.startDecisionsStatusListener(user.uid);
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || (isGuest ? null : user.email || null),
+                     isGuest: isGuest,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: "Digital Identity"
+                 }, { merge: true });
+             } catch (e) { console.error("[Identity] Failed to create user container:", e); }
         }
 
-        window.handleGuestLogin = async () => {
-            sfx.click();
-            const btn = document.getElementById('btn-guest-login');
+        window.logFinalScoreToFirestore = async (scoreData) => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             
+            try {
+                await setDoc(sessionRef, {
+                    gameName: "Digital Identity",
+                    ...scoreData,
+                    lastUpdated: serverTimestamp(),
+                    user: { uid: user.uid, displayName: window.currentUserName }
+                }, { merge: true });
+                console.log(`[DB] Session Write Success.`);
+            } catch (e) { console.error("[DB] Session Write Failed", e); }
+        }
+
+        // 6. LOGIN FUNCTIONS
+        window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
-
-            const finalName = nameInput || "Guest";
-            const finalEmail = emailInput || null;
-            const isGuest = true;
-            
-            btn.innerText = "Connecting...";
-            btn.disabled = true;
-            btn.classList.add('opacity-70', 'cursor-wait');
+            const btn = document.getElementById('btn-guest-login');
+            btn.innerText = "Connecting..."; btn.disabled = true;
 
             try {
-                const userCredential = await signInAnonymously(auth);
-                const user = userCredential.user;
-                await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
-            } catch (error) {
-                console.error("Anonymous Login Error:", error);
-                showStatusMessage("Connection failed. Check network or rules.", 'error'); 
-            } finally {
-                btn.innerText = "Enter Dashboard"; 
-                btn.disabled = false;
-                btn.classList.remove('opacity-70', 'cursor-wait');
-            }
+                let user;
+                if (auth.currentUser && auth.currentUser.isAnonymous) user = auth.currentUser;
+                else { const result = await signInAnonymously(auth); user = result.user; }
+                
+                const displayName = nameInput || "Agent Learner";
+                await updateProfile(user, { displayName: displayName });
+                await window.ensureUserContainer(user, displayName, emailInput, true);
+                
+                window.currentUserName = displayName;
+                window.updateUserDisplay(displayName);
+                
+                document.getElementById('login-modal').classList.add('hidden-modal');
+                document.getElementById('login-modal').classList.remove('visible-modal');
+                if(window.sfx) sfx.nav();
+                window.renderStep();
+
+            } catch (error) { console.error("Login Failed", error); alert("Connection failed. Please try again."); } 
+            finally { btn.innerText = "Start Module"; btn.disabled = false; }
         };
 
         window.handleGoogleLogin = async () => {
-            sfx.click();
-            const btnContainer = document.getElementById('google-icon-container');
-            btnContainer.classList.add('opacity-50', 'cursor-wait');
-            
             const provider = new GoogleAuthProvider();
-            const isGuest = false;
-
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
-                const finalName = user.displayName || 'Agent';
-                const finalEmail = user.email || null;
-                await writeUserDataToFirestore(user, finalName, finalEmail, isGuest);
-            } catch (error) {
-                console.error("Google Sign-In Error:", error);
-                let message = "Sign-in failed. Please try again.";
-                if (error.code === 'auth/popup-closed-by-user') {
-                    message = "Sign-in canceled. Please try again.";
-                }
-                showStatusMessage(message, 'error');
-            } finally {
-                btnContainer.classList.remove('opacity-50', 'cursor-wait');
-            }
+                const finalName = user.displayName || "Agent";
+                await window.ensureUserContainer(user, finalName, user.email, false);
+                window.currentUserName = finalName;
+                window.updateUserDisplay(finalName);
+                document.getElementById('login-modal').classList.add('hidden-modal');
+                document.getElementById('login-modal').classList.remove('visible-modal');
+                if(window.sfx) sfx.nav();
+                window.renderStep();
+            } catch (error) { console.error("Google Sign-In Error", error); alert("Google Sign-In failed."); }
         };
-
-        window.launchCourse = async (courseName, url, element) => {
-            if (!auth.currentUser) {
-                const loginModal = document.getElementById('login-modal');
-                if (loginModal) {
-                    loginModal.classList.remove('hidden-modal');
-                    loginModal.classList.add('visible-modal');
-                    showStatusMessage("Please sign in to launch modules.", 'info');
-                }
-                return;
-            }
-
-            let finalUrl = url;
-            try {
-                const urlObj = new URL(url);
-                urlObj.searchParams.append('dashboard_uid', auth.currentUser.uid);
-                finalUrl = urlObj.toString();
-            } catch (e) { console.log("URL append failed", e); }
-
-            // Option 1: Instant Execution
-            sfx.confirm();
-            window.open(finalUrl, '_blank');
-            
-            if (auth.currentUser) {
-                addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
-                    courseName: courseName,
-                    targetUrl: url,
-                    timestamp: serverTimestamp()
-                }).catch(e => console.log("Log failed (Firebase). Continuing navigation."));
-
-                if (element) {
-                    const badge = element.querySelector('span.rounded'); 
-                    if (badge) {
-                        if (badge.id === 'ddc-status-badge') return; 
-
-                        badge.textContent = "LAUNCHED";
-                        badge.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 animate-pulse";
-                        setTimeout(() => badge.classList.remove('animate-pulse'), 2000);
-                    }
-                }
-            }
-        };
-
-        window.openMessageModal = () => {
-            const menu = document.getElementById('menu-modal');
-            if(menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
-            
-            const modal = document.getElementById('message-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-            setTimeout(() => document.getElementById('message-input').focus(), 100);
-        }
-
-        window.closeMessageModal = () => {
-            const modal = document.getElementById('message-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        }
-
-        window.submitMessage = async () => {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            const btn = document.getElementById('btn-send-message');
-            
-            if (!text) return;
-            
-            const user = auth.currentUser;
-            if (!user) {
-                const originalText = btn.innerHTML;
-                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                btn.textContent = "Please Sign In First";
-                sfx.powerOff();
-                
-                setTimeout(() => {
-                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                    btn.innerHTML = originalText;
-                    lucide.createIcons();
-                }, 2000);
-                return;
-            }
-
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.textContent = "Sending...";
-
-            try {
-                const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
-                
-                await addDoc(targetCollection, {
-                    senderName: user.displayName || "Guest Agent",
-                    senderEmail: user.email || "Anonymous",
-                    message: text,
-                    timestamp: serverTimestamp(),
-                    isGuest: user.isAnonymous
-                });
-                
-                sfx.confirm();
-                input.value = "";
-                
-                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Transmission Sent`;
-                lucide.createIcons();
-
-                setTimeout(() => {
-                    closeMessageModal();
-                    setTimeout(() => {
-                        btn.disabled = false;
-                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                        btn.innerHTML = originalText;
-                        lucide.createIcons();
-                    }, 500);
-                }, 1500);
-
-            } catch (e) {
-                console.error("Message failed", e);
-                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                btn.textContent = "Transmission Failed";
-                sfx.powerOff();
-
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                    btn.innerHTML = originalText;
-                    lucide.createIcons();
-                }, 3000);
-            }
-        }
-
-        window.handleLogout = async () => {
-            sfx.powerOff();
-            localStorage.removeItem('aa_username');
-            localStorage.removeItem('aa_is_guest'); 
-            localStorage.removeItem('aa_launch_count');
-            localStorage.removeItem('aa_uid');
-            localStorage.removeItem('aa_ddc_complete');
-            localStorage.removeItem('aa_jlc_complete');
-
-            launchCount = 0; 
-            
-            if (auth.currentUser) {
-                try { await signOut(auth); } catch(e) { console.log("Signout error", e); }
-            }
-            
-            if (unsubscribeLaunches) {
-                unsubscribeLaunches();
-                unsubscribeLaunches = null;
-            }
-
-            if (unsubscribeDecisions) { 
-                unsubscribeDecisions();
-                unsubscribeDecisions = null;
-            }
-            
-            // Reset badges
-            document.querySelectorAll('.mission-file span.rounded').forEach(badge => {
-                if (badge.textContent === "LAUNCHED") {
-                    badge.textContent = "Ready";
-                    const parent = badge.closest('.mission-file');
-                    if (parent.classList.contains('status-active')) {
-                         badge.className = "bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
-                         badge.textContent = "Active";
-                    } else if (parent.classList.contains('status-ready')) {
-                         badge.className = "bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide"; 
-                         badge.textContent = "Ready";
-                    }
-                }
-            });
-
-            const ddcBadge = document.getElementById('ddc-status-badge');
-            if(ddcBadge) {
-                ddcBadge.textContent = "Active";
-                ddcBadge.className = "bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
-            }
-            
-            window.initModuleElements();
-
-            document.querySelectorAll('.visible-modal').forEach(el => {
-                el.classList.remove('visible-modal');
-                el.classList.add('hidden-modal');
-            });
-
-            const dashboard = document.getElementById('page-dashboard');
-            if (dashboard) {
-                dashboard.classList.remove('active');
-                dashboard.style.display = 'none';
-            }
-            
-            // Hide Navbar
-            document.querySelector('.navbar-content').classList.add('opacity-0');
-            
-            // Hide Admin Panel if open
-            const adminPanel = document.getElementById('page-admin');
-            if(adminPanel) {
-                adminPanel.classList.remove('active');
-                adminPanel.style.display = 'none';
-            }
-            
-            window.updateUI('Agent'); 
-            window.updateBadges(); 
-
-            const startup = document.getElementById('startup-screen');
-            if(startup) {
-                document.getElementById('startup-message').textContent = "CLICK TO POWER UP";
-                startup.style.display = 'flex';
-                setTimeout(() => { startup.style.opacity = '1'; }, 10);
-            }
-        };
-
-        window.initModuleElements = function() {
-            window.allModuleElements = {};
-            const cards = document.querySelectorAll('.mission-file');
-            cards.forEach(card => {
-                const onclickAttr = card.getAttribute('onclick');
-                if (onclickAttr && onclickAttr.includes('launchCourse')) {
-                    const match = onclickAttr.match(/'([^']+)'/);
-                    if (match && match[1]) {
-                        const courseName = match[1];
-                        const badge = card.querySelector('span.rounded');
-                        if (badge) {
-                            window.allModuleElements[courseName] = badge;
-                        }
-                    }
-                }
-            });
-        }
-
-        window.startLaunchListener = function(uid) {
-            if (unsubscribeLaunches) unsubscribeLaunches();
-            
-            if (Object.keys(window.allModuleElements).length === 0) {
-                window.initModuleElements();
-            }
-
-            const launchesCollectionRef = collection(db, 'artifacts', appId, 'users', uid, 'launches');
-            unsubscribeLaunches = onSnapshot(launchesCollectionRef, (snapshot) => {
-                const totalLaunches = snapshot.size;
-                launchCount = totalLaunches; 
-                localStorage.setItem('aa_launch_count', launchCount); 
-                window.updateBadges();
-
-                const statElement = document.getElementById('stat-total-launches');
-                if (statElement) statElement.textContent = totalLaunches;
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const courseName = data.courseName;
-                    const badgeElement = window.allModuleElements[courseName];
-                    
-                    if (badgeElement) {
-                        if (badgeElement.id === 'ddc-status-badge') return;
-                        
-                        // FIX: Do not overwrite if already completed
-                        if (badgeElement.textContent === "MISSION COMPLETE" || badgeElement.textContent === "CERTIFIED") return;
-
-                        if (badgeElement.textContent !== "LAUNCHED") {
-                            badgeElement.textContent = "LAUNCHED";
-                            badgeElement.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500";
-                        }
-                    }
-                });
-
-            }, (error) => {
-                console.error("Error listening to launches:", error);
-            });
-        }
-
-        // Universal Status Listener (Handles DDC + JLC + All Content Blocks)
-        window.startModuleStatusListener = function(uid) {
-            if (unsubscribeDecisions) unsubscribeDecisions();
-            
-            const scoresRef = collection(db, 'artifacts', appId, 'users', uid, 'game_scores');
-            
-            unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
-                let maxDDCScore = -1;
-                let hasDDCAttempt = false;
-                let isJLCComplete = false;
-                
-                // Set to track which modules are done in this snapshot
-                const completedModules = new Set();
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const gameName = data.gameName;
-
-                    // 1. Digital Decisions Logic (Score based)
-                    if (gameName === "Digital Decisions Challenge" && typeof data.finalScore === 'number') {
-                        hasDDCAttempt = true;
-                        if (data.finalScore > maxDDCScore) maxDDCScore = data.finalScore;
-                    }
-
-                    // 2. Jolene's Lemonade Logic (Explicit completion flag OR Score Safety Net)
-                    if (gameName === "Jolene's Lemonade" || gameName === "Jolenes Lemonade Challenge") {
-                         if (data.complete === true || (typeof data.finalScore === 'number' && data.finalScore >= 800)) {
-                             isJLCComplete = true;
-                         }
-                    }
-
-                    // 3. Generic Completion Logic (Boolean based)
-                    if (data.completed === true && gameName) {
-                        completedModules.add(gameName);
-                    }
-                });
-
-                // Update Local Storage for Badges
-                if (hasDDCAttempt && maxDDCScore >= 80) localStorage.setItem('aa_ddc_complete', 'true');
-                else localStorage.removeItem('aa_ddc_complete');
-                
-                // Store JLC Status
-                if (isJLCComplete) localStorage.setItem('aa_jlc_complete', 'true');
-                else localStorage.removeItem('aa_jlc_complete');
-                
-                // Check specifically for Airport Navigator for the specialized badge slot
-                if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
-                else localStorage.removeItem('aa_airport_complete');
-                
-                window.updateBadges();
-
-                // UPDATE UI: Digital Decisions (Special Case)
-                const ddcBadge = document.getElementById('ddc-status-badge');
-                if (ddcBadge) {
-                    if (maxDDCScore >= 80) { 
-                        ddcBadge.textContent = "MISSION COMPLETE";
-                        ddcBadge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                    } else if (hasDDCAttempt) {
-                        ddcBadge.textContent = "RETAKE REQUIRED";
-                        ddcBadge.className = "bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-amber-200 animate-pulse";
-                    }
-                }
-
-                // UPDATE UI: All Other Content Blocks
-                for (const [courseName, badgeElement] of Object.entries(window.allModuleElements)) {
-                    if (courseName === "Digital Decisions") continue; // Skip DDC
-
-                    // Check JLC specifically (Key matches the SAFE NAME 'Jolenes Lemonade')
-                    if ((courseName === "Jolenes Lemonade" || courseName === "Jolene's Lemonade") && isJLCComplete) {
-                         if (badgeElement.textContent !== "MISSION COMPLETE") {
-                            badgeElement.textContent = "MISSION COMPLETE";
-                            badgeElement.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                        }
-                        continue;
-                    }
-
-                    if (completedModules.has(courseName)) {
-                        // Mark as Complete
-                        if (badgeElement.textContent !== "MISSION COMPLETE") {
-                            badgeElement.textContent = "MISSION COMPLETE";
-                            badgeElement.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-all duration-500 shadow-sm border border-emerald-200";
-                        }
-                    } else if (badgeElement.textContent === "MISSION COMPLETE") {
-                        // Fallback: If it was complete but database says no (e.g. reset), revert to Ready
-                        // Note: startLaunchListener will bump it back to 'LAUNCHED' if applicable
-                        badgeElement.textContent = "Ready";
-                        badgeElement.className = "bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide";
-                    }
-                }
-
-            }, (error) => {
-                console.log("Status listener silent fail:", error);
-            });
-        }
-
-        // Backwards compatibility alias
-        window.startDecisionsStatusListener = window.startModuleStatusListener;
-
-        window.updateUI = function(name) { 
-            const els = document.querySelectorAll('.user-name-display');
-            els.forEach(el => el.textContent = name);
-            window.updateBadges();
-        }
-        
-        window.updateBadges = function() { 
-            // Logic for Badge Count
-            let badgeCount = 1; // 1. Observer (Always unlocked)
-            
-            const isGuest = localStorage.getItem('aa_is_guest') === 'true';
-            const name = localStorage.getItem('aa_username');
-            const isGenericName = !name || name === 'Guest' || name === 'Learner';
-            const isLoggedIn = !isGuest && name && !isGenericName;
-            
-            if (isLoggedIn) badgeCount++; // 2. Academy Agent
-            
-            launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
-            if (launchCount > 0) badgeCount++; // 3. Academy Operator
-            
-            const ddcComplete = localStorage.getItem('aa_ddc_complete') === 'true';
-            if (ddcComplete) badgeCount++; // 4. Cyber Agent
-
-            const jlcComplete = localStorage.getItem('aa_jlc_complete') === 'true';
-            if (jlcComplete) badgeCount++; // 5. Certified Entrepreneur
-
-            // Update Header Display
-            const badgeCountEl = document.getElementById('badge-count-display');
-            if(badgeCountEl) badgeCountEl.textContent = `BADGES: ${badgeCount}`;
-            
-            // Update Modal UI (if open or pre-render)
-            // Badge 2 (Agent)
-            updateBadgeSlot('badge-slot-2', isLoggedIn);
-            // Badge 3 (Operator)
-            updateBadgeSlot('badge-slot-3', launchCount > 0);
-            // Badge 4 (Cyber)
-            updateBadgeSlot('badge-slot-4', ddcComplete);
-            // Badge 5 (Entrepreneur - JLC)
-            updateBadgeSlot('badge-slot-5', jlcComplete);
-
-            const launchStat = document.getElementById('stat-total-launches');
-            if (launchStat) launchStat.textContent = launchCount;
-        }
-
-        function updateBadgeSlot(id, unlocked) {
-            const el = document.getElementById(id);
-            if(!el) return;
-            const icon = el.querySelector('.badge-icon');
-            const lock = el.querySelector('.badge-lock');
-            
-            // Set data-unlocked attribute for the click handler
-            el.dataset.unlocked = unlocked ? "true" : "false";
-            
-            if(unlocked) {
-                el.classList.remove('opacity-60', 'grayscale', 'bg-slate-200');
-                el.classList.add('shadow-md', 'bg-slate-100'); // Unlocked style
-                if(lock) lock.style.display = 'none';
-                if(icon) {
-                    icon.classList.remove('text-slate-500');
-                    if (!icon.classList.contains('emoji-badge')) {
-                        icon.classList.add('text-allgood-primary');
-                    } else {
-                        icon.classList.remove('grayscale');
-                    }
-                }
-            } else {
-                el.classList.add('opacity-60', 'grayscale', 'bg-slate-200'); // Locked style
-                el.classList.remove('shadow-md', 'bg-slate-100');
-                if(lock) lock.style.display = 'block';
-                if(icon) {
-                    if (!icon.classList.contains('emoji-badge')) {
-                        icon.classList.remove('text-allgood-primary');
-                        icon.classList.add('text-slate-500');
-                    } else {
-                        icon.classList.add('grayscale');
-                    }
-                }
-            }
-        }
-        
-        window.showBadgeDetails = (type, element) => {
-            // Update Visual Selection
-            document.querySelectorAll('.badge-grid-item').forEach(el => {
-                el.classList.remove('ring-2', 'ring-allgood-primary', 'ring-offset-2');
-            });
-            if(element) {
-                element.classList.add('ring-2', 'ring-allgood-primary', 'ring-offset-2');
-            }
-
-            // Data Content
-            const detailsPane = document.getElementById('badge-details-pane');
-            const detailsTitle = document.getElementById('badge-details-title');
-            const detailsStatus = document.getElementById('badge-details-status');
-            const detailsDesc = document.getElementById('badge-details-desc');
-            
-            // Unlocked Check
-            const isUnlocked = element && element.dataset.unlocked === "true";
-            const statusText = isUnlocked ? "STATUS: UNLOCKED" : "STATUS: LOCKED";
-            const statusClass = isUnlocked ? "text-green-600" : "text-red-500";
-
-            let title = "";
-            let desc = "";
-
-            switch(type) {
-                case 'observer': 
-                    title = "Observer Badge";
-                    desc = "Granted to all personnel observing Academy operations. No clearance required.";
-                    // Observer is always unlocked
-                    detailsStatus.className = "text-xs font-bold uppercase tracking-widest mt-1 text-green-600";
-                    detailsStatus.textContent = "STATUS: UNLOCKED";
-                    break;
-                case 'agent': 
-                    title = "Academy Agent";
-                    desc = "Granted upon verified identity confirmation (SSO Login). Allows persistent progress tracking.";
-                    detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
-                    detailsStatus.textContent = statusText;
-                    break;
-                case 'operator': 
-                    title = "Academy Operator";
-                    desc = "Granted after successful initialization of first mission module. Demonstrates field readiness.";
-                    detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
-                    detailsStatus.textContent = statusText;
-                    break;
-                case 'cyber': 
-                    title = "Cyber Agent";
-                    desc = "Awarded for demonstrating superior judgment in the Digital Decisions Challenge (Score > 80%).";
-                    detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
-                    detailsStatus.textContent = statusText;
-                    break;
-                case 'entrepreneur': // NEW CASE
-                    title = "Certified Entrepreneur";
-                    desc = "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge. Demonstrates business acumen.";
-                    detailsStatus.className = `text-xs font-bold uppercase tracking-widest mt-1 ${statusClass}`;
-                    detailsStatus.textContent = statusText;
-                    break;
-                case 'classified': 
-                    title = "Classified Asset";
-                    desc = "This certification slot is reserved for future operations. Clearance unavailable at this time.";
-                    detailsStatus.className = "text-xs font-bold uppercase tracking-widest mt-1 text-slate-400";
-                    detailsStatus.textContent = "STATUS: UNAVAILABLE";
-                    break;
-            }
-            
-            detailsTitle.textContent = title;
-            detailsDesc.textContent = desc;
-            
-            // Simple fade in effect for the text
-            detailsPane.classList.remove('opacity-50');
-            void detailsPane.offsetWidth; // trigger reflow
-            detailsPane.classList.add('opacity-100');
-            
-            sfx.click();
-        }
-        
-        window.openBadgeCollection = () => {
-            window.updateBadges(); // Ensure state is fresh
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-            const modal = document.getElementById('badge-collection-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            
-            // Auto-select first badge on open for better UX
-            setTimeout(() => {
-                const firstBadge = document.querySelector('.badge-grid-item');
-                if(firstBadge) window.showBadgeDetails('observer', firstBadge);
-            }, 100);
-            
-            sfx.click();
-        }
-        
-        window.closeBadgeCollection = () => {
-            const modal = document.getElementById('badge-collection-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        }
-
-        window.openAboutModal = () => {
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-
-            const modal = document.getElementById('about-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-        }
-
-        window.closeAboutModal = () => {
-            const modal = document.getElementById('about-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        }
-
-        function closeLoginModal() {
-            const modal = document.getElementById('login-modal');
-            if(modal) {
-                modal.classList.add('hidden-modal');
-                modal.classList.remove('visible-modal');
-            }
-        }
-        
-        function showStatusMessage(message, type = 'info') {
-            const modal = document.getElementById('status-modal');
-            const content = document.getElementById('status-content');
-            const icon = document.getElementById('status-icon');
-            const classes = {
-                'info': { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'info' },
-                'error': { bg: 'bg-red-100', text: 'text-red-800', icon: 'alert-triangle' }
-            };
-
-            const style = classes[type] || classes['info'];
-            modal.querySelector('.modal-content-base').className = `modal-content-base rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 ${style.bg} relative`;
-            content.textContent = message;
-            content.className = `text-sm font-body ${style.text}`;
-            icon.setAttribute('data-lucide', style.icon);
-            lucide.createIcons();
-
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            setTimeout(() => {
-                modal.classList.add('hidden-modal');
-                modal.classList.remove('visible-modal');
-            }, 3000);
-        }
-        
-        window.restoreSessionState = function() {
-            const storedName = localStorage.getItem('aa_username');
-            const storedUID = localStorage.getItem('aa_uid');
-            const dashboard = document.getElementById('page-dashboard');
-
-            if (storedName && storedUID) {
-                window.updateUI(storedName);
-                if (dashboard) {
-                    dashboard.classList.add('active');
-                    dashboard.style.display = 'block'; 
-                }
-                // Show Navbar
-                document.querySelector('.navbar-content').classList.remove('opacity-0');
-                
-                window.startLaunchListener(storedUID);
-                window.startDecisionsStatusListener(storedUID); 
-                return true; 
-            }
-            return false; 
-        }
-
-        window.initDashboard = function() { 
-            window.initModuleElements();
-            
-            onAuthStateChanged(auth, async (user) => {
-                const dashboard = document.getElementById('page-dashboard');
-                if (user) {
-                    if (dashboard.style.display === 'block') {
-                        window.startLaunchListener(user.uid);
-                        window.startDecisionsStatusListener(user.uid); 
-                        return;
-                    }
-                    
-                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                    const docSnap = await getDoc(userRef);
-
-                    let displayName = user.displayName || 'Agent';
-                    let isGuest = true; 
-
-                    if (docSnap.exists()) {
-                        const userData = docSnap.data();
-                        displayName = userData.displayName || user.displayName || 'Agent';
-                        isGuest = userData.isGuest || false;
-                    }
-
-                    localStorage.setItem('aa_username', displayName);
-                    localStorage.setItem('aa_uid', user.uid);
-                    localStorage.setItem('aa_is_guest', isGuest);
-
-                    window.updateUI(displayName);
-                    dashboard.classList.add('active');
-                    dashboard.style.display = 'block'; 
-                    
-                    // Show Navbar
-                    document.querySelector('.navbar-content').classList.remove('opacity-0');
-                    
-                    closeLoginModal(); 
-                    window.startLaunchListener(user.uid);
-                    window.startDecisionsStatusListener(user.uid); 
-                } else {
-                    if (dashboard.style.display === 'block') {
-                         window.handleLogout(); 
-                    }
-                }
-            });
-        }
-
-        // --- NEW ADMIN FUNCTIONS ---
-        window.openAdminLogin = () => {
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-            const modal = document.getElementById('admin-login-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-            setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
-        };
-
-        window.closeAdminLogin = () => {
-            const modal = document.getElementById('admin-login-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        };
-
-        window.handleAdminAuth = async (bypass = false) => {
-            sfx.click();
-            const input = document.getElementById('admin-password-input');
-            const val = input.value.trim();
-            const btn = document.getElementById('btn-admin-submit');
-            
-            // Bypass Logic (Opt-out)
-            if (bypass) {
-                window.openAdminDashboard();
-                return;
-            }
-
-            // Simple validation check for email format
-            if (val.includes('@') && val.length > 5) {
-                // Log email if we had a backend for it, for now just allow entry
-                // Could save to Firestore 'leads' collection here if needed later
-                window.openAdminDashboard();
-                input.value = ""; // Clear input
-            } else {
-                // Error feedback
-                btn.classList.add('bg-red-600');
-                btn.textContent = "INVALID FORMAT";
-                sfx.powerOff();
-                setTimeout(() => {
-                    btn.classList.remove('bg-red-600');
-                    btn.textContent = "AUTHENTICATE";
-                }, 1500);
-            }
-        };
-
-        window.openAdminDashboard = () => {
-            sfx.confirm();
-            window.closeAdminLogin();
-            
-            // Hide standard dashboard
-            document.getElementById('page-dashboard').style.display = 'none';
-            
-            // Show Admin Dashboard
-            const adminPage = document.getElementById('page-admin');
-            adminPage.style.display = 'block';
-            adminPage.classList.add('active');
-        };
-
-        window.closeAdminDashboard = () => {
-            sfx.nav();
-            const adminPage = document.getElementById('page-admin');
-            adminPage.style.display = 'none';
-            adminPage.classList.remove('active');
-            
-            // Restore standard dashboard
-            document.getElementById('page-dashboard').style.display = 'block';
-        };
-
-        const startupScreen = document.getElementById('startup-screen');
-        if(startupScreen) {
-            startupScreen.addEventListener('click', () => {
-                if(window.sfx && window.sfx.powerOn) {
-                    window.sfx.powerOn(); 
-                } else if (window.initAudio) {
-                    window.initAudio();
-                }
-                
-                startupScreen.style.opacity = '0';
-                
-                const storedUID = localStorage.getItem('aa_uid');
-                const storedName = localStorage.getItem('aa_username');
-                
-                if (storedName && storedUID) {
-                    window.restoreSessionState();
-                    window.initDashboard(); 
-                } else {
-                    const loginModal = document.getElementById('login-modal');
-                    if (loginModal) {
-                        loginModal.classList.remove('hidden-modal');
-                        loginModal.classList.add('visible-modal');
-                    }
-                }
-                
-                setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
-            });
-        }
     </script>
     
-    <!-- Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
@@ -926,7 +156,6 @@
                         'allgood-dark': '#4C4C4C',
                         'allgood-light': '#F7F7F7',
                         'allgood-hover': '#EB8D69',
-                        'allgood-accent': '#2D6473',
                     },
                     fontFamily: {
                         'heading': ['Georgia', 'serif'],
@@ -938,1194 +167,493 @@
     </script>
 
     <style>
-        /* =============================================
-           FIXED CHASSIS MANDATE: Industrial Design
-           ============================================= 
-        */
-        body {
-            font-family: Verdana, sans-serif;
-            background-color: #1a1a1a;
-            /* Industrial grid pattern - FIXED */
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
-            background-attachment: fixed;
-            min-height: 100vh;
-            position: relative;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
+        /* --- FIXED CHASSIS STYLES (V3 OS) --- */
+        body { font-family: Verdana, sans-serif; background-color: #1a1a1a; min-height: 100vh; margin: 0; padding: 0; }
+        h1, h2, h3, h4 { font-family: Georgia, serif; }
 
-        h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
-
-        /* Neon Glow Effects */
-        .static-neon-glow {
-            text-shadow: 
-                0 0 5px rgba(211, 71, 22, 0.2),
-                0 0 10px rgba(211, 71, 22, 0.4),
-                0 0 20px rgba(211, 71, 22, 0.6);
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); transform: scale(1); }
-            50% { text-shadow: 0 0 30px rgba(211, 71, 22, 0.9), 0 0 15px rgba(211, 71, 22, 0.6); transform: scale(1.02); }
-        }
-        .animate-pulse-glow { animation: pulse-glow 2.5s infinite ease-in-out; will-change: transform, text-shadow; }
-
-        @keyframes pulse-glow-badge {
-            0%, 100% { box-shadow: 0 0 0px rgba(211, 71, 22, 0.0); }
-            50% { box-shadow: 0 0 12px rgba(211, 71, 22, 0.7); }
-        }
-        .animate-pulse-glow-badge { animation: pulse-glow-badge 3s infinite ease-in-out; }
-
-        .shadow-badge-locked { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(255, 255, 255, 0.2); }
-        .shadow-badge-active { box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2), 0 0 1px #FFF; }
-
-        /* --- TABLET FRAME (FIXED CHASSIS MANDATE) --- */
         .tablet-frame {
-            height: 80vh;
-            width: auto;
-            aspect-ratio: 16/10;
-            max-width: 1100px;
-            max-height: 95vh;
-            min-height: 0;
-            min-width: 0;
-            /* Brushed Aluminum & Depth Gradients - FIXED */
-            background-image: 
-                radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
-                radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
-                linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
-            border-radius: 12px;
-            padding: 12px; 
-            box-shadow: 
-                inset 1px 1px 2px rgba(255,255,255, 0.6), 
-                inset -1px -1px 2px rgba(0,0,0, 0.8), 
-                0 30px 60px -12px rgba(0, 0, 0, 0.8), 
-                0 0 0 1px #111;
-            border: 1px solid #333;
-            position: relative;
+            height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
+            background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
+            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 30px 60px -12px rgba(0,0,0,0.8);
             margin: 20px auto;
-            transition: width 0.3s, height 0.3s, padding 0.3s;
+            transition: all 0.3s ease;
         }
-
         .tablet-frame::before {
             content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
             border-radius: 6px; background: #111; z-index: 0;
         }
-
-        /* --- SCREEN CONTAINER: EXECUTIVE OS INTERFACE --- */
         .screen-container {
-            width: 100%; height: 100%;
-            /* NEW: Executive Glass Gradient (Software Layer) */
-            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            position: relative; z-index: 1; overflow: hidden;
-            display: flex; flex-direction: column; 
-            border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
-        
-        /* --- MISSION CARD (GLASSMORPHISM) --- */
-        .mission-file {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            border-left-width: 4px;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .mission-file:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            width: 100%; height: 100%; background-color: #F7F7F7; position: relative; z-index: 1;
+            overflow: hidden; display: flex; flex-direction: column; border-radius: 4px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        /* Status colors */
-        .status-active { border-left-color: #D34716; } /* Burnt Orange */
-        .status-ready { border-left-color: #357889; } /* Deep Cyan */
-        .status-locked { border-left-color: #757575; opacity: 0.7; cursor: not-allowed; }
-        
-        /* COMMAND RAIL TABS (UPDATED) */
-        .tab-btn {
-            color: #64748b; /* Text Secondary */
-            border: none;
-        }
-        .tab-btn:hover {
-            background-color: rgba(255,255,255,0.5);
-            color: #357889; /* Brand Secondary */
-        }
-        .active-tab {
-            background-color: #D34716 !important; /* Brand Primary */
-            color: white !important;
-            box-shadow: 0 4px 6px -1px rgba(211, 71, 22, 0.3), 0 2px 4px -1px rgba(211, 71, 22, 0.1);
-            transform: translateY(-1px);
-        }
-
-        /* Custom image container for headshot */
-        .headshot-container {
-            width: 64px;
-            height: 64px;
-            overflow: hidden;
-            border-radius: 6px;
-            border: 1px solid rgba(0,0,0,0.1);
-            flex-shrink: 0;
-        }
-        .headshot-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-
-        @media (max-width: 640px) {
-            body {
-                padding: 0;
-                align-items: flex-start;
-                background-image: none;
-                background-color: #f8fafc;
-            }
-            .tablet-frame {
-                width: 100vw !important;
-                height: 100vh !important;
-                max-width: none !important;
-                max-height: none !important;
-                border-radius: 0 !important;
-                border: none !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                box-shadow: none !important;
-                background-image: none !important;
-                aspect-ratio: auto !important;
-            }
-            .tablet-frame::before { display: none; }
-            .screen-container {
-                border-radius: 0 !important;
-                box-shadow: none !important;
-                padding-top: env(safe-area-inset-top);
-                padding-bottom: env(safe-area-inset-bottom);
-            }
-            main { padding: 0 !important; }
-        }
-
-        /* --- BLUEPRINT MODE --- */
-        .blueprint-mode .screen-container { background: #0f172a; color: #94a3b8; }
-        .blueprint-mode .mission-file { background-color: #1e293b; border-color: #334155; opacity: 1; backdrop-filter: none; }
-        .blueprint-mode h1, .blueprint-mode h2, .blueprint-mode h3, .blueprint-mode strong { color: #38bdf8 !important; }
-
-        /* --- FOCUS MODE --- */
-        .focus-mode .tablet-frame {
-            position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; 
-            width: 100% !important; height: 100% !important;
-            aspect-ratio: auto !important; max-width: none !important; max-height: none !important; 
-            min-height: 0 !important;
-            margin: 0 !important; padding: 0 !important; 
-            background: #f8fafc !important; border: none !important; border-radius: 0 !important; 
-            box-shadow: none !important; z-index: 99999 !important;
-            background-image: none !important;
-        }
-        .focus-mode .tablet-frame::before { display: none; }
-        .focus-mode .screen-container { border-radius: 0; box-shadow: none; height: 100%; }
-
-        /* --- SCROLLBARS --- */
-        .page::-webkit-scrollbar { width: 10px; }
-        .page::-webkit-scrollbar-track { background: transparent; }
-        .page::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 5px; border: 2px solid #f8fafc; }
-        .page::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
-
-        /* --- MODALS --- */
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-        /* --- LAYOUT - HEADER (GLASS) --- */
-        /* Updated Navbar for Executive Glass Look */
-        .navbar-content { flex: 0 0 60px; z-index: 30; background: rgba(53, 120, 137, 0.85); backdrop-filter: blur(5px); border-bottom: 1px solid rgba(255,255,255,0.1); color: white; transition: opacity 0.3s; position: relative; }
-        .footer-content { flex: 0 0 50px; z-index: 20; background: white; border-top: 1px solid #e2e8f0; }
-        .page { flex: 1 1 auto; overflow-y: auto; padding: 24px; position: relative; display: none; width: 100%; background: transparent; }
-        .page.active { display: block; }
+        /* Scrollbars */
+        .content-scroll::-webkit-scrollbar { width: 14px; }
+        .content-scroll::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
+        .content-scroll::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
+
+        /* Progress Bar */
+        #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
+        #flex-progress-fill { height: 100%; background-color: #D34716; width: 0%; transition: width 0.3s ease; }
+
+        /* --- CONTENT SPECIFIC STYLES (FROM V2) --- */
+        .goodblock-card { background-color: #ffffff; border-left: 5px solid #357889; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1rem; }
+        .goodblock-card.primary { border-left-color: #D34716; }
         
-        .modal-content-base { background: white; }
+        .tooltip-container { border-bottom: 2px dashed #357889; color: #357889; font-weight: bold; cursor: pointer; }
+        .tooltip-content { display: none; }
         
-        .tooltip-container { position: relative; display: inline-block; }
-        .tooltip-text {
-            visibility: hidden; width: 250px; background-color: #4C4C4C; color: #fff;
-            text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 10;
-            bottom: 125%; left: 50%; margin-left: -125px; opacity: 0; transition: opacity 0.3s; font-size: 0.75rem;
-        }
-        .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
-        .tooltip-text::after {
-            content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
-            border-width: 5px; border-style: solid; border-color: #4C4C4C transparent transparent transparent;
-        }
+        /* Comparison Slider */
+        .comparison-slider-container { position: relative; height: 250px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); user-select: none; }
+        .comparison-before, .comparison-after { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 1rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; }
+        .comparison-before { background-color: #dc2626; }
+        .comparison-after { background-color: #357889; }
+        .comparison-divider { position: absolute; top: 0; bottom: 0; width: 4px; background-color: white; cursor: ew-resize; z-index: 10; }
+        .comparison-divider-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background-color: rgba(0,0,0,0.5); border-radius: 50%; padding: 0.5rem; }
 
-        /* --- BADGE MODAL GRID --- */
-        .badge-grid-item {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            transition: all 0.2s;
-            position: relative;
-            background: #f8fafc;
-        }
-        .badge-grid-item:hover {
-            transform: scale(1.05);
-        }
+        /* Blueprint Mode Overrides */
+        .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
+        .blueprint-mode .screen-container, .blueprint-mode main { background-color: #0f172a !important; }
+        .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+        .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
+        .blueprint-mode .goodblock-card { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
 
-        /* NEW: Emoji Badge Styling */
-        .emoji-badge {
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-            line-height: 1;
-            display: block;
-        }
+        /* Focus Mode Overrides */
+        .tablet-frame.focus-mode { width: 100% !important; height: 100% !important; border: none; border-radius: 0; margin: 0; padding: 0; max-width: none; max-height: none; background: none; box-shadow: none; }
+        .tablet-frame.focus-mode::before { display: none; }
+        .tablet-frame.focus-mode .screen-container { border-radius: 0; }
 
+        @media (max-width: 768px) {
+            .tablet-frame { width: 100% !important; height: 100% !important; border: none; border-radius: 0; margin: 0; padding: 0; background: none; box-shadow: none; }
+            .tablet-frame::before { display: none; }
+            .screen-container { border-radius: 0; }
+        }
     </style>
 </head>
-<body class="flex flex-col min-h-screen text-allgood-dark font-body">
+<body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
 
     <main class="flex-grow flex items-center justify-center py-8">
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
                 <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
-                        <div class="relative">
-                            <div class="absolute inset-0 bg-allgood-primary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <h2 class="text-xl md:text-2xl font-heading text-slate-400 mb-2 uppercase">WELCOME TO THE</h2>
-                            <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md static-neon-glow uppercase">ALLGOOD<span class="text-white">ACADEMY</span></h1>
+                        <div class="flex-grow flex flex-col items-center justify-center px-4">
+                            <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Allgood Academy</h2>
+                            <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md">GoodBlock</h1>
+                            <p class="mt-2 text-white/80 relative z-10 font-body text-sm font-semibold">Your Digital Identity</p>
+                            <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
                         </div>
-                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
                     </div>
                 </div>
 
                 <!-- 2. LOGIN MODAL -->
-                <div id="login-modal" class="absolute inset-0 z-[4000] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
+                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
                         <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        
-                        <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
-                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
-                                
-                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
-                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
-                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
-                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the GoodBlock experience. All personal data is kept confidential and never sold.</p>
-                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
-                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
-                                </div>
-                            </button>
-                        </div>
-
-                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
-                            Enter Dashboard
-                        </button>
-
-                        <div class="mt-4 flex items-center justify-center space-x-2">
-                             <div class="h-px w-10 bg-gray-200"></div>
-                             <p class="text-xs text-gray-500 uppercase font-bold">OR</p>
-                             <div class="h-px w-10 bg-gray-200"></div>
-                        </div>
-
-                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" 
-                                class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                            </svg>
+                        <p class="text-gray-500 text-sm font-body mb-6">Please sign in to start.</p>
+                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 font-body">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 font-body">
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform font-body uppercase">Start Module</button>
+                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
+                        <button onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:scale-105 bg-white flex items-center justify-center mx-auto">
+                            <i class="fab fa-google text-red-500 text-xl"></i>
                         </button>
                     </div>
                 </div>
-                
-                <!-- 2.5 STATUS MODAL -->
-                <div id="status-modal" class="hidden-modal absolute top-16 right-4 z-[500] flex items-center justify-center p-4 modal-transition pointer-events-none">
-                    <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3 modal-content-base">
-                        <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
-                        <p id="status-content" class="text-sm font-body text-blue-800"></p>
-                    </div>
-                </div>
 
-                <!-- 2.7 ADMIN LOGIN MODAL (NEW - PROFESSIONAL) -->
-                <div id="admin-login-modal" class="hidden-modal absolute inset-0 z-[260] bg-slate-900/50 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="window.closeAdminLogin()">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
-                        <button onclick="window.closeAdminLogin()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-
-                        <div class="mb-6 mt-2">
-                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i data-lucide="lock" class="w-6 h-6 text-allgood-secondary"></i>
+                <!-- 3. HEADER -->
+                <header class="bg-allgood-secondary shadow-md flex-none z-20 h-[60px] flex items-center">
+                    <div class="w-full px-4 flex items-center justify-between h-full">
+                        <div class="flex items-center overflow-hidden">
+                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4">Digital Identity</div>
+                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10">
+                                <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Step</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 15</span>
                             </div>
-                            <h2 class="text-xl font-heading font-bold text-allgood-dark">Administrator Access</h2>
-                            <p class="text-xs text-gray-500 mt-1">Please verify your credentials.</p>
                         </div>
-                        
-                        <div class="text-left mb-4">
-                            <label class="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Admin Password</label>
-                            <input type="password" id="admin-password-input" class="w-full border border-gray-300 rounded p-3 text-gray-800 focus:ring-2 focus:ring-allgood-secondary focus:border-transparent outline-none transition-all font-body" placeholder="••••••••">
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button id="home-button" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10" title="Reset"><i data-lucide="refresh-cw" class="w-5 h-5"></i></button>
+                            <div class="h-6 w-px bg-white/20 mx-1"></div>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 p-2 rounded-full hover:bg-white/10"><i data-lucide="scan" class="w-5 h-5"></i></button>
+                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 p-2 rounded-full hover:bg-white/10"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-6 h-6"></i></button>
                         </div>
-                        
-                        <button id="btn-admin-submit" onclick="window.handleAdminAuth()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow-md transition-all font-body uppercase tracking-wide mb-3">
-                            Sign In
-                        </button>
-                        
-                        <button onclick="window.handleAdminAuth(true)" class="text-xs text-gray-400 hover:text-allgood-primary underline underline-offset-4 decoration-dotted font-body">
-                            Enter Preview Mode (Guest)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 3. TOP NAVBAR (GLASS) -->
-                <header class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30 opacity-0">
-                    <div class="flex items-center overflow-hidden">
-                        <div class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none uppercase">
-                            ALLGOOD ACADEMY <span class="opacity-60 text-sm font-normal">| DASHBOARD</span>
-                        </div>
-                    </div>
-                    <!-- Control Cluster -->
-                    <div class="flex items-center space-x-1 shrink-0 relative">
-                        <button id="btn-home" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home (Hold to Reset)">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                        </button>
-                        <div class="h-6 w-px bg-white/20 mx-1"></div>
-                        <button id="btn-blueprint" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                        </button>
-                        <button id="btn-fullscreen" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-                        </button>
-                        <button id="btn-message" class="text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ" onclick="window.openMessageModal()">
-                            <i data-lucide="message-square" class="w-5 h-5"></i>
-                        </button>
-                        <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                        </button>
                     </div>
                 </header>
 
-                <!-- Sidebar Menu -->
-                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-slate-900/50 flex justify-end modal-transition backdrop-blur-sm">
-                    <div class="w-64 h-full bg-white shadow-2xl flex flex-col border-l border-slate-200">
-                        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <span class="font-bold text-slate-700 font-heading uppercase">System Menu</span>
-                            <button id="close-menu" class="text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-                        </div>
-                        <div class="p-3 space-y-1">
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Dashboard Active', 'info')">
-                                <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Dashboard
-                            </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Profile Module: Coming Soon', 'info')">
-                                <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
-                            </button>
-                            <!-- ADMIN ENTRY -->
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAdminLogin()">
-                                <i data-lucide="lock" class="w-4 h-4 mr-3 text-allgood-secondary"></i>Admin Console
-                            </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAboutModal()">
-                                <i data-lucide="info" class="w-4 h-4 mr-3 text-slate-500"></i>About Us
-                            </button>
-                            <div class="border-t border-slate-100 my-2"></div>
-                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center transition-colors uppercase" onclick="window.handleLogout()">
-                                <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>Log Out
-                            </button>
-                        </div>
-                        <div class="mt-auto p-4 bg-slate-50 border-t border-slate-200 text-center">
-                            <p class="text-xs text-slate-500 font-body">Allgood Academy &copy; 2025</p>
-                        </div>
-                    </div>
+                <!-- 4. CONTENT AREA (Dynamic) -->
+                <div id="content-area" class="flex-grow overflow-y-auto p-6 relative content-scroll bg-allgood-light">
+                    <!-- Dynamic Content Injected Here -->
                 </div>
 
-                <!-- 5. NEW ADMIN PAGE (PROFESSIONAL LMS STYLE) -->
-                <div class="page" id="page-admin" style="display:none;">
-                    
-                    <!-- INFO BANNER -->
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r shadow-sm flex justify-between items-start">
-                        <div class="flex">
-                            <i data-lucide="info" class="w-5 h-5 text-blue-500 mr-3 mt-0.5"></i>
-                            <div>
-                                <p class="text-sm text-blue-900 font-bold">Preview Mode</p>
-                                <p class="text-xs text-blue-700 mt-1">The Analytics Module is currently in development. Data shown below is for demonstration purposes only.</p>
-                            </div>
-                        </div>
-                        <button onclick="window.closeAdminDashboard()" class="text-blue-400 hover:text-blue-700"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-
-                    <!-- ADMIN TOP BAR -->
-                    <div class="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Learner Analytics</h2>
-                            <p class="text-xs text-gray-500 font-body mt-1 uppercase tracking-wide">Overview & Reporting</p>
-                        </div>
-                        <div class="flex gap-2">
-                             <button class="bg-white border border-gray-300 text-gray-600 hover:text-allgood-primary px-4 py-2 rounded text-xs font-bold uppercase shadow-sm transition-colors flex items-center gap-2">
-                                <i data-lucide="download" class="w-4 h-4"></i> Export CSV
-                            </button>
-                            <button onclick="window.closeAdminDashboard()" class="bg-allgood-secondary hover:bg-allgood-accent text-white px-4 py-2 rounded text-xs font-bold uppercase shadow-sm transition-colors">
-                                Return to Dashboard
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- KPI CARDS -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <!-- Card 1 -->
-                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-                            <div>
-                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Active Learners</p>
-                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">1,248</h3>
-                                <p class="text-[10px] text-emerald-600 font-bold mt-1">▲ 12% vs last month</p>
-                            </div>
-                            <div class="p-3 bg-blue-50 rounded-full text-blue-600">
-                                <i data-lucide="users" class="w-6 h-6"></i>
-                            </div>
-                        </div>
-                        <!-- Card 2 -->
-                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-                            <div>
-                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Module Completion</p>
-                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">87%</h3>
-                                <p class="text-[10px] text-emerald-600 font-bold mt-1">▲ 4% vs last month</p>
-                            </div>
-                            <div class="p-3 bg-emerald-50 rounded-full text-emerald-600">
-                                <i data-lucide="check-circle" class="w-6 h-6"></i>
-                            </div>
-                        </div>
-                        <!-- Card 3 -->
-                        <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between">
-                            <div>
-                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Avg. Assessment</p>
-                                <h3 class="text-3xl font-heading font-bold text-allgood-dark">92/100</h3>
-                                <p class="text-[10px] text-gray-400 font-bold mt-1">─ Stable</p>
-                            </div>
-                            <div class="p-3 bg-amber-50 rounded-full text-amber-600">
-                                <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- RECENT ACTIVITY TABLE -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="p-5 border-b border-gray-100 flex justify-between items-center">
-                            <h3 class="font-heading font-bold text-lg text-allgood-dark">Recent Learner Activity</h3>
-                            <div class="relative">
-                                <input type="text" placeholder="Search learner..." class="pl-8 pr-4 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-allgood-secondary outline-none w-48">
-                                <i data-lucide="search" class="w-3 h-3 text-gray-400 absolute left-3 top-2.5"></i>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
-                                        <th class="p-4 font-bold">Learner Name</th>
-                                        <th class="p-4 font-bold">Module</th>
-                                        <th class="p-4 font-bold">Date</th>
-                                        <th class="p-4 font-bold">Status</th>
-                                        <th class="p-4 font-bold text-right">Score</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm text-gray-700 divide-y divide-gray-100">
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="p-4 font-medium text-allgood-dark">Sarah Jenkins</td>
-                                        <td class="p-4">Airport Navigator</td>
-                                        <td class="p-4 text-gray-500">Oct 24, 2025</td>
-                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
-                                        <td class="p-4 text-right font-bold">100%</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="p-4 font-medium text-allgood-dark">Michael Ross</td>
-                                        <td class="p-4">Digital Asset Defense</td>
-                                        <td class="p-4 text-gray-500">Oct 24, 2025</td>
-                                        <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase">In Progress</span></td>
-                                        <td class="p-4 text-right font-bold text-gray-400">--</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="p-4 font-medium text-allgood-dark">David Kim</td>
-                                        <td class="p-4">Mastering the Apology</td>
-                                        <td class="p-4 text-gray-500">Oct 23, 2025</td>
-                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
-                                        <td class="p-4 text-right font-bold">95%</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="p-4 font-medium text-allgood-dark">Elena Rodriguez</td>
-                                        <td class="p-4">Digital Decisions</td>
-                                        <td class="p-4 text-gray-500">Oct 22, 2025</td>
-                                        <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Review Needed</span></td>
-                                        <td class="p-4 text-right font-bold text-amber-600">72%</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="p-4 font-medium text-allgood-dark">James Chen</td>
-                                        <td class="p-4">Your Digital Identity</td>
-                                        <td class="p-4 text-gray-500">Oct 22, 2025</td>
-                                        <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold uppercase">Completed</span></td>
-                                        <td class="p-4 text-right font-bold">88%</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-center">
-                            <button class="text-xs text-allgood-secondary font-bold hover:underline">View All History</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. DASHBOARD CONTENT -->
-                <div class="page" id="page-dashboard">
-                    
-                    <!-- Status Bar (Refactored for Mobile Stacking) -->
-                    <div class="flex flex-col md:flex-row items-center justify-between bg-white/60 backdrop-blur-md p-4 rounded-lg shadow-sm border border-white/50 mb-6 text-allgood-dark text-center md:text-left">
-                        <div class="mb-4 md:mb-0 w-full md:w-auto">
-                            <h1 class="text-xl font-heading font-bold text-slate-700 uppercase">Welcome, <span class="user-name-display text-allgood-primary">Agent</span>.</h1>
-                            <!-- BADGE COLLECTION BUTTON -->
-                            <div class="mt-2 flex items-center justify-center md:justify-start">
-                                <button onclick="window.openBadgeCollection()" class="bg-white border border-gray-300 rounded-full px-4 py-1.5 text-xs font-bold text-slate-600 shadow-sm hover:shadow-md hover:text-allgood-primary transition-all flex items-center gap-2 group">
-                                    <i data-lucide="layout-grid" class="w-3 h-3 group-hover:scale-110 transition-transform"></i>
-                                    <span id="badge-count-display">BADGES: 1</span>
-                                    <span class="text-[10px] uppercase text-gray-400 font-normal">| VIEW COLLECTION</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex gap-6 md:gap-4 text-center md:text-right w-full md:w-auto justify-center md:justify-end">
-                            <div>
-                                <span class="block text-2xl font-bold text-allgood-secondary leading-none">13</span>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold">MODULES</span>
-                            </div>
-                            <div>
-                                <span class="block text-2xl font-bold text-emerald-600 leading-none" id="stat-total-launches">0</span>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold">LAUNCHED</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB NAVIGATION: COMMAND RAIL (Mobile Optimized) -->
-                    <div class="bg-white/40 backdrop-blur-md p-1.5 rounded-xl border border-white/60 shadow-sm flex space-x-2 mb-6 mx-auto max-w-3xl">
-                        <button id="tab-btn-goodblocks" onclick="switchTab('goodblocks')" 
-                            class="tab-btn active-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
-                            <i data-lucide="box" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
-                            <span class="hidden sm:inline">GoodBlocks</span>
-                        </button>
-                        <button id="tab-btn-games" onclick="switchTab('games')" 
-                            class="tab-btn inactive-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
-                            <i data-lucide="gamepad-2" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
-                            <span class="hidden sm:inline">Games & Sims</span>
-                        </button>
-                        <button id="tab-btn-courses" onclick="switchTab('courses')" 
-                            class="tab-btn inactive-tab flex-1 flex items-center justify-center px-4 py-3 rounded-lg text-xs sm:text-sm font-bold tracking-wide uppercase transition-all duration-300 ease-out">
-                            <i data-lucide="book-open" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i> 
-                            <span class="hidden sm:inline">Courses</span>
-                        </button>
-                    </div>
-
-                    <!-- TAB 1: GOODBLOCKS -->
-                    <div id="tab-goodblocks" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🛫</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Airport Navigator</h3>
-                                    <span class="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Master the logistical flow from curb to gate with zero friction.</p>
-                            </div>
-                        </div>
-                        
-                        <!-- UPDATED CARD: JONATHAN HURTADO'S COUNTDOWN TO KEYS -->
-                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-70">
-                            <div class="headshot-container flex-shrink-0 bg-slate-100">
-                                <!-- Headshot Image Replacement -->
-                                <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
-                                     alt="Jonathan Hurtado's Headshot"
-                                     onerror="this.onerror=null; this.src='https://placehold.co/64x64/334155/f8fafc?text=JH'" 
-                                     class="rounded object-cover w-full h-full">
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-500 text-lg mb-1 uppercase">Jonathan Hurtado's Countdown to Keys</h3>
-                                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Coming Soon</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Execute the 100-day protocol to secure your first home.</p>
-                            </div>
-                        </div>
-                        <!-- END UPDATED CARD -->
-
-                        <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🛡️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Digital Asset Defense</h3>
-                                    <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Secure wealth via wallet protocols and threat avoidance.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Mastering the Apology', 'https://www.allgoodacademy.com/goodblocks/mastering-the-sincere-apology', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-100 flex-shrink-0 group-hover:bg-emerald-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🤝</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Mastering the Apology</h3>
-                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Deploy the 4-part structure to de-escalate conflict instantly.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🧬</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Your Digital Identity</h3>
-                                    <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Audit your online footprint and secure your personal perimeter.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 2: GAMES & SIMS -->
-                    <div id="tab-games" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-                        <!-- UPDATED ONCLICK URL AND ID (REMOVED APOSTROPHE FOR SAFE PARSING) -->
-                        <div onclick="window.launchCourse('Jolenes Lemonade', 'https://allgoodacademy.github.io/GoodBlocks_Hub/Jolene\'s-Lemonade-Challenge/index.html', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-yellow-50 rounded-full flex items-center justify-center border border-yellow-100 flex-shrink-0 group-hover:bg-yellow-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🍋</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Jolene's Lemonade</h3>
-                                    <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Manage supply, demand, and profit margins in a live market.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions', this)" 
-                             class="mission-file status-active p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center border border-indigo-100 flex-shrink-0 group-hover:bg-indigo-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">⚖️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Digital Decisions</h3>
-                                    <span id="ddc-status-badge" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Make high-stakes choices in simulated online conflict scenarios.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🌤️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Conflict Resolution</h3>
-                                    <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Identify triggers and neutralize tension in high-stress interactions.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🎙️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Purposeful Communicator</h3>
-                                    <span class="bg-teal-100 text-teal-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Select precise language to drive outcomes and build consensus.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">📖</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Master Your Story</h3>
-                                    <span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Craft and deliver a compelling personal narrative for business and life.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 3: COURSES -->
-                    <div id="tab-courses" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-                        <div onclick="window.launchCourse('Pragmatic Learning', 'https://www.allgoodacademy.com/courses/pragmatic-learning-turning-knowledge-into-action', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100 flex-shrink-0 group-hover:bg-amber-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🛠️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Pragmatic Learning</h3>
-                                    <span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Turn passive input into active output. The core philosophy of Allgood Academy.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('The Unwritten Rules', 'https://www.allgoodacademy.com/courses/the-unwritten-rules-navigating-social-emotional-learning', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-slate-200 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🧭</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">The Unwritten Rules</h3>
-                                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Decode the hidden social contracts that govern professional environments.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/courses/the-ai-co-pilot-a-15-minute-microlearning-course', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🤖</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">The AI Co-Pilot</h3>
-                                    <span class="bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Integrate AI into your workflow in 15 minutes.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-12 mb-6 text-center">
-                        <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-80">
-                            ALLGOOD OS <span class="mx-2">•</span> GOODBLOCK™
-                        </p>
-                    </div>
-
-                <!-- BADGE COLLECTION MODAL (UPDATED) -->
-                <div id="badge-collection-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/80 flex items-center justify-center p-4 modal-transition backdrop-blur-sm" onclick="closeBadgeCollection()">
-                    <!-- Added max-h-[85%] and flex-col to enable internal scrolling -->
-                    <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[85%] border-t-4 border-allgood-primary relative overflow-hidden" onclick="event.stopPropagation()">
-                        
-                        <!-- FIXED HEADER -->
-                        <div class="p-6 pb-2 shrink-0 border-b border-gray-100 relative">
-                            <button onclick="closeBadgeCollection()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-5 h-5"></i></button>
-                            <h3 class="text-2xl font-heading font-bold text-allgood-dark uppercase">Badge Dossier</h3>
-                            <p class="text-xs font-bold uppercase tracking-widest mt-1 text-slate-400">Achievements & Certifications</p>
-                        </div>
-                        
-                        <!-- SCROLLABLE CONTENT AREA -->
-                        <div class="overflow-y-auto p-6 flex-grow">
-                            <div class="grid grid-cols-4 gap-3 mb-4">
-                                <!-- 1. Observer Badge -->
-                                <div class="badge-grid-item shadow-sm bg-slate-100 cursor-pointer" onclick="showBadgeDetails('observer', this)">
-                                    <i data-lucide="eye" class="w-5 h-5 text-allgood-primary"></i>
-                                </div>
-                                
-                                <!-- 2. Academy Agent -->
-                                <div id="badge-slot-2" class="badge-grid-item opacity-60 bg-slate-200 grayscale cursor-pointer" onclick="showBadgeDetails('agent', this)">
-                                    <i data-lucide="id-card" class="badge-icon w-5 h-5 text-slate-500"></i>
-                                    <div class="badge-lock absolute top-0.5 right-0.5 text-slate-400"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                </div>
-
-                                <!-- 3. Academy Operator -->
-                                <div id="badge-slot-3" class="badge-grid-item opacity-60 bg-slate-200 grayscale cursor-pointer" onclick="showBadgeDetails('operator', this)">
-                                    <i data-lucide="zap" class="badge-icon w-5 h-5 text-slate-500"></i>
-                                    <div class="badge-lock absolute top-0.5 right-0.5 text-slate-400"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                </div>
-
-                                <!-- 4. Cyber Agent -->
-                                <div id="badge-slot-4" class="badge-grid-item opacity-60 bg-slate-200 grayscale cursor-pointer" onclick="showBadgeDetails('cyber', this)">
-                                    <i data-lucide="shield-check" class="badge-icon w-5 h-5 text-slate-500"></i>
-                                    <div class="badge-lock absolute top-0.5 right-0.5 text-slate-400"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                </div>
-
-                                <!-- 5. Certified Entrepreneur (NEW) -->
-                                <div id="badge-slot-5" class="badge-grid-item opacity-60 bg-slate-200 grayscale cursor-pointer" onclick="showBadgeDetails('entrepreneur', this)">
-                                    <!-- Using emoji or icon for Lemon/Trophy -->
-                                    <span class="text-xl emoji-badge badge-icon grayscale">🍋</span>
-                                    <div class="badge-lock absolute top-0.5 right-0.5 text-slate-400"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                </div>
-
-                                <!-- Ghost Slots 6-16 -->
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                                <div class="badge-grid-item bg-slate-200 opacity-40 grayscale cursor-pointer" onclick="showBadgeDetails('classified', this)"><i data-lucide="lock" class="w-4 h-4 text-slate-400"></i></div>
-                            </div>
-                            
-                            <!-- DATA STREAM FOOTER (In Scroll Area but stays at bottom naturally) -->
-                            <div id="badge-details-pane" class="bg-slate-50 border border-slate-200 rounded p-4 text-left transition-opacity duration-300 min-h-[100px]">
-                                <h4 id="badge-details-title" class="font-heading font-bold text-allgood-dark uppercase tracking-wide">Select a Badge</h4>
-                                <p id="badge-details-status" class="text-xs font-bold uppercase tracking-widest mt-1 text-slate-400">Scanning...</p>
-                                <div class="border-t border-slate-200 my-2"></div>
-                                <p id="badge-details-desc" class="text-xs text-slate-600 leading-relaxed">Click any badge above to view its classification and unlocking requirements.</p>
-                            </div>
-                        </div>
-
-                        <!-- FIXED FOOTER -->
-                        <div class="p-6 pt-2 shrink-0 bg-white border-t border-gray-100">
-                            <button onclick="closeBadgeCollection()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded text-sm shadow-md transition-colors uppercase">
-                                Return to Dashboard
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                </div> <!-- End Dashboard Page -->
-
-                <!-- 5. NEW ADMIN PAGE (BLUEPRINT MODE) -->
-                <div class="page" id="page-admin" style="display:none; background-color: #0f172a; color: #94a3b8;">
-                    <!-- ADMIN TOP BAR -->
-                    <div class="flex items-center justify-between border-b border-slate-700 pb-4 mb-8">
-                        <div>
-                            <h2 class="text-2xl font-mono text-cyan-400 tracking-wider">SYSTEM_ADMIN_CONSOLE</h2>
-                            <p class="text-[10px] text-slate-500 font-mono mt-1">V.2025.04.1 | SECURITY_LEVEL_4</p>
-                        </div>
-                        <button onclick="window.closeAdminDashboard()" class="text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-4 py-2 rounded text-xs font-mono uppercase transition-all">
-                            EXIT_CONSOLE
-                        </button>
-                    </div>
-
-                    <!-- ADMIN GRID -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono">
-                        
-                        <!-- SYSTEM STATUS -->
-                        <div class="bg-slate-800 border border-slate-700 p-6 rounded">
-                            <h3 class="text-sm text-cyan-500 mb-4 border-b border-slate-700 pb-2 uppercase tracking-widest">System_Diagnostics</h3>
-                            <div class="space-y-3 text-xs">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">SERVER_LOAD</span>
-                                    <span class="text-green-400">12% [NOMINAL]</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">ACTIVE_SESSIONS</span>
-                                    <span class="text-blue-400">4,291</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">DB_LATENCY</span>
-                                    <span class="text-green-400">24ms</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-400">SECURITY_ALERTS</span>
-                                    <span class="text-slate-500">NONE</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- RECENT ACTIVITY (DUMMY) -->
-                        <div class="bg-slate-800 border border-slate-700 p-6 rounded relative overflow-hidden">
-                             <h3 class="text-sm text-cyan-500 mb-4 border-b border-slate-700 pb-2 uppercase tracking-widest">Log_Stream</h3>
-                             <div class="space-y-2 text-xs text-slate-500 opacity-60">
-                                 <p>> User_2941 initialized module [Airport_Nav]...</p>
-                                 <p>> System_GC running cleanup...</p>
-                                 <p>> User_8812 badge_unlock [Operator]...</p>
-                                 <p>> Connection from IP 192.168.1.10...</p>
-                             </div>
-                             <!-- COMING SOON OVERLAY -->
-                             <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-                                 <div class="border-2 border-dashed border-slate-600 px-6 py-4 rounded rotate-[-5deg] bg-slate-800/80">
-                                     <h2 class="text-2xl text-slate-200 font-bold uppercase tracking-widest text-center">System Update<br>In Progress</h2>
-                                     <p class="text-xs text-cyan-500 text-center mt-2 font-mono">Module Coming Soon</p>
-                                 </div>
-                             </div>
-                        </div>
-
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ABOUT US MODAL -->
-            <div id="about-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeAboutModal()">
-                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
-                    <button onclick="closeAboutModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-                    
-                    <div class="mb-6">
-                        <h3 class="text-2xl font-heading font-bold text-allgood-dark uppercase tracking-tight">Academy Protocol</h3>
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-1">Mission Directive</p>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <div class="bg-gray-50 border-l-4 border-allgood-secondary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="p-2 bg-white rounded-full text-allgood-secondary shadow-sm group-hover:scale-110 transition-transform">
-                                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
-                                </div>
-                                <h4 class="font-bold text-allgood-dark text-sm uppercase tracking-wide">The Lab</h4>
-                            </div>
-                            <p class="text-gray-600 text-xs leading-relaxed font-body">Allgood Academy is a mission-driven learning hub. We use <span class="font-bold text-allgood-secondary">advanced instructional design</span> principles trusted by top corporations to create immersive, high-impact training.</p>
-                        </div>
-                        
-                        <div class="bg-gray-50 border-l-4 border-allgood-primary p-4 rounded shadow-sm text-left hover:bg-white hover:shadow-md transition-all group">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="p-2 bg-white rounded-full text-allgood-primary shadow-sm group-hover:scale-110 transition-transform">
-                                    <i data-lucide="zap" class="w-5 h-5"></i>
-                                </div>
-                                <h4 class="font-bold text-allgood-dark text-sm uppercase tracking-wide">The Result</h4>
-                            </div>
-                            <p class="text-gray-600 text-xs leading-relaxed font-body">We don't just teach; we transform. Our goal is a complete <span class="font-bold text-allgood-primary">mindset shift</span> that moves learners from passive consumption to pragmatic, real-world execution.</p>
-                        </div>
-                    </div>
-                    
-                    <button onclick="closeAboutModal()" class="mt-6 w-full bg-allgood-dark hover:bg-black text-white font-bold py-3 rounded text-xs shadow-md transition-all transform active:scale-95 uppercase tracking-wide flex items-center justify-center gap-2">
-                        <i data-lucide="power-off" class="w-3 h-3"></i> Close Protocol
+                <!-- 5. FOOTER -->
+                <footer class="bg-white border-t border-gray-200 flex-none z-20 h-[60px] flex items-center justify-between px-6 relative">
+                    <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
+                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body">
+                        <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>Back
                     </button>
-                </div>
-            </div>
-
-            <!-- MESSAGE MODAL -->
-            <div id="message-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeMessageModal()">
-                <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
-                    <button onclick="closeMessageModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-                    
-                    <div class="mb-4">
-                        <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <i data-lucide="message-circle" class="w-6 h-6 text-allgood-primary"></i>
-                        </div>
-                        <h3 class="text-xl font-heading font-bold text-allgood-dark uppercase">Direct Line</h3>
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-1">To: Allgood Academy HQ</p>
-                    </div>
-                    
-                    <div class="text-left mb-4">
-                        <p class="text-xs text-gray-500 italic mb-2">This is a one-way secure transmission. Use this channel to send feedback, topic requests, or field reports.</p>
-                        <textarea id="message-input" rows="4" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50 font-body placeholder-gray-400" placeholder="Type your message here..."></textarea>
-                    </div>
-                    
-                    <button id="btn-send-message" onclick="window.submitMessage()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded text-xs shadow-md transition-all transform active:scale-95 uppercase tracking-wide flex items-center justify-center gap-2">
-                        <i data-lucide="send" class="w-3 h-3"></i> Send Transmission
+                    <p class="text-gray-400 text-[10px] hidden sm:block font-body">&copy; Allgood Academy</p>
+                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body">
+                        <span>Next</span><i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
                     </button>
-                </div>
-            </div>
+                </footer>
 
+                <!-- Modals -->
+                <div id="tooltip-overlay" class="fixed inset-0 bg-black/60 z-[250] flex justify-center items-center hidden" onclick="closeTooltip()">
+                    <div class="bg-white rounded-xl p-6 m-4 max-w-xs w-full" onclick="event.stopPropagation()">
+                        <h4 id="tooltip-title" class="text-lg font-bold font-heading text-allgood-secondary mb-2">Term</h4>
+                        <p id="tooltip-text" class="text-sm text-gray-700">Definition</p>
+                    </div>
+                </div>
+
+                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[240] bg-black/60 flex justify-end modal-transition">
+                    <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
+                        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <span class="font-bold text-allgood-dark font-heading">Modules</span>
+                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
+                        </div>
+                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </main>
 
+    <!-- MAIN LOGIC -->
     <script>
+        // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new AudioContext();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().catch(e => console.error("Audio resume failed:", e));
-            }
+        function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playTone(freq, type, duration) {
+            initAudio(); const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, now); osc.connect(gain); gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            osc.start(now); osc.stop(now + duration);
         }
-
-        function playTone(freq, type, duration, vol = 0.1, attack = 0.01, decay = 0.001) {
-            initAudio();
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, now);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(vol, now + attack);
-            gain.gain.exponentialRampToValueAtTime(decay, now + duration);
-
-            osc.start(now);
-            osc.stop(now + duration);
-        }
-
         const sfx = {
-            tick: () => {
-                initAudio();
-                playTone(1000, 'sine', 0.01, 0.01);
-            },
-            click: () => {
-                initAudio();
-                playTone(1000, 'sine', 0.01, 0.01);
-            },
-            confirm: () => {
-                initAudio();
-                playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01);
-            },
-            powerOn: () => {
-                initAudio();
-                const now = audioCtx.currentTime;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.type = 'triangle'; 
-                osc.frequency.setValueAtTime(110, now);
-                osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
-                gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.4, now + 0.1);
-                gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                osc.start(now); osc.stop(now + 0.4);
-            },
-            powerOff: () => {
-                initAudio();
-                playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001);
-            },
-            nav: () => {
-                initAudio();
-                playTone(200, 'sine', 0.08, 0.1, 0.01, 0.01);
-            },
+            powerOn: () => { initAudio(); playTone(220, 'triangle', 0.5); },
+            nav: () => { initAudio(); playTone(440, 'sine', 0.1); },
+            tick: () => { initAudio(); playTone(880, 'sine', 0.05); }
         };
-
         window.sfx = sfx;
-        window.initAudio = initAudio;
 
-        window.switchTab = (tabName) => {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            const target = document.getElementById('tab-' + tabName);
-            if(target) target.classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active-tab');
-                btn.classList.add('inactive-tab');
-            });
-            const activeBtn = document.getElementById('tab-btn-' + tabName);
-            if(activeBtn) {
-                activeBtn.classList.remove('inactive-tab');
-                activeBtn.classList.add('active-tab');
+        // --- CONTENT ENGINE ---
+        let currentStep = 0;
+        let masteryQuizPassed = false;
+        
+        const goodBlockConfig = { topicName: "Digital Identity", skillName: "Footprint Management" };
+
+        const courseSteps = [
+            { type: 'intro', title: 'Welcome', body: `<div class="flex flex-col items-center justify-center text-center h-full"><i data-lucide="fingerprint" class="w-16 h-16 text-allgood-secondary mb-4"></i><h2 class="text-2xl font-bold font-heading text-allgood-dark">Your Digital Identity</h2><p class="mt-4 text-base text-gray-600">Understand the difference between Active and Passive data, and learn to manage your permanent digital record.</p></div>` },
+            { type: 'content', title: "What is a Digital Footprint?", body: `<p class="text-gray-700 text-base mb-4">Your digital footprint is the trail of data you leave behind when you use the internet.</p><div class="goodblock-card primary"><p class="text-sm font-semibold text-allgood-primary">Think of it as your <strong>digital brand</strong>. It is often permanent.</p></div>` },
+            { type: 'content-tooltip', title: "Active vs. Passive", body: `<p class="mb-4">Two types of data trails:</p><p class="mb-2"><span class="tooltip-container">Active Footprint<span class="tooltip-content">Data you intentionally share (posts, emails).</span></span>: What you choose to share.</p><p><span class="tooltip-container">Passive Footprint<span class="tooltip-content">Data collected automatically (IP address, location).</span></span>: What is collected about you.</p>` },
+            { type: 'reveal', title: "The Danger of Passive Data", layers: [{title: "Data Collection", icon: "satellite", content: "Apps track your location 24/7."}, {title: "Data Brokers", icon: "share-2", content: "Companies sell your data profile."}, {title: "The Product", icon: "user", content: "If it's free, YOU are the product."}] },
+            { type: 'accordion', title: "Mindset Shift", body: `<div class="space-y-2"><div class="goodblock-card"><h4 class="font-bold text-allgood-primary accordion-trigger cursor-pointer">Old Habit: Convenience</h4><div class="hidden mt-2 text-sm">Clicking 'Agree' without reading.</div></div><div class="goodblock-card primary"><h4 class="font-bold text-allgood-secondary accordion-trigger cursor-pointer">New Habit: Control</h4><div class="hidden mt-2 text-sm">Managing settings and questioning value.</div></div></div>` },
+            { type: 'tabs', title: "Myth vs. Reality", tabs: [{label: "Myth", content: "Deleting a post removes it forever."}, {label: "Reality", content: "Screenshots and archives are permanent."}] },
+            { type: 'read-more', title: "The Cost of Free", intro: "Social media isn't free.", fullText: "You pay with your data. Every like, scroll, and click builds a profile sold to advertisers." },
+            { type: 'slider', title: "Public vs. Private", before: {title: "Public Self", text: "Curated for employers."}, after: {title: "Private Self", text: "Trusted friends only."} },
+            { type: 'callout-tiles', title: "The 4 Rules", tiles: [{title: "Pause", content: "Wait 10s before posting."}, {title: "Audit", content: "Google yourself monthly."}, {title: "Settings", content: "Lock down privacy."}, {title: "Security", content: "Use 2FA."}] },
+            { type: 'numbered-accordion', title: "Action Plan", steps: [{title: "Audit", content: "Search your name."}, {title: "Lock Down", content: "Set to Friends Only."}, {title: "Strengthen", content: "Use a Password Manager."}] },
+            { type: 'quiz-filter', title: "Active or Passive?", questions: [{text: "Posting a photo", ans: "ACTIVE"}, {text: "GPS Tracking", ans: "PASSIVE"}, {text: "Sending Email", ans: "ACTIVE"}] },
+            { type: 'carousel', title: "Core Truths", quotes: ["Privacy is a prerequisite to freedom.", "What is public is preserved forever."] },
+            { type: 'mastery-quiz', title: "Mastery Challenge", quiz: [
+                {q: "What is the key difference?", options: ["Active is text", "Active is intentional"], correct: 1},
+                {q: "Who uses your active footprint?", options: ["Employers", "ISPs"], correct: 0},
+                {q: "First step of the plan?", options: ["Audit", "Delete"], correct: 0}
+            ]},
+            { type: 'conclusion', title: "Complete", body: `<div class="text-center"><i data-lucide="award" class="w-16 h-16 text-allgood-primary mx-auto mb-4"></i><h2 class="text-2xl font-bold font-heading">Identity Secured</h2><p class="mt-4">You have a pragmatic plan.</p></div>` },
+            { type: 'iframe-embed', title: "Badge", src: "https://docs.google.com/forms/d/e/1FAIpQLSfyZqRFBSxNMcJQD7EPDD6Rrpi77x016ZNGuL6A5Bp0XSagMA/viewform?embedded=true" }
+        ];
+
+        // --- RENDERERS ---
+        function renderStep() {
+            const data = courseSteps[currentStep];
+            const container = document.getElementById('content-area');
+            const headerTitle = document.getElementById('header-welcome-text');
+            
+            // Header Update
+            headerTitle.textContent = currentStep === 0 ? "Introduction" : `${currentStep}. ${data.title}`;
+            document.getElementById('header-page-indicator').textContent = `${currentStep + 1} / ${courseSteps.length}`;
+            
+            // Progress Bar
+            document.getElementById('flex-progress-fill').style.width = `${((currentStep + 1) / courseSteps.length) * 100}%`;
+
+            // Clear Content
+            container.innerHTML = "";
+            
+            // Helper for Title
+            const addTitle = () => container.innerHTML += `<h2 class="text-xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2 border-gray-200">${data.title}</h2>`;
+
+            if (data.type === 'intro' || data.type === 'conclusion') {
+                container.innerHTML = data.body;
+            } else if (data.type === 'content' || data.type === 'content-tooltip') {
+                addTitle();
+                container.innerHTML += data.body;
+                setupTooltips();
+            } else if (data.type === 'accordion') {
+                addTitle();
+                container.innerHTML += data.body;
+                setupAccordions();
+            } else if (data.type === 'tabs') {
+                addTitle();
+                const tabHeader = data.tabs.map((t, i) => `<button onclick="switchTab(${i})" class="tab-btn px-4 py-2 text-sm font-bold ${i===0?'text-allgood-primary border-b-2 border-allgood-primary':'text-gray-500'}">${t.label}</button>`).join('');
+                const tabContent = data.tabs.map((t, i) => `<div id="tab-${i}" class="${i===0?'block':'hidden'} p-4 bg-white rounded shadow-sm mt-2">${t.content}</div>`).join('');
+                container.innerHTML += `<div class="flex space-x-4 border-b border-gray-200">${tabHeader}</div>${tabContent}`;
+            } else if (data.type === 'reveal') {
+                addTitle();
+                container.innerHTML += `<p class="mb-4 text-sm text-gray-600">Click to reveal details.</p>`;
+                data.layers.forEach((l, i) => {
+                    container.innerHTML += `<div onclick="toggleReveal(${i})" class="bg-white p-3 rounded shadow-sm mb-2 cursor-pointer border border-gray-200 hover:border-allgood-secondary transition-colors"><div class="flex items-center font-bold text-allgood-secondary"><i data-lucide="${l.icon}" class="w-4 h-4 mr-2"></i>${l.title}</div><div id="reveal-${i}" class="hidden mt-2 text-sm text-gray-700 pl-6">${l.content}</div></div>`;
+                });
+            } else if (data.type === 'slider') {
+                addTitle();
+                container.innerHTML += `<div class="comparison-slider-container" id="slider-container"><div class="comparison-before" style="clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);"><h3 class="font-bold text-xl">${data.before.title}</h3><p class="text-sm">${data.before.text}</p></div><div class="comparison-after" style="clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);"><h3 class="font-bold text-xl">${data.after.title}</h3><p class="text-sm">${data.after.text}</p></div><div class="comparison-divider" style="left: 50%;"><div class="comparison-divider-icon"><i class="fas fa-arrows-alt-h"></i></div></div></div><p class="text-center text-xs mt-2 text-gray-500">Drag divider to compare.</p>`;
+                setupSlider();
+            } else if (data.type === 'read-more') {
+                addTitle();
+                container.innerHTML += `<p class="mb-4 text-sm font-bold">${data.intro}</p><div id="read-more-content" class="h-20 overflow-hidden relative transition-all duration-500"><p class="text-sm text-gray-700">${data.fullText}</p><div class="absolute bottom-0 w-full h-10 bg-gradient-to-t from-allgood-light to-transparent"></div></div><button onclick="toggleReadMore()" class="mt-2 text-xs font-bold text-allgood-primary uppercase">Read More</button>`;
+            } else if (data.type === 'callout-tiles') {
+                addTitle();
+                const tiles = data.tiles.map((t, i) => `<div onclick="this.classList.toggle('flipped')" class="h-32 perspective-1000 cursor-pointer group"><div class="relative w-full h-full transition-transform duration-500 transform-style-3d group-[.flipped]:rotate-y-180 bg-white rounded shadow-sm border border-gray-200"><div class="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-2"><h4 class="font-bold text-allgood-secondary">${t.title}</h4><p class="text-xs text-gray-400 mt-1">Click to Flip</p></div><div class="absolute inset-0 backface-hidden rotate-y-180 bg-allgood-secondary text-white flex items-center justify-center p-2 text-center text-xs rounded">${t.content}</div></div></div>`).join('');
+                container.innerHTML += `<div class="grid grid-cols-2 gap-4">${tiles}</div>`;
+            } else if (data.type === 'numbered-accordion') {
+                addTitle();
+                const steps = data.steps.map((s, i) => `<div class="mb-2"><button onclick="toggleNumAcc(${i})" class="w-full text-left p-3 bg-white rounded shadow-sm flex items-center justify-between"><span class="font-bold text-sm"><span class="bg-allgood-primary text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs mr-2">${i+1}</span>${s.title}</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button><div id="num-acc-${i}" class="hidden p-3 text-sm text-gray-700 bg-gray-50 border-x border-b border-gray-200 rounded-b">${s.content}</div></div>`).join('');
+                container.innerHTML += steps;
+            } else if (data.type === 'quiz-filter') {
+                addTitle();
+                const qs = data.questions.map((q, i) => `<div class="bg-white p-4 rounded shadow-sm mb-4 border border-gray-200"><p class="font-bold text-sm mb-3">${q.text}</p><div class="flex space-x-2"><button onclick="checkFilter(${i}, 'ACTIVE', '${q.ans}')" id="btn-${i}-ACTIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-primary text-allgood-primary rounded hover:bg-allgood-primary hover:text-white transition-colors">ACTIVE</button><button onclick="checkFilter(${i}, 'PASSIVE', '${q.ans}')" id="btn-${i}-PASSIVE" class="flex-1 py-2 text-xs font-bold border border-allgood-secondary text-allgood-secondary rounded hover:bg-allgood-secondary hover:text-white transition-colors">PASSIVE</button></div><p id="feedback-${i}" class="text-xs font-bold mt-2 h-4"></p></div>`).join('');
+                container.innerHTML += qs;
+            } else if (data.type === 'mastery-quiz') {
+                addTitle();
+                const quizContent = data.quiz.map((q, i) => `<div class="mb-6"><p class="font-bold text-sm mb-2">${i+1}. ${q.q}</p><div class="space-y-2">${q.options.map((opt, oi) => `<button onclick="checkMastery(${i}, ${oi}, ${q.correct})" class="w-full text-left p-3 text-sm border border-gray-200 rounded hover:bg-gray-50 mastery-opt-${i}" id="m-opt-${i}-${oi}">${String.fromCharCode(65+oi)}. ${opt}</button>`).join('')}</div><p id="m-feed-${i}" class="text-xs font-bold mt-1 hidden"></p></div>`).join('');
+                container.innerHTML += `<div id="quiz-container">${quizContent}</div><button id="submit-mastery" onclick="finalizeMastery()" class="w-full bg-allgood-primary text-white font-bold py-3 rounded hidden">Submit & Finish</button>`;
+            } else if (data.type === 'iframe-embed') {
+                addTitle();
+                container.innerHTML += `<iframe src="${data.src}" class="w-full h-96 border-0 rounded shadow-sm"></iframe>`;
+            } else if (data.type === 'carousel') {
+                 addTitle();
+                 container.innerHTML += `<div class="bg-white p-6 rounded shadow-lg text-center"><i data-lucide="quote" class="w-8 h-8 text-allgood-primary mx-auto mb-4"></i><p id="quote-text" class="text-lg font-heading italic text-gray-700">${data.quotes[0]}</p></div><div class="flex justify-center mt-4 space-x-4"><button onclick="cycleQuote(-1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button onclick="cycleQuote(1)" class="p-2 bg-gray-200 rounded-full"><i data-lucide="arrow-right" class="w-4 h-4"></i></button></div>`;
+                 window.currentQuote = 0;
             }
-            sfx.nav(); 
-        };
 
-        document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             
-            const homeBtn = document.getElementById('btn-home');
-            let homePressTimer;
-            let homeIsHold = false;
-            const startHomePress = (e) => {
-                e.preventDefault(); 
-                homeIsHold = false;
-                homePressTimer = setTimeout(() => {
-                    homeIsHold = true;
-                    if(window.handleLogout) { sfx.powerOff(); window.handleLogout(); }
-                }, 2000);
-            };
-            const endHomePress = (e) => {
-                clearTimeout(homePressTimer);
-                if(!homeIsHold) { sfx.tick(); document.getElementById('page-dashboard').scrollTop = 0; }
-            };
-
-            if(homeBtn) {
-                homeBtn.addEventListener('mousedown', startHomePress);
-                homeBtn.addEventListener('touchstart', startHomePress);
-                homeBtn.addEventListener('mouseup', endHomePress);
-                homeBtn.addEventListener('touchend', endHomePress);
-                homeBtn.addEventListener('mouseleave', () => clearTimeout(homePressTimer));
+            // Nav Button State
+            document.getElementById('back-button').disabled = currentStep === 0;
+            const nextBtn = document.getElementById('next-button');
+            if (currentStep === courseSteps.length - 1) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'flex';
+                // Lock Mastery
+                if (data.type === 'mastery-quiz' && !masteryQuizPassed) {
+                    nextBtn.disabled = true;
+                    nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    nextBtn.disabled = false;
+                    nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             }
+        }
 
-            const btnBlueprint = document.getElementById('btn-blueprint');
-            if(btnBlueprint) {
-                 btnBlueprint.addEventListener('click', () => {
-                    document.body.classList.toggle('blueprint-mode');
+        // --- INTERACTION HANDLERS ---
+        // Setup Listeners
+        document.getElementById('next-button').addEventListener('click', () => { if(currentStep < courseSteps.length -1) { currentStep++; renderStep(); sfx.nav(); }});
+        document.getElementById('back-button').addEventListener('click', () => { if(currentStep > 0) { currentStep--; renderStep(); sfx.nav(); }});
+        document.getElementById('home-button').addEventListener('click', () => { currentStep = 0; renderStep(); sfx.powerOn(); });
+        
+        // Tooltips
+        function setupTooltips() {
+            document.querySelectorAll('.tooltip-container').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const content = el.querySelector('.tooltip-content').textContent;
+                    const title = el.childNodes[0].textContent;
+                    document.getElementById('tooltip-title').textContent = title;
+                    document.getElementById('tooltip-text').textContent = content;
+                    document.getElementById('tooltip-overlay').classList.remove('hidden');
                     sfx.tick();
                 });
-            }
+            });
+        }
+        window.closeTooltip = () => document.getElementById('tooltip-overlay').classList.add('hidden');
 
-            const fullscreenBtn = document.getElementById('btn-fullscreen');
-            if(fullscreenBtn) {
-                fullscreenBtn.addEventListener('click', () => {
-                    const body = document.body;
-                    if (body.classList.contains('focus-mode')) {
-                        body.classList.remove('focus-mode');
-                        fullscreenBtn.classList.remove('text-green-300', 'bg-white/10');
-                    } else {
-                        body.classList.add('focus-mode');
-                        fullscreenBtn.classList.add('text-green-300', 'bg-white/10');
-                    }
-                    lucide.createIcons();
-                    sfx.tick();
+        // Accordions
+        window.setupAccordions = () => {
+            document.querySelectorAll('.accordion-trigger').forEach(el => {
+                el.addEventListener('click', () => {
+                   el.nextElementSibling.classList.toggle('hidden');
+                   sfx.tick();
                 });
-            }
+            });
+        }
+        
+        // Tabs
+        window.switchTab = (idx) => {
+            document.querySelectorAll('[id^="tab-"]').forEach((el, i) => {
+                el.classList.toggle('hidden', i !== idx);
+            });
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                if(i===idx) btn.classList.add('text-allgood-primary', 'border-b-2', 'border-allgood-primary');
+                else btn.classList.remove('text-allgood-primary', 'border-b-2', 'border-allgood-primary');
+            });
+            sfx.tick();
+        }
 
-            const menuModal = document.getElementById('menu-modal');
-            const btnMenu = document.getElementById('btn-menu');
-            if(btnMenu && menuModal) {
-                 btnMenu.addEventListener('click', () => {
-                    menuModal.classList.remove('hidden-modal');
-                    menuModal.classList.add('visible-modal');
-                    sfx.tick();
-                });
-            }
+        // Reveal
+        window.toggleReveal = (i) => {
+            document.getElementById(`reveal-${i}`).classList.toggle('hidden');
+            sfx.tick();
+        }
 
-            const closeMenu = document.getElementById('close-menu');
-            if(closeMenu && menuModal) {
-                closeMenu.addEventListener('click', () => {
-                    menuModal.classList.add('hidden-modal');
-                    menuModal.classList.remove('visible-modal');
-                    sfx.tick();
-                });
+        // Slider
+        window.setupSlider = () => {
+            const container = document.getElementById('slider-container');
+            const divider = container.querySelector('.comparison-divider');
+            const before = container.querySelector('.comparison-before');
+            const after = container.querySelector('.comparison-after');
+            
+            const move = (e) => {
+                const rect = container.getBoundingClientRect();
+                let x = (e.clientX || e.touches[0].clientX) - rect.left;
+                let percent = (x / rect.width) * 100;
+                percent = Math.min(100, Math.max(0, percent));
+                divider.style.left = percent + "%";
+                before.style.clipPath = `polygon(0 0, ${percent}% 0, ${percent}% 100%, 0 100%)`;
+                after.style.clipPath = `polygon(${percent}% 0, 100% 0, 100% 100%, ${percent}% 100%)`;
             }
+            container.addEventListener('mousemove', move);
+            container.addEventListener('touchmove', move);
+        }
+
+        // Read More
+        window.toggleReadMore = () => {
+            const div = document.getElementById('read-more-content');
+            if(div.classList.contains('h-20')) { div.classList.remove('h-20'); div.classList.add('h-auto'); }
+            else { div.classList.add('h-20'); div.classList.remove('h-auto'); }
+            sfx.tick();
+        }
+
+        // Num Accordion
+        window.toggleNumAcc = (i) => {
+            document.getElementById(`num-acc-${i}`).classList.toggle('hidden');
+            sfx.tick();
+        }
+
+        // Quiz Filter
+        window.checkFilter = (i, choice, correct) => {
+            const fb = document.getElementById(`feedback-${i}`);
+            if(choice === correct) {
+                fb.textContent = "Correct!"; fb.className = "text-xs font-bold mt-2 h-4 text-green-600";
+                sfx.tick();
+            } else {
+                fb.textContent = "Try again."; fb.className = "text-xs font-bold mt-2 h-4 text-red-600";
+            }
+        }
+        
+        // Carousel
+        window.cycleQuote = (dir) => {
+            const quotes = courseSteps[11].quotes;
+            window.currentQuote = (window.currentQuote + dir + quotes.length) % quotes.length;
+            document.getElementById('quote-text').textContent = quotes[window.currentQuote];
+            sfx.tick();
+        }
+
+        // Mastery Quiz Logic
+        let masteryScore = 0;
+        let answeredCount = 0;
+        window.checkMastery = (qIdx, optIdx, correctOpt) => {
+            // Visual feedback only
+            document.querySelectorAll(`.mastery-opt-${qIdx}`).forEach(b => b.classList.add('opacity-50', 'pointer-events-none'));
+            const btn = document.getElementById(`m-opt-${qIdx}-${optIdx}`);
+            btn.classList.remove('opacity-50');
+            const fb = document.getElementById(`m-feed-${qIdx}`);
+            fb.classList.remove('hidden');
+            
+            if(optIdx === correctOpt) {
+                btn.classList.add('bg-green-100', 'border-green-500');
+                fb.textContent = "Correct"; fb.classList.add('text-green-600');
+                masteryScore++;
+            } else {
+                btn.classList.add('bg-red-100', 'border-red-500');
+                fb.textContent = "Incorrect"; fb.classList.add('text-red-600');
+            }
+            answeredCount++;
+            if(answeredCount === 3) document.getElementById('submit-mastery').classList.remove('hidden');
+        }
+
+        window.finalizeMastery = () => {
+            if (masteryScore >= 2) {
+                masteryQuizPassed = true;
+                alert(`Passed! Score: ${masteryScore}/3`);
+                document.getElementById('next-button').disabled = false;
+                document.getElementById('next-button').classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                // DB LOG
+                window.logFinalScoreToFirestore({ 
+                    score: masteryScore, 
+                    maxScore: 3, 
+                    status: "Passed", 
+                    module: "Digital Identity", 
+                    sessionId: window.sessionId 
+                });
+                
+                if(currentStep < courseSteps.length - 1) { currentStep++; renderStep(); }
+            } else {
+                alert(`Score: ${masteryScore}/3. Please try again.`);
+                answeredCount = 0; masteryScore = 0;
+                renderStep(); // Reset
+            }
+        }
+        
+        // UI TOGGLES (Blueprint, Fullscreen, Menu)
+        document.getElementById('blueprint-toggle').addEventListener('click', () => {
+            document.getElementById('screen').classList.toggle('blueprint-mode');
+            sfx.tick();
+        });
+        document.getElementById('fullscreen-toggle').addEventListener('click', () => {
+            const frame = document.querySelector('.tablet-frame');
+            frame.classList.toggle('focus-mode');
+            sfx.tick();
+        });
+        document.getElementById('menu-toggle').addEventListener('click', () => {
+            const modal = document.getElementById('menu-modal');
+            modal.classList.remove('hidden-modal'); modal.classList.add('visible-modal');
+            const list = document.getElementById('toc-list'); list.innerHTML = '';
+            courseSteps.forEach((s, i) => {
+                list.innerHTML += `<button onclick="currentStep=${i};renderStep();document.getElementById('menu-modal').classList.add('hidden-modal');document.getElementById('menu-modal').classList.remove('visible-modal');" class="w-full text-left px-4 py-2 hover:bg-gray-100">${i}. ${s.title}</button>`;
+            });
+        });
+        document.getElementById('close-menu').addEventListener('click', () => {
+            const modal = document.getElementById('menu-modal');
+            modal.classList.add('hidden-modal'); modal.classList.remove('visible-modal');
         });
 
-        window.openAboutModal = () => {
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
+        // INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            const startup = document.getElementById('startup-screen');
+            startup.addEventListener('click', () => {
+                sfx.powerOn();
+                startup.style.opacity = '0';
+                setTimeout(() => startup.style.display = 'none', 700);
+                document.getElementById('login-modal').classList.remove('hidden-modal');
+                document.getElementById('login-modal').classList.add('visible-modal');
+            });
+            lucide.createIcons();
+        });
 
-            const modal = document.getElementById('about-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-        }
-
-        window.closeAboutModal = () => {
-            const modal = document.getElementById('about-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        }
     </script>
 </body>
 </html>
