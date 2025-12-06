@@ -452,6 +452,7 @@
                          if (data.complete === true || (typeof data.finalScore === 'number' && data.finalScore >= 800)) {
                              isJLCComplete = true;
                          }
+                         
                          // Check for SVG Asset
                          if (data.badgeSVG) {
                              window.userEarnedBadges['entrepreneur'] = data.badgeSVG;
@@ -461,6 +462,12 @@
                     // 3. Generic Completion Logic (Boolean based)
                     if (data.completed === true && gameName) {
                         completedModules.add(gameName);
+                        
+                        // 3a. Identity Guardian Asset Logic
+                        if (gameName === "Your Digital Identity" && data.badgeSVG) {
+                            window.userEarnedBadges['identity'] = data.badgeSVG;
+                        }
+                        
                         // Future proofing: Generic badge storage logic could go here
                         if (data.badgeSVG && gameName === "Airport Navigator") {
                              window.userEarnedBadges['operator'] = data.badgeSVG; // Example mapping
@@ -475,6 +482,10 @@
                 // Store JLC Status
                 if (isJLCComplete) localStorage.setItem('aa_jlc_complete', 'true');
                 else localStorage.removeItem('aa_jlc_complete');
+                
+                // Store Identity Status (NEW)
+                if (completedModules.has("Your Digital Identity")) localStorage.setItem('aa_identity_complete', 'true');
+                else localStorage.removeItem('aa_identity_complete');
                 
                 // Check specifically for Airport Navigator for the specialized badge slot
                 if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
@@ -555,6 +566,9 @@
             const jlcComplete = localStorage.getItem('aa_jlc_complete') === 'true';
             if (jlcComplete) badgeCount++; // 5. Certified Entrepreneur
 
+            const identityComplete = localStorage.getItem('aa_identity_complete') === 'true';
+            if (identityComplete) badgeCount++; // 6. Identity Guardian
+
             // Update Header Display
             const badgeCountEl = document.getElementById('badge-count-display');
             if(badgeCountEl) badgeCountEl.textContent = `BADGES: ${badgeCount}`;
@@ -568,6 +582,8 @@
             updateBadgeSlot('badge-slot-4', ddcComplete);
             // Badge 5 (Entrepreneur - JLC)
             updateBadgeSlot('badge-slot-5', jlcComplete);
+            // Badge 6 (Identity Guardian)
+            updateBadgeSlot('badge-slot-6', identityComplete);
 
             const launchStat = document.getElementById('stat-total-launches');
             if (launchStat) launchStat.textContent = launchCount;
@@ -672,6 +688,11 @@
                     title = "Certified Entrepreneur";
                     desc = "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge. Demonstrates business acumen.";
                     largeIconHtml = `<span class="text-5xl ${finalUnlocked ? '' : 'grayscale opacity-50'}">🍋</span>`;
+                    break;
+                case 'identity': // NEW CASE 6
+                    title = "Identity Guardian";
+                    desc = "Awarded for completing 'Your Digital Identity'. Signifies mastery of personal perimeter security.";
+                    largeIconHtml = `<i data-lucide="fingerprint" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
                 case 'classified': 
                     title = "Classified Asset";
