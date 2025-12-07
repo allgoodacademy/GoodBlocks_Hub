@@ -1225,25 +1225,81 @@
                         </div>
                     </div>
 
-                    <!-- Page 15: Certification (UPGRADED) -->
+                    <!-- Page 15: Credits & Certification (FINAL UPGRADE) -->
                     <div class="page" id="page-15">
-                        <div class="flex flex-col items-center justify-center h-full text-center">
-                            <div class="relative group cursor-pointer" onclick="downloadBadge()">
-                                <!-- Badge Preview with Shimmer -->
-                                <div class="w-48 h-48 bg-white rounded-full border-4 border-allgood-secondary flex items-center justify-center shadow-2xl relative overflow-hidden shimmer-card">
-                                    <i data-lucide="award" class="w-24 h-24 text-allgood-primary"></i>
-                                    <div class="absolute inset-0 bg-white/50 backdrop-blur-sm group-hover:backdrop-blur-none transition-all duration-700 flex items-center justify-center">
-                                        <span class="text-xs font-bold uppercase tracking-widest text-allgood-dark bg-white/80 px-2 py-1 rounded">Reveal</span>
+                        <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8">
+                            <div class="mb-8"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2><p class="text-xs text-gray-400 font-bold tracking-widest uppercase mt-2">Pragmatic Action</p></div>
+                            
+                            <!-- Feedback Card -->
+                            <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
+                                <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this GoodBlock</h3>
+                                
+                                <!-- Star Rating -->
+                                <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                    <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                </div>
+
+                                <!-- Feedback Text -->
+                                <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools. What worked? What didn't?</label>
+                                <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                
+                                <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
+                            </div>
+
+                            <!-- Success State (Hidden by default) -->
+                            <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-8 text-center">
+                                <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
+                                <h3 class="font-bold text-green-800">Feedback Received.</h3>
+                                <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
+                            </div>
+
+                            <!-- Certification Badge Section -->
+                            <div id="certification-section" class="w-full max-w-md bg-gradient-to-br from-allgood-secondary to-allgood-accent p-1 rounded-lg shadow-xl mb-8 transform transition-all duration-700 scale-95 opacity-0">
+                                <div class="bg-white p-6 rounded-md text-center">
+                                    <div class="mb-4 relative inline-block">
+                                        <div class="absolute inset-0 bg-yellow-100 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                                        <i data-lucide="award" class="relative w-16 h-16 text-allgood-primary mx-auto"></i>
                                     </div>
+                                    <h3 class="font-heading font-bold text-2xl text-allgood-dark mb-2">Mission Complete</h3>
+                                    <p class="text-sm text-gray-600 mb-6">You have navigated the gauntlet. Verify your readiness to deploy.</p>
+                                    
+                                    <!-- Mission Checklist -->
+                                    <div class="text-left bg-gray-50 p-4 rounded border border-gray-200 mb-6 text-sm">
+                                        <h4 class="font-bold text-allgood-dark mb-3 uppercase text-[10px] tracking-widest border-b border-gray-200 pb-2">Certification Requirements</h4>
+                                        <ul class="space-y-3">
+                                            <li id="req-role" class="flex items-center text-gray-400 transition-colors">
+                                                <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>Mindset Selection (Page 5)</span>
+                                            </li>
+                                            <li id="req-system" class="flex items-center text-gray-400 transition-colors">
+                                                <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>System Initialization (Page 8)</span>
+                                            </li>
+                                            <li id="req-contract" class="flex items-center text-gray-400 transition-colors">
+                                                <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>Contract Signed (Page 14)</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Locked Button -->
+                                    <button id="download-badge-btn" onclick="downloadBadge()" disabled class="w-full bg-gray-300 text-white font-bold py-3 rounded shadow-none cursor-not-allowed flex items-center justify-center transition-all duration-300">
+                                        <i id="btn-icon" data-lucide="lock" class="w-4 h-4 mr-2"></i>
+                                        <span id="btn-text">Certification Locked</span>
+                                    </button>
                                 </div>
                             </div>
-                            
-                            <h2 class="text-3xl font-heading font-bold text-allgood-dark mt-8 mb-2">Certified Co-Pilot</h2>
-                            <p class="text-sm text-gray-600 mb-8">You are ready for the future of work.</p>
-                            
-                            <button onclick="downloadBadge()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-8 py-4 rounded-full font-bold shadow-lg flex items-center transition-transform hover:scale-105">
-                                <i data-lucide="download" class="w-5 h-5 mr-2"></i> Issue Badge
-                            </button>
+
+                            <div class="w-full max-w-md text-left mx-auto mb-4">
+                                <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-sm flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
+                                    <span class="font-heading font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors">About Us</span>
+                                    <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                </button>
+                                <div class="accordion-content hidden bg-white border-x border-b border-gray-200 rounded-b-lg p-6 text-gray-600 space-y-3 shadow-inner text-sm font-body leading-relaxed">
+                                    <p>The Allgood Academy is a learning lab focused on Pragmatic Action. We apply the advanced instructional design used by top tech companies to guarantee one result: a mindset shift that converts passive learning into tangible, real-world execution.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1502,13 +1558,17 @@
 
             // UPDATE MENTOR BAR & CONTEXT
             updateMentorBar(index);
-            // FIXED: Use 'index' directly, not 'index - 1', so Page 8 loads p8 content
-            updatePageContent(index); 
+            updatePageContent(index);
+
+            // NEW: Check Certification on Page 15
+            if(index === 15) {
+                setTimeout(checkCertification, 500);
+            }
         };
 
         // Navigation Event Listeners
-        if(backBtn) backBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage - 1); });
-        if(nextBtn) nextBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage + 1); });
+        backBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage - 1); });
+        nextBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage + 1); });
         
         // --- 4. STARTUP SEQUENCE ---
         const startupScreen = document.getElementById('startup-screen');
@@ -1575,20 +1635,21 @@
 
         // Page 5: Role Selection
         window.selectRole = function(role, card) {
+            // Update global state
+            currentRole = role;
+
             // Visuals
             document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary', 'bg-opacity-100'));
             card.classList.add('selected', 'ring-2', 'ring-allgood-primary'); 
             
-            // Reveal Confirm Button
+            // Confirm Button
             const confirmBtn = document.getElementById('role-confirm');
             confirmBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-            
             sfx.success();
             SessionManager.log("Role_Select", role);
-            currentRole = role;
 
-            // REMOVED: Auto-advance logic (setTimeout)
-            // User must now click "Confirm Mindset" or "Next"
+            // Force dynamic content update for current page (if not page 5)
+            updatePageContent(currentPage);
         };
 
         // Page 6: Pyramid Logic
@@ -1738,8 +1799,7 @@
                 sourcesDiv.innerHTML = `<p class="font-bold mb-1">Simulated Source:</p><ul class="list-disc ml-4 space-y-0.5"><li><span class="text-allgood-secondary">${outputData.source}</span></li></ul>`;
                 sourcesDiv.classList.remove('hidden');
 
-                // Reset Button (Optional: Keep it active or disable?)
-                // Let's keep it "Executed" state
+                // Reset Button
                 btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-2"></i> COMPLETE';
                 btn.className = "w-full bg-green-600 text-white py-3 rounded text-sm font-bold shadow-md flex items-center justify-center border border-transparent font-mono uppercase tracking-wider";
                 
@@ -1871,8 +1931,6 @@
                 sig.style.opacity = '1';
                 sfx.success();
                 window.SessionManager.log("Contract", "Signed");
-                
-                const card = document.querySelector('.commit-card'); // Correct reference if needed, currently separate logic
             }
         };
         
@@ -2055,6 +2113,96 @@
             
             if(window.lucide) window.lucide.createIcons();
         }
+
+        // --- NEW: FEEDBACK & CERTIFICATION LOGIC ---
+        let userRating = 0;
+
+        window.setRating = function(val) {
+            userRating = val;
+            for(let i=1; i<=5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if(i <= val) {
+                    star.classList.remove('text-gray-300');
+                    star.classList.add('text-yellow-400');
+                } else {
+                    star.classList.remove('text-yellow-400');
+                    star.classList.add('text-gray-300');
+                }
+            }
+            sfx.tick();
+        };
+
+        window.submitFeedback = function() {
+            if(userRating === 0) {
+                alert("Please select a star rating first.");
+                return;
+            }
+            const text = document.getElementById('feedback-text').value;
+            
+            // Log to Firestore
+            window.logToFirestore("Module_Feedback", "User Submitted Feedback", { rating: userRating, comments: text });
+            
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('feedback-success').classList.remove('hidden');
+            sfx.success();
+        };
+
+        window.checkCertification = function() {
+            // Reveal section animation
+            const section = document.getElementById('certification-section');
+            section.classList.remove('scale-95', 'opacity-0');
+            section.classList.add('scale-100', 'opacity-100');
+
+            // Check Milestones
+            let reqsMet = 0;
+
+            // 1. Mindset (Role Selected)
+            const roleEl = document.getElementById('req-role');
+            if (currentRole) {
+                roleEl.classList.remove('text-gray-400');
+                roleEl.classList.add('text-green-600', 'font-bold');
+                roleEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                reqsMet++;
+            }
+
+            // 2. System (Chips Active)
+            const sysEl = document.getElementById('req-system');
+            // Assuming chipsActive is global from Page 8 logic
+            if (typeof chipsActive !== 'undefined' && chipsActive === 3) {
+                sysEl.classList.remove('text-gray-400');
+                sysEl.classList.add('text-green-600', 'font-bold');
+                sysEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                reqsMet++;
+            }
+
+            // 3. Contract (Signed)
+            const contractEl = document.getElementById('req-contract');
+            const sig = document.getElementById('signature-text');
+            if (sig && sig.style.opacity === '1') {
+                contractEl.classList.remove('text-gray-400');
+                contractEl.classList.add('text-green-600', 'font-bold');
+                contractEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                reqsMet++;
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+
+            // Unlock if all met
+            if (reqsMet === 3) {
+                setTimeout(() => {
+                    const btn = document.getElementById('download-badge-btn');
+                    btn.disabled = false;
+                    btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
+                    
+                    document.getElementById('btn-text').innerText = "ISSUE CERTIFICATE";
+                    document.getElementById('btn-icon').setAttribute('data-lucide', 'download');
+                    if(window.lucide) window.lucide.createIcons();
+                    
+                    sfx.success();
+                }, 800);
+            }
+        };
 
         // Init
         document.getElementById('current-year').innerText = new Date().getFullYear();
