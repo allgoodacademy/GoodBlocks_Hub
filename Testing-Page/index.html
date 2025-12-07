@@ -320,16 +320,30 @@
         .blueprint-mode .choice-btn { background-color: #1e293b !important; border-color: #334155 !important; }
         
         @media (max-width: 768px) {
-            .tablet-frame { width: 100% !important; height: 100% !important; border: none; border-radius: 0; background-image: none; box-shadow: none; margin: 0; padding: 0; }
+            /* Force the frame to fill the dynamic viewport exactly */
+            .tablet-frame { 
+                width: 100% !important; 
+                height: 100dvh !important; /* Use dvh to account for mobile browser bars */
+                border: none; 
+                border-radius: 0; 
+                background-image: none; 
+                box-shadow: none; 
+                margin: 0; 
+                padding: 0; 
+            }
             .tablet-frame::before { display: none; }
             .screen-container { border-radius: 0; }
-            html, body, main { height: 100%; overflow: hidden; padding: 0; }
+            
+            /* Lock the body to prevent double scrolling */
+            html, body { height: 100dvh; overflow: hidden; padding: 0; margin: 0; }
+            main { height: 100dvh; padding: 0 !important; }
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
 
-    <main class="flex-grow flex items-center justify-center py-8">
+    <!-- UPDATED MAIN TAG: Removed default py-8, added md:py-8 for desktop only -->
+    <main class="flex-grow flex items-center justify-center py-0 md:py-8 h-[100dvh] w-full">
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
