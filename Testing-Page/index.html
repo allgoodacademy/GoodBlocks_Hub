@@ -189,9 +189,9 @@
                 
                 window.updateUserDisplay(displayName);
                 
-                // Start Session Log
+                // Start Session Log - FIX: Use consistent window.sessionId
                 console.log("[Auth] Guest login successful. UID:", user.uid);
-                window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: "init_" + Date.now() });
+                window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
 
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
@@ -1261,6 +1261,12 @@
                         effectiveness: chosen.effectiveness,
                         question: data.title
                     });
+
+                    // NEW: Sync running total to DB immediately
+                    window.logFinalScoreToFirestore({ 
+                        finalScore: totalChallengeScore, 
+                        sessionId: window.sessionId 
+                    });
                 }
                 window.showPage(currentPageIndex); // Re-render to show feedback inline
                 
@@ -1316,9 +1322,23 @@
                 const badgeBtn = document.getElementById('download-badge-btn');
                 const certReqText = document.getElementById('cert-req-text'); 
 
-                // FIX: Recalculate score from the source of truth (answeredScenarioScores) to ensure accuracy
-                // This prevents the "0/90" bug if the running total variable drifted or reset.
-                const currentScore = Object.values(answeredScenarioScores).reduce((acc, val) => acc + val, 0);
+                // FIX: Robust Score Calculation with Fallback
+                let currentScore = 0;
+                
+                // 1. Try to sum from the source of truth
+                try {
+                    const scores = Object.values(answeredScenarioScores);
+                    if (scores.length > 0) {
+                        currentScore = scores.reduce((acc, val) => acc + (Number(val) || 0), 0);
+                    }
+                } catch(e) { console.error("Score calc error", e); }
+
+                // 2. Safety Fallback: If calc is 0 but running total exists, use running total
+                if (currentScore === 0 && totalChallengeScore > 0) {
+                    console.warn("Using fallback totalChallengeScore");
+                    currentScore = totalChallengeScore;
+                }
+
                 const percentage = Math.round((currentScore / MAX_SCORE) * 100);
 
                 let rank = "";
