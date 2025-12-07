@@ -746,10 +746,116 @@
             }
 
             // --- SCENARIO LOGIC ---
+            function getScenarioTemplate(type, title, icon) {
+                // Remove the "Question: What do you do?" part for the visual context
+                const cleanText = title.split(" Question:")[0];
+                
+                if (type === 'chat') {
+                    return `
+                    <div class="bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-sm font-sans mb-6 max-w-sm mx-auto transform rotate-1 hover:rotate-0 transition-transform duration-300">
+                        <div class="bg-slate-200/80 px-4 py-2 text-[10px] text-center text-slate-500 font-bold border-b border-slate-300/50 uppercase tracking-widest">Messages</div>
+                        <div class="p-4 flex flex-col space-y-3 bg-slate-50">
+                            <div class="self-center text-[10px] text-slate-400 font-bold">Today 9:41 AM</div>
+                            <div class="flex items-end group">
+                                <div class="w-8 h-8 rounded-full bg-slate-300 flex-shrink-0 mr-2 flex items-center justify-center text-slate-500 overflow-hidden border-2 border-white shadow-sm">
+                                    <i data-lucide="${icon}" class="w-4 h-4"></i>
+                                </div>
+                                <div class="bg-white p-3 rounded-2xl rounded-bl-none shadow-sm text-sm text-slate-700 leading-snug max-w-[85%] border border-slate-100 relative group-hover:shadow-md transition-shadow">
+                                    ${cleanText}
+                                    <div class="text-[9px] text-slate-300 text-right mt-1 font-medium">Delivered</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                } else if (type === 'social') {
+                    return `
+                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm font-sans mb-6 max-w-sm mx-auto transform -rotate-1 hover:rotate-0 transition-transform duration-300">
+                        <div class="px-4 py-3 flex items-center justify-between border-b border-gray-50">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 to-pink-600 p-[2px]">
+                                    <div class="w-full h-full rounded-full bg-white p-[2px] flex items-center justify-center">
+                                         <i data-lucide="user" class="w-3 h-3 text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-gray-900">friend_123</div>
+                                    <div class="text-[10px] text-gray-400">Sponsored</div>
+                                </div>
+                            </div>
+                            <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                        <div class="bg-gray-50 p-6 flex items-center justify-center min-h-[100px] text-center border-b border-gray-50 relative overflow-hidden group">
+                            <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 opacity-50"></div>
+                            <p class="text-sm font-medium text-gray-800 italic relative z-10 font-serif">"${cleanText}"</p>
+                        </div>
+                        <div class="px-4 py-3 bg-white">
+                            <div class="flex space-x-4 mb-2">
+                                <i data-lucide="heart" class="w-5 h-5 text-gray-800 hover:text-red-500 transition-colors cursor-pointer"></i>
+                                <i data-lucide="message-circle" class="w-5 h-5 text-gray-800"></i>
+                                <i data-lucide="send" class="w-5 h-5 text-gray-800"></i>
+                            </div>
+                            <div class="text-xs font-bold text-gray-900">4,203 likes</div>
+                        </div>
+                    </div>`;
+                } else if (type === 'browser') {
+                    return `
+                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm font-sans mb-6 max-w-md mx-auto">
+                        <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200">
+                            <div class="flex space-x-1.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-500/20"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-green-400 border border-green-500/20"></div>
+                            </div>
+                            <div class="flex-grow bg-white rounded shadow-inner h-6 mx-2 flex items-center px-2 border border-gray-200">
+                                <i data-lucide="lock" class="w-2.5 h-2.5 text-green-600 mr-1.5"></i>
+                                <span class="text-[10px] text-gray-400 font-mono">https://search.web/results</span>
+                            </div>
+                        </div>
+                        <div class="p-5 bg-white">
+                            <div class="text-[10px] text-gray-500 mb-1 flex items-center"><span class="bg-gray-200 rounded px-1 mr-1">Ad</span> www.result.com</div>
+                            <h3 class="text-base text-blue-700 hover:underline font-medium mb-1 cursor-pointer truncate">Search Result: ${cleanText.substring(0, 40)}...</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">${cleanText}</p>
+                        </div>
+                    </div>`;
+                } else {
+                    // System / App
+                    return `
+                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-lg font-sans mb-6 max-w-sm mx-auto relative transform scale-95 hover:scale-100 transition-transform duration-300">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-allgood-primary"></div>
+                        <div class="p-5">
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                    <i data-lucide="${icon}" class="w-6 h-6 text-allgood-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-900 text-sm mb-1 uppercase tracking-wide">System Notification</h4>
+                                    <p class="text-sm text-gray-600 leading-snug">${cleanText}</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex space-x-2 opacity-50 pointer-events-none">
+                                <div class="flex-1 bg-gray-100 h-8 rounded"></div>
+                                <div class="flex-1 bg-allgood-primary h-8 rounded"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+            }
+
             function renderScenarioPage(pageElement, scenarioIndex) {
                 const data = SCENARIO_DATA[scenarioIndex - 1];
                 const isAnswered = answeredScenarioScores[scenarioIndex];
                 
+                // 1. DETERMINE INTERFACE TYPE
+                let uiType = 'system'; // Default
+                const icon = data.icon;
+                
+                if (['message-square', 'message-square-off', 'phone-off'].includes(icon)) uiType = 'chat';
+                else if (['users', 'users-x', 'user-plus', 'heart-off', 'camera-off', 'user-round-minus', 'user-round-x', 'thumbs-down'].includes(icon)) uiType = 'social';
+                else if (['search', 'globe', 'search-check', 'book-open-check', 'image', 'image-up'].includes(icon)) uiType = 'browser';
+                
+                // 2. GENERATE VISUAL CONTAINER
+                const visualHtml = getScenarioTemplate(uiType, data.title, icon);
+
                 let choicesHtml = data.choices.map((choice, index) => {
                     let btnClass = 'choice-btn';
                     let disabled = '';
@@ -761,7 +867,7 @@
                             disabled = 'disabled'; btnClass += ' opacity-50';
                         }
                     }
-                    return `<button class="w-full text-left p-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabled}>${String.fromCharCode(65 + index)}. ${sanitizeText(choice.text)}</button>`;
+                    return `<button class="w-full text-left p-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabled}><span class="font-bold mr-1 text-gray-400 text-xs uppercase tracking-wide">Option ${String.fromCharCode(65 + index)}</span><div class="mt-0.5">${sanitizeText(choice.text)}</div></button>`;
                 }).join('');
 
                 let feedbackHtml = '';
@@ -771,7 +877,21 @@
                     feedbackHtml = `<div class="feedback-box p-4 rounded-lg shadow-inner mt-4 ${fbClass}"><p class="font-bold text-xs text-gray-500 mb-1">Score: ${chosen.score}/3</p><p class="text-sm text-gray-700 leading-relaxed">${sanitizeText(chosen.feedback)}</p></div>`;
                 }
 
-                pageElement.innerHTML = `<section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">Scenario ${scenarioIndex} of 30</h2></section><div class="bg-white p-6 rounded border border-gray-200 shadow-sm mb-6"><div class="flex items-start mb-4"><div class="w-12 h-12 rounded-full bg-allgood-secondary/10 flex items-center justify-center text-allgood-secondary mr-3 text-xl flex-shrink-0"><i data-lucide="${data.icon}" class="w-6 h-6"></i></div><div><h4 class="font-bold text-lg text-allgood-dark mb-1">${data.title}</h4><p class="text-sm text-gray-500">Select the <strong>MOST Effective</strong> response:</p></div></div><div class="space-y-3 mb-4">${choicesHtml}</div>${feedbackHtml}</div>`;
+                // Render with new structure
+                pageElement.innerHTML = `
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark">Scenario ${scenarioIndex}</h2>
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Decide</span>
+                    </section>
+                    
+                    <!-- VISUAL CONTEXT CONTAINER -->
+                    ${visualHtml}
+
+                    <div class="bg-white p-6 rounded border border-gray-200 shadow-sm mb-6">
+                        <h4 class="font-bold text-base text-allgood-dark mb-4 border-b border-gray-100 pb-2">What is the most effective action?</h4>
+                        <div class="space-y-3 mb-4">${choicesHtml}</div>
+                        ${feedbackHtml}
+                    </div>`;
             }
 
             window.selectScenarioChoice = function(sIdx, cIdx) {
