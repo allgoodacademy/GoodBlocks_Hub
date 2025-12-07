@@ -1405,6 +1405,13 @@
 
     <script>
         // --- 1. SESSION MANAGER ---
+        // NEW: Centralized Mission State for Certification Reliability
+        window.missionState = {
+            roleSelected: false,
+            chipsMounted: 0,
+            contractSigned: false
+        };
+
         let currentRole = null; // Store selected role
 
         const SessionManager = {
@@ -1637,6 +1644,9 @@
         window.selectRole = function(role, card) {
             // Update global state
             currentRole = role;
+            
+            // UPDATE MISSION STATE
+            window.missionState.roleSelected = true;
 
             // Visuals
             document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary', 'bg-opacity-100'));
@@ -1717,6 +1727,10 @@
             }
             
             chipsActive++;
+            
+            // UPDATE MISSION STATE
+            window.missionState.chipsMounted = chipsActive;
+
             // Different sound for tactile feel if available, else standard tick
             sfx.tick(); 
             
@@ -1856,6 +1870,7 @@
         const draggables = document.querySelectorAll('.draggable-item');
         const dropZones = document.querySelectorAll('.drop-zone');
 
+        // MOUSE EVENTS
         draggables.forEach(draggable => {
             draggable.addEventListener('dragstart', () => {
                 draggable.classList.add('dragging');
@@ -1878,30 +1893,103 @@
                 e.preventDefault();
                 zone.classList.remove('drag-over');
                 const draggable = document.querySelector('.dragging');
-                const correctZone = zone.getAttribute('data-cat');
-                const itemTarget = draggable.getAttribute('data-target');
-
-                if (correctZone === itemTarget) {
-                    zone.appendChild(draggable);
-                    draggable.setAttribute('draggable', 'false');
-                    draggable.classList.add('cursor-default', 'opacity-50');
-                    zone.classList.add('correct-flash');
-                    setTimeout(() => zone.classList.remove('correct-flash'), 500);
-                    sfx.success();
-                    sortedCount++;
-                    if(sortedCount === 6) {
-                        document.getElementById('sort-feedback').classList.remove('hidden');
-                    }
-                } else {
-                    zone.classList.add('error-flash');
-                    setTimeout(() => zone.classList.remove('error-flash'), 500);
-                    sfx.error();
-                }
+                if(draggable) handleDrop(zone, draggable);
             });
+        });
+
+        // SHARED DROP LOGIC (Used by Mouse and Touch)
+        function handleDrop(zone, draggable) {
+            const correctZone = zone.getAttribute('data-cat');
+            const itemTarget = draggable.getAttribute('data-target');
+
+            if (correctZone === itemTarget) {
+                zone.appendChild(draggable);
+                draggable.setAttribute('draggable', 'false');
+                draggable.classList.add('cursor-default', 'opacity-50');
+                // Remove touch listeners to prevent re-dragging
+                draggable.removeEventListener('touchstart', handleTouchStart);
+                
+                zone.classList.add('correct-flash');
+                setTimeout(() => zone.classList.remove('correct-flash'), 500);
+                sfx.success();
+                sortedCount++;
+                if(sortedCount === 6) {
+                    document.getElementById('sort-feedback').classList.remove('hidden');
+                }
+            } else {
+                zone.classList.add('error-flash');
+                setTimeout(() => zone.classList.remove('error-flash'), 500);
+                sfx.error();
+            }
+        }
+
+        // --- NEW: MOBILE TOUCH HANDLER FOR DRAG & DROP ---
+        let activeTouchItem = null;
+        let initialTouchX = 0, initialTouchY = 0;
+        let touchXOffset = 0, touchYOffset = 0;
+
+        function handleTouchStart(e) {
+            if (e.target.getAttribute('draggable') === 'false') return;
+            activeTouchItem = e.target;
+            
+            const touch = e.touches[0];
+            initialTouchX = touch.clientX - touchXOffset;
+            initialTouchY = touch.clientY - touchYOffset;
+            
+            activeTouchItem.classList.add('dragging');
+            activeTouchItem.style.position = 'relative'; // Ensure movement works
+            activeTouchItem.style.zIndex = '1000';
+            sfx.tick();
+        }
+
+        function handleTouchMove(e) {
+            if (!activeTouchItem) return;
+            e.preventDefault(); // Prevent scrolling while dragging
+
+            const touch = e.touches[0];
+            const currentX = touch.clientX - initialTouchX;
+            const currentY = touch.clientY - initialTouchY;
+
+            activeTouchItem.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(1.1)`;
+        }
+
+        function handleTouchEnd(e) {
+            if (!activeTouchItem) return;
+            
+            activeTouchItem.classList.remove('dragging');
+            activeTouchItem.style.zIndex = '';
+            
+            // Check what's under the finger
+            const touch = e.changedTouches[0];
+            const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropZone = elemBelow ? elemBelow.closest('.drop-zone') : null;
+
+            if (dropZone) {
+                activeTouchItem.style.transform = 'none'; // Reset transform before appending
+                activeTouchItem.style.position = '';
+                handleDrop(dropZone, activeTouchItem);
+            } else {
+                // Return to start
+                activeTouchItem.style.transform = 'none';
+                activeTouchItem.style.position = '';
+                sfx.error();
+            }
+
+            activeTouchItem = null;
+            initialTouchX = 0; initialTouchY = 0;
+            touchXOffset = 0; touchYOffset = 0;
+        }
+
+        // Attach Touch Listeners
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('touchmove', handleTouchMove, {passive: false});
+            item.addEventListener('touchend', handleTouchEnd, {passive: false});
         });
 
         // Page 11: Timeline
         window.activateTimeline = function(el) {
+            // Removed reliance on :hover, forcing class toggle for touch reliability
             document.querySelectorAll('.timeline-item').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
             sfx.tick();
@@ -1929,6 +2017,10 @@
             if(sig.style.opacity !== '1') {
                 sig.innerText = window.currentUserName || "Agent Learner";
                 sig.style.opacity = '1';
+                
+                // UPDATE MISSION STATE
+                window.missionState.contractSigned = true;
+                
                 sfx.success();
                 window.SessionManager.log("Contract", "Signed");
             }
@@ -1941,7 +2033,7 @@
             window.SessionManager.log("Challenge", "Accepted");
         };
 
-        // --- NEW HELPER: Get Badge SVG (Shared between Download and Unlock) ---
+        // --- NEW HELPER: Get Badge SVG (Shared) ---
         window.getBadgeSVG = function() {
             return `
             <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
@@ -1962,7 +2054,7 @@
         window.downloadBadge = function() {
             const svgContent = window.getBadgeSVG();
             
-            // Log completion/save artifact again to ensure it is captured upon user interaction
+            // Log completion again on manual download to ensure capture
             window.logModuleCompletion(svgContent);
 
             // Trigger download
@@ -2196,7 +2288,7 @@
             if (reqsMet === 3) {
                 setTimeout(() => {
                     const btn = document.getElementById('download-badge-btn');
-                    // Prevent re-running animation if already unlocked
+                    // Prevent re-running logic if already unlocked
                     if (btn.disabled) {
                         btn.disabled = false;
                         btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
@@ -2207,8 +2299,8 @@
                         if(window.lucide) window.lucide.createIcons();
                         
                         sfx.success();
-
-                        // --- CRITICAL UPDATE: Send 'complete: true' signal immediately on unlock ---
+                        
+                        // NEW: Send signal immediately on unlock to mark mission complete
                         console.log("[System] Certification Unlocked. Sending completion signal.");
                         window.logModuleCompletion(window.getBadgeSVG());
                     }
