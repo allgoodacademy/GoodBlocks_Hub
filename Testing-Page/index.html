@@ -1316,7 +1316,9 @@
                 const badgeBtn = document.getElementById('download-badge-btn');
                 const certReqText = document.getElementById('cert-req-text'); 
 
-                const currentScore = totalChallengeScore;
+                // FIX: Recalculate score from the source of truth (answeredScenarioScores) to ensure accuracy
+                // This prevents the "0/90" bug if the running total variable drifted or reset.
+                const currentScore = Object.values(answeredScenarioScores).reduce((acc, val) => acc + val, 0);
                 const percentage = Math.round((currentScore / MAX_SCORE) * 100);
 
                 let rank = "";
