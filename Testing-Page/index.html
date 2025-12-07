@@ -343,22 +343,26 @@
         .tablet-frame.expanded-mode .screen-container { border-radius: 0 !important; }
 
         @media (max-width: 768px) {
-            /* 1. LOCK BODY TO PREVENT BOUNCE SCROLL AND USE DVH FOR SAFARI */
+            /* 1. LOCK BODY TO PREVENT BOUNCE SCROLL AND USE DVH FOR SAFARI/CHROME iOS */
             html, body {
-                position: fixed;
+                position: fixed; /* Critical for locking viewport on iOS */
                 width: 100%;
                 height: 100dvh; /* Dynamic Viewport Height */
                 overflow: hidden;
                 margin: 0;
                 padding: 0;
+                background-color: #F7F7F7; /* Match app bg */
             }
 
             /* 2. REMOVE MAIN PADDING */
             main {
                 padding: 0 !important;
-                height: 100% !important;
+                height: 100dvh !important;
                 width: 100% !important;
                 display: block; /* Remove flex centering */
+                position: fixed;
+                top: 0;
+                left: 0;
             }
 
             /* 3. TRANSFORM TABLET FRAME INTO FULL SCREEN APP VIEW */
@@ -389,25 +393,31 @@
                 box-shadow: none !important;
                 display: flex;
                 flex-direction: column;
+                background: #F7F7F7;
             }
 
             /* 4. SAFE AREA AND COMPACT NAVS */
-            /* Top Navbar: Add padding for the Notch */
+            /* Top Navbar */
             header.navbar-content {
-                padding-top: max(env(safe-area-inset-top), 8px);
+                padding-top: max(env(safe-area-inset-top), 12px);
                 height: auto;
-                min-height: 50px;
-                padding-bottom: 8px;
+                min-height: 60px;
+                padding-bottom: 12px;
                 flex-shrink: 0;
+                z-index: 50;
+                background-color: #357889; /* Ensure bg is solid */
             }
             
-            /* Bottom Navbar: Add padding for the Home Bar, Reduced Size */
+            /* Bottom Navbar - INCREASED PADDING FOR CHROME iOS */
             footer.footer-content {
-                padding-bottom: max(env(safe-area-inset-bottom), 8px);
-                padding-top: 8px;
+                padding-bottom: max(env(safe-area-inset-bottom), 24px); /* Extra padding for bottom bar */
+                padding-top: 12px;
                 height: auto;
-                min-height: 50px; /* Reduced from 60px */
+                min-height: 70px; /* Taller touch target */
                 flex-shrink: 0; /* Ensures it is never squashed */
+                z-index: 50;
+                background-color: white;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); /* Lift it up visually */
             }
 
             /* Ensure content area scrolls properly between fixed bars */
@@ -415,6 +425,7 @@
                 flex: 1;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
+                padding-bottom: 40px; /* Extra internal padding so content isn't cut off */
             }
         }
     </style>
@@ -519,6 +530,29 @@
                     </div>
                 </div>
 
+                <!-- 5. System Menu Modal -->
+                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
+                        <div class="mb-4">
+                            <i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i>
+                        </div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
+                        
+                        <div class="space-y-3">
+                            <button onclick="window.handleSystemReset()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="power" class="w-4 h-4 mr-2"></i> Reset Mission
+                            </button>
+                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
+                            <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- --- PAGES --- -->
                 <div class="page active" id="page-1">
                     <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-12">
@@ -537,8 +571,10 @@
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
                                 <p class="mb-4 text-sm text-allgood-dark">Use the **Control Cluster** in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. Hold for Reset.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
                         </div>
@@ -1354,20 +1390,77 @@
             const homeButton = document.getElementById('home-button');
             let pressTimer = null;
             if(homeButton) {
+                // Shared Start Function for Long Press
                 const startLongPress = (e) => {
-                    e.preventDefault(); 
-                    pressTimer = setTimeout(() => { window.performHardReset(); pressTimer = null; }, 2000);
+                    // Start timer on press
+                    isLongPress = false; 
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true; // Flag as long press
+                        document.getElementById('system-menu-modal').classList.remove('hidden-modal');
+                        document.getElementById('system-menu-modal').classList.add('visible-modal');
+                        if(window.lucide) window.lucide.createIcons(); // Ensure icons render in modal
+                        if(window.sfx) window.sfx.nav();
+                        pressTimer = null; 
+                    }, 2000);
                 }
-                const cancelLongPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
-                const endLongPress = () => {
-                    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; if (currentPageIndex !== 0) { window.showPage(0); sfx.nav(); } }
+
+                const endPress = (e) => {
+                    if (pressTimer) { 
+                        clearTimeout(pressTimer); 
+                        pressTimer = null; 
+                    }
                 }
+
+                // Mouse Events
                 homeButton.addEventListener('mousedown', startLongPress);
-                homeButton.addEventListener('mouseleave', cancelLongPress);
-                homeButton.addEventListener('mouseup', endLongPress);
-                homeButton.addEventListener('touchstart', startLongPress);
-                homeButton.addEventListener('touchend', endLongPress);
+                homeButton.addEventListener('mouseup', endPress);
+                homeButton.addEventListener('mouseleave', endPress);
+
+                // Touch Events (Mobile)
+                homeButton.addEventListener('touchstart', (e) => {
+                    startLongPress();
+                }, { passive: true });
+                
+                homeButton.addEventListener('touchend', endPress);
+                homeButton.addEventListener('touchcancel', endPress);
+
+                // Prevent Context Menu on Long Press
+                homeButton.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+
+                // Click Handler - Only trigger if NOT a long press
+                homeButton.addEventListener('click', (e) => {
+                    if(isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isLongPress = false; // Reset flag
+                    } else {
+                        // Short tap behavior
+                        if (currentPageIndex !== 0) { 
+                            window.showPage(0); 
+                            sfx.nav(); 
+                        }
+                    }
+                });
             }
+
+            // --- SYSTEM MENU FUNCTIONS ---
+            window.closeSystemMenu = () => {
+                 document.getElementById('system-menu-modal').classList.add('hidden-modal');
+                 document.getElementById('system-menu-modal').classList.remove('visible-modal');
+            };
+
+            window.handleSystemReset = () => {
+                window.performHardReset();
+                window.closeSystemMenu();
+            };
+
+            window.handleSystemExit = () => {
+                window.location.href = "https://www.allgoodacademy.com";
+            };
 
             document.getElementById('blueprint-toggle').addEventListener('click', () => {
                 document.getElementById('screen').classList.toggle('blueprint-mode');
