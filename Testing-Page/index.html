@@ -430,6 +430,16 @@
         .commit-card { transition: transform 0.3s; }
         .commit-card.active { transform: scale(0.98); }
         .commit-card.signed { border-color: #10b981; background-color: #ecfdf5; }
+
+        /* Role Card */
+        .role-card { transition: all 0.2s ease; cursor: pointer; border: 2px solid #e5e7eb; }
+        .role-card:hover { border-color: #D34716; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .role-card.selected { border-color: #D34716; background-color: #fff7ed; ring: 2px solid #D34716; }
+
+        /* Dynamic Context Box */
+        .dynamic-text-box { border-left: 4px solid #357889; background-color: #F3F4F6; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; margin-top: 1rem; }
+        .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -464,7 +474,7 @@
                             <div id="header-welcome-text" class="text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome, Agent Learner</div>
                             <div class="flex shrink-0 items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 14</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 15</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
@@ -647,8 +657,117 @@
                     </div>
                 </div>
 
-                <!-- Page 4: ACT Framework -->
+                <!-- Page 4: WIIFM (NEW) -->
                 <div class="page" id="page-4">
+                    <section class="mb-4 text-center">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">💡 What’s In It For Me?</h2>
+                        <p class="text-sm text-gray-500 mt-1">Why bother learning this? Tap to flip.</p>
+                    </section>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Card 1: Time -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">
+                                    <i data-lucide="clock" class="w-12 h-12 text-allgood-primary mb-2"></i>
+                                    <h3 class="font-bold text-allgood-dark">Reclaim Time</h3>
+                                    <p class="text-[10px] text-gray-400 mt-2 uppercase tracking-wide">Tap to Flip</p>
+                                </div>
+                                <div class="flip-card-back">
+                                    <h3 class="font-bold mb-2 border-b border-white/20 pb-1">Stop Drafting</h3>
+                                    <p class="text-xs leading-relaxed px-2">Never start from a blank page again. Let AI generate the first draft so you can edit, not create.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Creativity -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">
+                                    <i data-lucide="lightbulb" class="w-12 h-12 text-allgood-secondary mb-2"></i>
+                                    <h3 class="font-bold text-allgood-dark">Spark Creativity</h3>
+                                    <p class="text-[10px] text-gray-400 mt-2 uppercase tracking-wide">Tap to Flip</p>
+                                </div>
+                                <div class="flip-card-back">
+                                    <h3 class="font-bold mb-2 border-b border-white/20 pb-1">Brainstorming Partner</h3>
+                                    <p class="text-xs leading-relaxed px-2">Stuck? Ask for 10 ideas. 8 might be bad, but 2 will be brilliant. Use AI to break writer's block.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Confidence -->
+                        <div class="flip-card" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">
+                                    <i data-lucide="shield-check" class="w-12 h-12 text-green-600 mb-2"></i>
+                                    <h3 class="font-bold text-allgood-dark">Gain Confidence</h3>
+                                    <p class="text-[10px] text-gray-400 mt-2 uppercase tracking-wide">Tap to Flip</p>
+                                </div>
+                                <div class="flip-card-back">
+                                    <h3 class="font-bold mb-2 border-b border-white/20 pb-1">Expert Review</h3>
+                                    <p class="text-xs leading-relaxed px-2">"Does this email sound angry?" Use AI to check your tone and grammar before you hit send.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 5: Role Selector (NEW) -->
+                <div class="page" id="page-5">
+                    <section class="mb-4 text-center">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Choose Your Perspective</h2>
+                        <p class="text-xs text-gray-500 mt-1">Select a profile to customize the course examples.</p>
+                    </section>
+
+                    <div class="space-y-3">
+                        <!-- Professional -->
+                        <div class="role-card bg-white p-5 rounded-xl shadow-sm flex items-start group border-l-4 border-transparent hover:border-l-allgood-primary" onclick="selectRole('professional', this)">
+                            <div class="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-allgood-primary mr-4 shadow-inner shrink-0">
+                                <i data-lucide="briefcase" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-allgood-dark text-lg mb-1">The Professional</h3>
+                                <p class="text-xs text-gray-600 leading-relaxed">
+                                    <strong>The Architect.</strong> You focus on ROI, efficiency, and clear communication. You need to draft emails, summarize meetings, and analyze data quickly.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Educator -->
+                        <div class="role-card bg-white p-5 rounded-xl shadow-sm flex items-start group border-l-4 border-transparent hover:border-l-green-500" onclick="selectRole('educator', this)">
+                            <div class="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center text-green-600 mr-4 shadow-inner shrink-0">
+                                <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-allgood-dark text-lg mb-1">The Educator</h3>
+                                <p class="text-xs text-gray-600 leading-relaxed">
+                                    <strong>The Guide.</strong> You shape minds. You need lesson plans, differentiation strategies for diverse learners, and clear communication for parents.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Student -->
+                        <div class="role-card bg-white p-5 rounded-xl shadow-sm flex items-start group border-l-4 border-transparent hover:border-l-orange-500" onclick="selectRole('student', this)">
+                            <div class="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 mr-4 shadow-inner shrink-0">
+                                <i data-lucide="book-open" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-allgood-dark text-lg mb-1">The Student</h3>
+                                <p class="text-xs text-gray-600 leading-relaxed">
+                                    <strong>The Scholar.</strong> You are mastering concepts. You need a tutor to explain complex topics, create study guides, and help research efficiently.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="role-confirm" class="mt-6 text-center opacity-0 transition-opacity">
+                        <p class="text-sm font-bold text-allgood-primary mb-2 flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Profile Selected!</p>
+                        <button class="bg-allgood-dark text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-gray-800 transition-colors" onclick="window.showPage(5)">Continue Journey</button>
+                    </div>
+                </div>
+
+                <!-- Page 6: ACT Framework Overview -->
+                <div class="page" id="page-6">
                     <section class="mb-6 border-b border-gray-200 pb-4">
                         <h2 class="text-2xl font-heading font-bold text-allgood-dark">The ACT Framework</h2>
                         <p class="text-xs font-bold text-allgood-primary uppercase tracking-widest mt-1">Pragmatic Skill #1</p>
@@ -686,12 +805,12 @@
                     </div>
                 </div>
 
-                <!-- Page 5: Action Drill -->
-                <div class="page" id="page-5">
+                <!-- Page 7: Action Drill (Dynamic) -->
+                <div class="page" id="page-7">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: Action</h2></section>
-                    <div class="bg-white p-6 rounded shadow-sm border border-gray-200 text-center">
+                    <div class="bg-white p-6 rounded shadow-sm border border-gray-200 text-center mb-6">
                         <p class="text-gray-500 text-xs uppercase font-bold mb-4">Weak Prompt</p>
-                        <h3 id="action-prompt" class="text-2xl font-serif text-gray-400 mb-8 transition-colors">"Write an email about the meeting."</h3>
+                        <h3 id="action-prompt" class="text-2xl font-serif text-gray-400 mb-8 transition-colors">"Write something."</h3>
                         
                         <button onclick="upgradeAction()" class="bg-allgood-dark hover:bg-black text-white px-6 py-3 rounded-full font-bold shadow-lg transition-transform transform active:scale-95">
                             <i data-lucide="zap" class="w-4 h-4 inline mr-2"></i>Upgrade to ACT
@@ -699,32 +818,44 @@
 
                         <div id="action-result" class="hidden mt-8">
                             <p class="text-allgood-primary text-xs uppercase font-bold mb-2">Strong Prompt</p>
-                            <h3 class="text-xl font-bold text-allgood-dark">"<u>Draft</u> a follow-up email to the engineering team summarizing the key decisions."</h3>
+                            <h3 class="text-xl font-bold text-allgood-dark">"<u>Draft</u> a detailed proposal..."</h3>
                             <p class="text-xs text-gray-500 mt-2">Specificity drives results.</p>
                         </div>
                     </div>
-                </div>
 
-                <!-- Page 6: Context Stack -->
-                <div class="page" id="page-6">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: Context</h2></section>
-                    <p class="text-sm text-gray-600 mb-8">The AI doesn't know your boss, your product, or your deadline. You have to stack the context.</p>
-                    
-                    <div class="space-y-2 relative">
-                        <div class="p-4 bg-gray-100 rounded border border-gray-300 z-10 relative">
-                            <span class="font-bold text-gray-500">1. The Task:</span> "Summarize this report."
-                        </div>
-                        <div class="p-4 bg-gray-200 rounded border border-gray-400 -mt-2 mx-2 z-20 relative shadow-sm">
-                            <span class="font-bold text-gray-600">2. The Audience:</span> "...for the CEO..."
-                        </div>
-                        <div class="p-4 bg-allgood-secondary text-white rounded border border-allgood-accent -mt-2 mx-4 z-30 relative shadow-md">
-                            <span class="font-bold text-cyan-200">3. The Goal:</span> "...highlighting only the risks and budget overruns."
-                        </div>
+                    <!-- Dynamic Context -->
+                    <div class="dynamic-text-box fade-in-up">
+                        <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p7"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to you:</h4>
+                        <p class="text-sm text-gray-800 italic" id="dynamic-p7">Context loading...</p>
                     </div>
                 </div>
 
-                <!-- Page 7: Tone Dial -->
-                <div class="page" id="page-7">
+                <!-- Page 8: Context Stack (Dynamic) -->
+                <div class="page" id="page-8">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: Context</h2></section>
+                    <p class="text-sm text-gray-600 mb-8">AI doesn't know your audience, your students, or your subject. You have to stack the context.</p>
+                    
+                    <div class="space-y-2 relative mb-6">
+                        <div class="p-4 bg-gray-100 rounded border border-gray-300 z-10 relative">
+                            <span class="font-bold text-gray-500">1. The Task:</span> "Summarize this..."
+                        </div>
+                        <div class="p-4 bg-gray-200 rounded border border-gray-400 -mt-2 mx-2 z-20 relative shadow-sm">
+                            <span class="font-bold text-gray-600">2. The Audience:</span> "...for my students..."
+                        </div>
+                        <div class="p-4 bg-allgood-secondary text-white rounded border border-allgood-accent -mt-2 mx-4 z-30 relative shadow-md">
+                            <span class="font-bold text-cyan-200">3. The Goal:</span> "...to help them study for the final."
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Context -->
+                    <div class="dynamic-text-box fade-in-up">
+                        <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p8"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to you:</h4>
+                        <p class="text-sm text-gray-800 italic" id="dynamic-p8">Context loading...</p>
+                    </div>
+                </div>
+
+                <!-- Page 9: Tone Dial (Dynamic) -->
+                <div class="page" id="page-9">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Deep Dive: Tone</h2></section>
                     <p class="text-sm text-gray-600 mb-8 text-center">Rotate the dial to see how tone changes the output.</p>
                     
@@ -735,18 +866,24 @@
                     </div>
                     
                     <div class="flex justify-center space-x-4 mb-8">
-                        <button onclick="rotateDial(-45, 'Professional')" class="px-3 py-1 bg-gray-200 rounded text-xs font-bold hover:bg-gray-300">Corporate</button>
+                        <button onclick="rotateDial(-45, 'Option A')" class="px-3 py-1 bg-gray-200 rounded text-xs font-bold hover:bg-gray-300">Option A</button>
                         <button onclick="rotateDial(0, 'Neutral')" class="px-3 py-1 bg-gray-200 rounded text-xs font-bold hover:bg-gray-300">Neutral</button>
-                        <button onclick="rotateDial(45, 'Empathetic')" class="px-3 py-1 bg-gray-200 rounded text-xs font-bold hover:bg-gray-300">Empathetic</button>
+                        <button onclick="rotateDial(45, 'Option B')" class="px-3 py-1 bg-gray-200 rounded text-xs font-bold hover:bg-gray-300">Option B</button>
                     </div>
 
-                    <div class="bg-white p-4 rounded border border-gray-200 shadow-sm text-center min-h-[100px] flex items-center justify-center">
-                        <p id="tone-output" class="text-lg font-serif italic text-gray-700">"We received your complaint."</p>
+                    <div class="bg-white p-4 rounded border border-gray-200 shadow-sm text-center min-h-[100px] flex items-center justify-center mb-6">
+                        <p id="tone-output" class="text-lg font-serif italic text-gray-700">"Output changes based on tone."</p>
+                    </div>
+
+                    <!-- Dynamic Context -->
+                    <div class="dynamic-text-box fade-in-up">
+                        <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p9"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to you:</h4>
+                        <p class="text-sm text-gray-800 italic" id="dynamic-p9">Context loading...</p>
                     </div>
                 </div>
 
-                <!-- Page 8: ACT Sort Drill -->
-                <div class="page" id="page-8">
+                <!-- Page 10: ACT Sort Drill -->
+                <div class="page" id="page-10">
                     <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">Drill: The ACT Sort</h2></section>
                     <p class="text-xs text-gray-500 mb-4">Drag the prompt fragments into the correct ACT bucket.</p>
                     
@@ -768,8 +905,8 @@
                     <p id="sort-feedback" class="text-center text-sm font-bold mt-4 text-green-600 hidden">All Systems Go.</p>
                 </div>
 
-                <!-- Page 9: Daily Habits -->
-                <div class="page" id="page-9">
+                <!-- Page 11: Daily Habits -->
+                <div class="page" id="page-11">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Daily Habits</h2></section>
                     <p class="text-sm text-gray-600 mb-6">Pragmatic action starts with routine. Click to verify you understand these 3 use cases.</p>
                     
@@ -798,22 +935,26 @@
                     </div>
                 </div>
 
-                <!-- Page 10: Scenario Setup -->
-                <div class="page" id="page-10">
-                    <div class="flex flex-col items-center justify-center h-full text-center bg-red-50 rounded -m-5 p-8 border border-red-100">
-                        <i data-lucide="alert-octagon" class="w-16 h-16 text-red-500 mb-6 animate-pulse"></i>
-                        <h2 class="text-3xl font-heading font-bold text-red-900 mb-2">CRISIS DETECTED</h2>
-                        <div class="w-16 h-1 bg-red-200 rounded mb-6"></div>
-                        <p class="text-lg text-red-800 mb-2"><strong>Time:</strong> 4:45 PM</p>
+                <!-- Page 12: Scenario & Decision Combined -->
+                <div class="page" id="page-12">
+                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">Crisis Simulation</h2></section>
+                    
+                    <!-- Crisis Setup -->
+                    <div class="flex flex-col items-center justify-center text-center bg-red-50 rounded p-6 border border-red-100 mb-6">
+                        <i data-lucide="alert-octagon" class="w-12 h-12 text-red-500 mb-4 animate-pulse"></i>
+                        <h2 class="text-2xl font-heading font-bold text-red-900 mb-1">CRISIS DETECTED</h2>
+                        <p class="text-sm text-red-800 mb-2 font-bold">Time: 4:45 PM</p>
                         <p class="text-sm text-red-700 max-w-sm mx-auto">A colleague dumps a dense, 10-page technical report on your desk. You have a board meeting at 5:00 PM. You need to brief the VP.</p>
                     </div>
-                </div>
 
-                <!-- Page 11: The Decision -->
-                <div class="page" id="page-11">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">What is your move?</h2></section>
-                    
-                    <div class="space-y-4">
+                    <!-- Visual Connector -->
+                    <div class="flex justify-center mb-6">
+                        <i data-lucide="arrow-down" class="w-8 h-8 text-allgood-dark animate-bounce"></i>
+                    </div>
+
+                    <!-- Decision Options -->
+                    <div class="space-y-3">
+                        <h3 class="font-bold text-allgood-dark text-lg mb-2">What is your move?</h3>
                         <button onclick="checkScenario('A')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group">
                             <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary">A.</span> Read it fast. (Speed Read)
                         </button>
@@ -828,8 +969,8 @@
                     <div id="scenario-feedback" class="mt-6 p-4 rounded hidden"></div>
                 </div>
 
-                <!-- Page 12: Outcome -->
-                <div class="page" id="page-12">
+                <!-- Page 13: Outcome -->
+                <div class="page" id="page-13">
                     <div class="flex flex-col items-center justify-center h-full text-center">
                         <i data-lucide="check-circle" class="w-20 h-20 text-green-500 mb-6"></i>
                         <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-4">Mission Success</h2>
@@ -840,8 +981,8 @@
                     </div>
                 </div>
 
-                <!-- Page 13: Challenge -->
-                <div class="page" id="page-13">
+                <!-- Page 14: Challenge -->
+                <div class="page" id="page-14">
                     <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Challenge</h2></section>
                     <p class="text-sm text-gray-600 mb-8 text-center">Don't just learn. Do. Tap the card to accept your mission.</p>
                     
@@ -853,8 +994,8 @@
                     </div>
                 </div>
 
-                <!-- Page 14: Certification -->
-                <div class="page" id="page-14">
+                <!-- Page 15: Certification -->
+                <div class="page" id="page-15">
                     <div class="flex flex-col items-center justify-center h-full text-center">
                         <i data-lucide="award" class="w-20 h-20 text-allgood-primary mb-4"></i>
                         <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">Certification Ready</h2>
@@ -886,7 +1027,8 @@
         // --- LOGIC ENGINE ---
         
         let currentPageIndex = 0;
-        const totalPages = 14;
+        const totalPages = 15; // Updated total pages (merged 12 & 13)
+        let currentRole = null; 
 
         // Session Manager
         const SessionManager = {
@@ -895,7 +1037,29 @@
         };
         window.SessionManager = SessionManager;
 
-        // Audio Engine (Upgraded to OS Standard)
+        // Role Content Data
+        const roleContent = {
+            professional: {
+                name: "Professional",
+                p7: "Don't ask 'Write an email.' Ask 'Draft a concise executive summary for the Q3 Stakeholder meeting highlighting 20% growth.'",
+                p8: "Context is currency. AI needs to know 'Who is the audience?' (The Board) and 'What is the goal?' (Approval for budget).",
+                p9: "Tone drives authority. Use 'Concise', 'Professional', or 'Persuasive' to sound like a leader.",
+            },
+            educator: {
+                name: "Educator",
+                p7: "Don't ask 'Make a lesson.' Ask 'Create a 5-minute warm-up activity for 9th grade Biology focusing on Mitosis.'",
+                p8: "Context is the classroom. AI needs to know 'Grade Level' (5th Grade) and 'Learning Style' (Visual Learners).",
+                p9: "Tone drives engagement. Use 'Encouraging', 'Clear', or 'Playful' to keep students listening.",
+            },
+            student: {
+                name: "Student",
+                p7: "Don't ask 'Explain history.' Ask 'Explain the causes of WWI as if I were 12 years old.'",
+                p8: "Context is the rubric. AI needs to know 'Subject' (Chemistry) and 'Format' (Flashcards).",
+                p9: "Tone drives clarity. Use 'Simple', 'Direct', or 'Academic' to match the assignment.",
+            }
+        };
+
+        // Audio Engine
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
@@ -943,15 +1107,67 @@
             error: () => playTone(150, 'sawtooth', 0.3)
         };
         window.sfx = sfx;
-        window.initAudio = initAudio; // Expose for startup event
+        window.initAudio = initAudio; 
+
+        // Dynamic Content Injection
+        function updatePageContent(pageIndex) {
+            // Map page index (0-based) to Content Key (p7, p8, etc.)
+            // Page 7 (Index 6) -> p7
+            const pNum = pageIndex + 1;
+            const elementId = `dynamic-p${pNum}`;
+            const element = document.getElementById(elementId);
+            
+            // Header Update
+            const headerId = `dynamic-header-p${pNum}`;
+            const headerEl = document.getElementById(headerId);
+            if (headerEl) {
+                if (currentRole && roleContent[currentRole]) {
+                     headerEl.innerHTML = `<i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to the <strong>${roleContent[currentRole].name}</strong>:`;
+                } else {
+                     headerEl.innerHTML = `<i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to you:`;
+                }
+            }
+
+            if (element && currentRole && roleContent[currentRole]) {
+                const contentKey = `p${pNum}`;
+                if (roleContent[currentRole][contentKey]) {
+                    element.textContent = roleContent[currentRole][contentKey];
+                }
+            }
+            lucide.createIcons();
+        }
+
+        // Role Selector
+        window.selectRole = function(role, card) {
+            currentRole = role;
+            
+            // Visuals
+            document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            
+            // Confirm Button
+            document.getElementById('role-confirm').classList.remove('opacity-0');
+            sfx.success();
+        };
 
         // Navigation
         function showPage(index) {
             if (index < 0 || index >= totalPages) return;
+            
+            // Gatekeeping: Block Page 6+ if no role selected (Index 5+)
+            // Role selection is on Page 5 (Index 4)
+            if (index > 4 && !currentRole) {
+                alert("Please select a profile to continue."); // Simple fallback
+                return;
+            }
+
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(`page-${index + 1}`).classList.add('active');
             currentPageIndex = index;
             
+            // Update Dynamic Content
+            updatePageContent(index);
+
             // Progress Bar
             document.getElementById('flex-progress-fill').style.width = `${((index + 1) / totalPages) * 100}%`;
             document.getElementById('header-page-indicator').textContent = `${index + 1} / ${totalPages}`;
@@ -963,8 +1179,12 @@
             backBtn.disabled = (index === 0);
             backBtn.classList.toggle('opacity-0', index === 0);
 
-            if (index === totalPages - 1) nextBtn.style.display = 'none';
-            else { nextBtn.style.display = 'flex'; nextBtn.querySelector('span').textContent = 'Next'; }
+            if (index === totalPages - 1) {
+                nextBtn.style.display = 'none';
+            } else { 
+                nextBtn.style.display = 'flex'; 
+                nextBtn.querySelector('span').textContent = 'Next'; 
+            }
 
             document.getElementById('menu-modal').classList.remove('visible-modal');
             document.getElementById('menu-modal').classList.add('hidden-modal');
@@ -1013,9 +1233,22 @@
         function rotateDial(deg, tone) {
             document.querySelector('.dial-knob').style.transform = `rotate(${deg}deg)`;
             const out = document.getElementById('tone-output');
-            if(tone === 'Professional') out.textContent = `"We acknowledge receipt of your complaint and will review it shortly."`;
-            if(tone === 'Neutral') out.textContent = `"We received your complaint."`;
-            if(tone === 'Empathetic') out.textContent = `"I am so sorry to hear about your experience. I want to make this right."`;
+            
+            // Dynamic Tone Text based on Role
+            if (currentRole === 'professional') {
+                if(tone === 'Option A') out.textContent = `"Corporate: We acknowledge receipt..."`; // -45
+                if(tone === 'Neutral') out.textContent = `"Neutral: Received."`; 
+                if(tone === 'Option B') out.textContent = `"Empathetic: I understand your concern..."`; // 45
+            } else if (currentRole === 'educator') {
+                if(tone === 'Option A') out.textContent = `"Strict: Turn in homework now."`;
+                if(tone === 'Neutral') out.textContent = `"Neutral: Homework due."`;
+                if(tone === 'Option B') out.textContent = `"Encouraging: You can do this!"`;
+            } else {
+                // Default / Student
+                if(tone === 'Option A') out.textContent = `"Simple: Explain like I'm 5."`;
+                if(tone === 'Neutral') out.textContent = `"Neutral: Explain."`;
+                if(tone === 'Option B') out.textContent = `"Academic: Explain with citations."`;
+            }
             sfx.tick();
         }
 
@@ -1042,7 +1275,6 @@
                     setTimeout(() => zone.classList.remove('correct-flash'), 500);
                     sortedCount++;
                     sfx.success();
-                    // Remove from source (simplification: hide it)
                     document.querySelector(`.draggable-item.dragging`).style.display = 'none';
                     if (sortedCount >= 6) document.getElementById('sort-feedback').classList.remove('hidden');
                 } else {
@@ -1065,7 +1297,7 @@
             }
         }
 
-        // Page 11: Scenario Quiz
+        // Page 12: Scenario Quiz
         function checkScenario(option) {
             const feedback = document.getElementById('scenario-feedback');
             feedback.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-green-50', 'text-green-700');
@@ -1081,7 +1313,7 @@
             }
         }
 
-        // Page 13: Challenge
+        // Page 14: Challenge
         function acceptChallenge(card) {
             document.getElementById('challenge-status').classList.remove('hidden');
             card.classList.add('signed');
@@ -1089,7 +1321,7 @@
             window.SessionManager.log("Challenge", "Accepted");
         }
 
-        // Page 14: Badge
+        // Page 15: Badge
         window.downloadBadge = function() {
             const name = window.currentUserName.toUpperCase();
             const date = new Date().toLocaleDateString();
@@ -1158,47 +1390,7 @@
             sfx.tick();
         });
 
-        // SYSTEM MENU LOGIC
-        window.openSystemMenu = function() {
-            document.getElementById('system-menu-modal').classList.remove('hidden-modal');
-            document.getElementById('system-menu-modal').classList.add('visible-modal');
-            sfx.tick();
-        };
-
-        window.closeSystemMenu = function() {
-            document.getElementById('system-menu-modal').classList.remove('visible-modal');
-            document.getElementById('system-menu-modal').classList.add('hidden-modal');
-            sfx.tick();
-        };
-
-        window.handleSystemReset = async function() {
-            closeSystemMenu();
-            // 1. Sign out from Firebase
-            if (window.authSignOut) {
-                try { await window.authSignOut(); } catch(e) { console.log(e); }
-            }
-            // 2. Clear Local State
-            localStorage.removeItem('aa_username');
-            localStorage.removeItem('aa_uid');
-            localStorage.removeItem('aa_is_guest');
-            window.currentUser = null;
-            window.currentUserName = "Agent Learner";
-            
-            // 3. Reset UI Elements
-            document.getElementById('user-name-input').value = "";
-            document.getElementById('user-email-input').value = "";
-            document.getElementById('header-welcome-text').textContent = "Welcome, Agent Learner";
-            
-            // 4. Force reload or manual reset
-            // A hard reload is cleanest to reset all JS state variables
-            location.reload(); 
-        };
-
-        window.handleSystemExit = function() {
-            window.location.href = "https://www.allgoodacademy.com";
-        };
-
-        // Long Press Home to Open System Menu
+        // Long Press Home to Reset
         const homeButton = document.getElementById('home-button');
         let pressTimer = null;
         if(homeButton) {
@@ -1206,7 +1398,7 @@
                 e.preventDefault();	
                 if (e.button === 0 || e.type === 'touchstart') {
                     pressTimer = setTimeout(() => { 
-                        window.openSystemMenu();
+                        location.reload(); // Simple Hard Reset for now
                         pressTimer = null; 
                     }, 2000);
                 }
@@ -1232,7 +1424,7 @@
             });
         });
         
-        // Startup Logic (Modified to FORCE Sign In)
+        // Startup Logic
         const startupScreen = document.getElementById('startup-screen');
         if (startupScreen) {
             const warmUp = () => initAudio();
@@ -1241,8 +1433,6 @@
 
             startupScreen.addEventListener('click', () => {
                 sfx.powerOn();
-                // FIX: Force Modal Appearance for default anonymous users
-                // This ensures the "Sign In" modal appears even if a session persists
                 document.getElementById('login-modal').classList.remove('hidden-modal');
                 startupScreen.style.opacity = '0';
                 setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
