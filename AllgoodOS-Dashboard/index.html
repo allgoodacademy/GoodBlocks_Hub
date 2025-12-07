@@ -464,6 +464,12 @@
                     // 3. Generic Completion Logic (Boolean based)
                     if (data.completed === true && gameName) {
                         completedModules.add(gameName);
+
+                        // FIX: Normalization for "The AI Co-Pilot"
+                        // Database stores "AI Co-Pilot", but UI expects "The AI Co-Pilot"
+                        if (gameName === "AI Co-Pilot") {
+                            completedModules.add("The AI Co-Pilot");
+                        }
                         
                         // 3a. Identity Guardian Asset Logic
                         if (gameName === "Your Digital Identity" && data.badgeSVG) {
