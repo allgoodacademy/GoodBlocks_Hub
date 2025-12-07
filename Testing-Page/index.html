@@ -13,7 +13,8 @@
     <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        // UPDATED: Added setPersistence and browserLocalPersistence
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         // 1. CONFIGURATION
@@ -34,10 +35,32 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // PERSISTENCE FIX: Ensure auth state survives refresh
+        setPersistence(auth, browserLocalPersistence)
+            .then(() => {
+                console.log("[Auth] Session persistence set to LOCAL.");
+            })
+            .catch((error) => {
+                console.error("[Auth] Failed to set persistence:", error);
+            });
+
         // Expose signOut for Hard Reset
         window.authSignOut = () => signOut(auth);
 
-        // 3. GLOBAL STATE
+        // 3. GLOBAL STATE & REHYDRATION
+        // Load Mission State from LocalStorage to survive refresh
+        const savedMission = localStorage.getItem('aa_mission_state');
+        // FIX 1: Merge saved state with defaults to ensure new keys (like sortingCompleted) exist
+        const defaultState = {
+            roleSelected: false,
+            role: null,
+            chipsMounted: 0,
+            contractSigned: false,
+            sortingCompleted: false 
+        };
+        
+        window.missionState = savedMission ? { ...defaultState, ...JSON.parse(savedMission) } : defaultState;
+
         window.currentUser = null;
         window.currentUserName = "Agent Learner";
         window.currentUserEmail = "";
@@ -51,7 +74,7 @@
         onAuthStateChanged(auth, async (user) => {
             window.isAuthReady = true;
             if (user) {
-                console.log("[Auth] User detected:", user.uid);
+                console.log("[Auth] User restored/detected:", user.uid);
                 window.currentUser = user;
                 
                 // FORCE AGENT LEARNER DEFAULT if no display name is explicitly set
@@ -70,7 +93,21 @@
                 window.currentUserName = finalName;
                 window.currentUserEmail = user.email;
                 
+                // Update UI with restored name
+                const welcomeText = document.getElementById('header-welcome-text');
+                if(welcomeText) welcomeText.textContent = `Welcome, ${finalName}`;
+
+                // Hide login modal if user exists
+                const loginModal = document.getElementById('login-modal');
+                if(loginModal) {
+                    loginModal.classList.add('hidden-modal');
+                    loginModal.classList.remove('visible-modal');
+                }
+                
                 if(window.SessionManager) window.SessionManager.start(finalName, user.email);
+                
+                // Restore Visuals based on saved state
+                if (window.restoreVisualState) window.restoreVisualState();
                 
             } else {
                 console.log("[Auth] No user signed in.");
@@ -173,8 +210,10 @@
 
             try {
                 let user;
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                if (auth.currentUser) {
+                    // Reuse existing user if already there (Persistence Fix)
                     user = auth.currentUser;
+                    console.log("[Auth] Reusing existing anonymous session");
                 } else {
                     const result = await signInAnonymously(auth);
                     user = result.user;
@@ -217,6 +256,7 @@
             if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
             
             try {
+                // Persistence handled by global setPersistence call
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user; 
                 
@@ -802,7 +842,7 @@
 
                         <div class="space-y-4 max-w-md mx-auto">
                             <!-- Option B1: The Optimizer -->
-                            <div class="role-card group relative bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:-translate-y-1" onclick="selectRole('optimizer', this)">
+                            <div class="role-card group relative bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:-translate-y-1" onclick="selectRole('optimizer', this)" data-role="optimizer">
                                 <!-- Watermark Icon -->
                                 <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <i data-lucide="zap" class="w-32 h-32 text-blue-600"></i>
@@ -825,7 +865,7 @@
                             </div>
 
                             <!-- Option B2: The Innovator -->
-                            <div class="role-card group relative bg-gradient-to-br from-white to-orange-50 p-5 rounded-xl shadow-sm border border-orange-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-orange-300 hover:-translate-y-1" onclick="selectRole('innovator', this)">
+                            <div class="role-card group relative bg-gradient-to-br from-white to-orange-50 p-5 rounded-xl shadow-sm border border-orange-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-orange-300 hover:-translate-y-1" onclick="selectRole('innovator', this)" data-role="innovator">
                                 <!-- Watermark Icon -->
                                 <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <i data-lucide="sparkles" class="w-32 h-32 text-orange-500"></i>
@@ -848,7 +888,7 @@
                             </div>
 
                             <!-- Option B3: The Strategist -->
-                            <div class="role-card group relative bg-gradient-to-br from-white to-green-50 p-5 rounded-xl shadow-sm border border-green-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-green-300 hover:-translate-y-1" onclick="selectRole('strategist', this)">
+                            <div class="role-card group relative bg-gradient-to-br from-white to-green-50 p-5 rounded-xl shadow-sm border border-green-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-green-300 hover:-translate-y-1" onclick="selectRole('strategist', this)" data-role="strategist">
                                 <!-- Watermark Icon -->
                                 <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <i data-lucide="map" class="w-32 h-32 text-green-600"></i>
@@ -1274,8 +1314,9 @@
                                             <li id="req-role" class="flex items-center text-gray-400 transition-colors">
                                                 <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>Mindset Selection (Page 5)</span>
                                             </li>
-                                            <li id="req-system" class="flex items-center text-gray-400 transition-colors">
-                                                <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>System Initialization (Page 8)</span>
+                                            <!-- REPLACED: Page 8 with Page 10 -->
+                                            <li id="req-sort" class="flex items-center text-gray-400 transition-colors">
+                                                <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>ACT Sort Drill (Page 10)</span>
                                             </li>
                                             <li id="req-contract" class="flex items-center text-gray-400 transition-colors">
                                                 <i data-lucide="circle" class="w-4 h-4 mr-2"></i> <span>Contract Signed (Page 14)</span>
@@ -1404,15 +1445,9 @@
     </main>
 
     <script>
-        // --- 1. SESSION MANAGER ---
-        // NEW: Centralized Mission State for Certification Reliability
-        window.missionState = {
-            roleSelected: false,
-            chipsMounted: 0,
-            contractSigned: false
-        };
-
-        let currentRole = null; // Store selected role
+        // --- 1. SESSION MANAGER & GLOBAL STATE ---
+        let currentRole = null;
+        let chipsActive = 0;
 
         const SessionManager = {
             startTime: Date.now(),
@@ -1640,13 +1675,72 @@
             });
         });
 
-        // Page 5: Role Selection
+        // NEW: RESTORE VISUALS FUNCTION
+        window.restoreVisualState = function() {
+            // Restore Role Selection (Page 5)
+            if (window.missionState.role && window.missionState.roleSelected) {
+                currentRole = window.missionState.role;
+                const targetCard = document.querySelector(`.role-card[data-role="${currentRole}"]`);
+                if(targetCard) {
+                     document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary'));
+                     targetCard.classList.add('selected', 'ring-2', 'ring-allgood-primary');
+                     const confirmBtn = document.getElementById('role-confirm');
+                     if(confirmBtn) confirmBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+                }
+            }
+
+            // Restore Chips (Page 8)
+            if (window.missionState.chipsMounted >= 3) {
+                chipsActive = 3;
+                document.querySelectorAll('.data-chip').forEach(el => {
+                    el.classList.add('active');
+                    const subtext = el.querySelector('.font-mono');
+                    if(subtext) subtext.innerText = "MOUNTED";
+                });
+                const sysText = document.getElementById('system-text');
+                const sysLight = document.getElementById('system-light');
+                const btn = document.getElementById('generate-output-btn');
+                if(sysText) {
+                    sysText.innerText = "SYSTEM READY";
+                    sysText.classList.remove('text-red-400');
+                    sysText.classList.add('text-green-400');
+                }
+                if(sysLight) sysLight.classList.add('ready');
+                if(btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-allgood-primary', 'text-white');
+                    btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 mr-2 fill-current"></i> EXECUTE PROMPT';
+                }
+            }
+            
+            // Restore Sort (Page 10)
+            if (window.missionState.sortingCompleted) {
+                 const fb = document.getElementById('sort-feedback');
+                 if(fb) fb.classList.remove('hidden');
+            }
+
+            // Restore Contract (Page 14)
+            if (window.missionState.contractSigned) {
+                const sig = document.getElementById('signature-text');
+                if(sig) {
+                    sig.innerText = window.currentUserName || "Agent Learner";
+                    sig.style.opacity = '1';
+                }
+            }
+
+            if(window.lucide) window.lucide.createIcons();
+        };
+
+        // Page 5: Role Selection (UPDATED FOR PERSISTENCE)
         window.selectRole = function(role, card) {
-            // Update global state
             currentRole = role;
             
-            // UPDATE MISSION STATE
+            // Persist State
             window.missionState.roleSelected = true;
+            window.missionState.role = role;
+            localStorage.setItem('aa_mission_state', JSON.stringify(window.missionState));
+            console.log(`[Certification] Role Requirement Recorded: ${role}`);
 
             // Visuals
             document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary', 'bg-opacity-100'));
@@ -1660,6 +1754,9 @@
 
             // Force dynamic content update for current page (if not page 5)
             updatePageContent(currentPage);
+            
+            // FIX 2: Trigger certification check immediately
+            if(window.checkCertification) window.checkCertification();
         };
 
         // Page 6: Pyramid Logic
@@ -1711,8 +1808,7 @@
             }, 300);
         };
 
-        // Page 8: Cockpit Chip Logic (REPLACED Recipe Builder)
-        let chipsActive = 0;
+        // Page 8: Cockpit Chip Logic (UPDATED FOR PERSISTENCE)
         window.activateChip = function(el) {
             if(el.classList.contains('active')) return; // Already active
             
@@ -1728,13 +1824,15 @@
             
             chipsActive++;
             
-            // UPDATE MISSION STATE
+            // Persist State
             window.missionState.chipsMounted = chipsActive;
+            localStorage.setItem('aa_mission_state', JSON.stringify(window.missionState));
+            console.log(`[Certification] Chip Requirement Update: ${chipsActive}/3`);
 
             // Different sound for tactile feel if available, else standard tick
             sfx.tick(); 
             
-            if(chipsActive === 3) {
+            if(chipsActive >= 3) {
                 // System Ready State
                 const sysText = document.getElementById('system-text');
                 const sysLight = document.getElementById('system-light');
@@ -1756,6 +1854,7 @@
                 document.getElementById('dynamic-header-p8').innerText = "SYSTEM CONTEXT LOADED:";
                 document.getElementById('dynamic-p8').innerText = "Role: Senior PM. Task: Summarize Q3 Report. Goal: Brief VP on risks.";
                 
+                if(window.lucide) window.lucide.createIcons();
                 sfx.success();
             }
         };
@@ -1778,7 +1877,7 @@
 
         // Page 8: Simulated Generation (Hardcoded)
         window.generatePromptOutput = function() {
-            if (chipsActive !== 3) {
+            if (chipsActive < 3) {
                 sfx.error();
                 return;
             }
@@ -1915,6 +2014,15 @@
                 sortedCount++;
                 if(sortedCount === 6) {
                     document.getElementById('sort-feedback').classList.remove('hidden');
+                    
+                    // NEW: Persist Sorting State
+                    window.missionState.sortingCompleted = true;
+                    localStorage.setItem('aa_mission_state', JSON.stringify(window.missionState));
+                    console.log("[Certification] Sort Requirement Recorded");
+                    window.SessionManager.log("Sort_Drill", "Completed");
+                    
+                    // FIX 2: Trigger certification check immediately
+                    if(window.checkCertification) window.checkCertification();
                 }
             } else {
                 zone.classList.add('error-flash');
@@ -2011,18 +2119,23 @@
             }
         };
 
-        // Page 14: Contract Sign
+        // Page 14: Contract Sign (UPDATED FOR PERSISTENCE)
         window.signContract = function(el) {
             const sig = document.getElementById('signature-text');
             if(sig.style.opacity !== '1') {
                 sig.innerText = window.currentUserName || "Agent Learner";
                 sig.style.opacity = '1';
                 
-                // UPDATE MISSION STATE
+                // Persist State
                 window.missionState.contractSigned = true;
+                localStorage.setItem('aa_mission_state', JSON.stringify(window.missionState));
+                console.log("[Certification] Contract Requirement Recorded");
                 
                 sfx.success();
                 window.SessionManager.log("Contract", "Signed");
+                
+                // FIX 2: Trigger certification check immediately
+                if(window.checkCertification) window.checkCertification();
             }
         };
         
@@ -2170,6 +2283,7 @@
         };
 
         window.handleSystemReset = () => {
+            localStorage.removeItem('aa_mission_state'); // Clear persistence on reset
             if(window.authSignOut) window.authSignOut();
             location.reload();
         };
@@ -2245,40 +2359,45 @@
         };
 
         window.checkCertification = function() {
+            console.log("[Certification] Verifying requirements against state:", window.missionState);
+            
             // Reveal section animation
             const section = document.getElementById('certification-section');
-            section.classList.remove('scale-95', 'opacity-0');
-            section.classList.add('scale-100', 'opacity-100');
+            if(section) {
+                section.classList.remove('scale-95', 'opacity-0');
+                section.classList.add('scale-100', 'opacity-100');
+            }
 
-            // Check Milestones
+            // Check Milestones based on Persistent State
             let reqsMet = 0;
 
             // 1. Mindset (Role Selected)
             const roleEl = document.getElementById('req-role');
-            if (currentRole) {
+            if (roleEl && window.missionState.roleSelected) {
                 roleEl.classList.remove('text-gray-400');
                 roleEl.classList.add('text-green-600', 'font-bold');
-                roleEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                const icon = roleEl.querySelector('i');
+                if(icon) icon.setAttribute('data-lucide', 'check-circle');
                 reqsMet++;
             }
 
-            // 2. System (Chips Active)
-            const sysEl = document.getElementById('req-system');
-            // Assuming chipsActive is global from Page 8 logic
-            if (typeof chipsActive !== 'undefined' && chipsActive === 3) {
-                sysEl.classList.remove('text-gray-400');
-                sysEl.classList.add('text-green-600', 'font-bold');
-                sysEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+            // 2. Sorting Check (Page 10)
+            const sortEl = document.getElementById('req-sort');
+            if (sortEl && window.missionState.sortingCompleted) {
+                sortEl.classList.remove('text-gray-400');
+                sortEl.classList.add('text-green-600', 'font-bold');
+                const icon = sortEl.querySelector('i');
+                if(icon) icon.setAttribute('data-lucide', 'check-circle');
                 reqsMet++;
             }
 
             // 3. Contract (Signed)
             const contractEl = document.getElementById('req-contract');
-            const sig = document.getElementById('signature-text');
-            if (sig && sig.style.opacity === '1') {
+            if (contractEl && window.missionState.contractSigned) {
                 contractEl.classList.remove('text-gray-400');
                 contractEl.classList.add('text-green-600', 'font-bold');
-                contractEl.querySelector('i').setAttribute('data-lucide', 'check-circle');
+                const icon = contractEl.querySelector('i');
+                if(icon) icon.setAttribute('data-lucide', 'check-circle');
                 reqsMet++;
             }
             
@@ -2286,25 +2405,28 @@
 
             // Unlock if all met
             if (reqsMet === 3) {
+                // Use shorter timeout for immediate responsiveness
                 setTimeout(() => {
                     const btn = document.getElementById('download-badge-btn');
-                    // Prevent re-running logic if already unlocked
-                    if (btn.disabled) {
+                    if (btn && btn.disabled) {
                         btn.disabled = false;
                         btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
                         btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
                         
-                        document.getElementById('btn-text').innerText = "ISSUE CERTIFICATE";
-                        document.getElementById('btn-icon').setAttribute('data-lucide', 'download');
+                        const btnText = document.getElementById('btn-text');
+                        if(btnText) btnText.innerText = "ISSUE CERTIFICATE";
+                        
+                        const btnIcon = document.getElementById('btn-icon');
+                        if(btnIcon) btnIcon.setAttribute('data-lucide', 'download');
+                        
                         if(window.lucide) window.lucide.createIcons();
                         
                         sfx.success();
                         
-                        // NEW: Send signal immediately on unlock to mark mission complete
                         console.log("[System] Certification Unlocked. Sending completion signal.");
                         window.logModuleCompletion(window.getBadgeSVG());
                     }
-                }, 800);
+                }, 100);
             }
         };
         
