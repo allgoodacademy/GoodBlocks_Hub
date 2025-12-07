@@ -199,7 +199,6 @@
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
-                // CORRECTED ROUTING: Page 1
                 if(window.showPage) window.showPage(1);
                 if(window.sfx) window.sfx.nav();
 
@@ -239,7 +238,6 @@
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 
-                // CORRECTED ROUTING: Page 1
                 if(window.showPage) window.showPage(1);
                 if(window.sfx) window.sfx.nav();
             } catch (error) {
@@ -250,7 +248,6 @@
             }
         };
         
-        // Handle initial custom token
         (async function initAuth() {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 try {
@@ -260,39 +257,6 @@
                 }
             }
         })();
-    </script>
-    
-    <script>
-        // --- 0. GEMINI API SETUP ---
-        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${window.__api_key || ""}`;
-
-        // Helper for Exponential Backoff
-        async function retryFetch(url, options, maxRetries = 5) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (!response.ok) {
-                        // If it's a 429, retry
-                        if (response.status === 429 && i < maxRetries - 1) {
-                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                            console.warn(`[API] Rate limit hit. Retrying in ${delay / 1000}s...`);
-                            await new Promise(resolve => setTimeout(resolve, delay));
-                            continue; 
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response;
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error;
-                    }
-                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                    console.warn(`[API] Fetch failed. Retrying in ${delay / 1000}s...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
     </script>
 
     <!-- Tailwind Config -->
@@ -530,6 +494,63 @@
         
         /* Mentor Bar Static State - REMOVED COLLAPSE STYLES */
         #mentor-bar { transition: opacity 0.3s ease-in-out; }
+
+        /* --- OPTION 3: COCKPIT DATA CHIPS STYLES --- */
+        .hud-panel {
+            background-color: #1f2937; /* Dark Gray bg */
+            border: 1px solid #374151;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .hud-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #357889, transparent);
+            opacity: 0.5;
+        }
+        .data-chip {
+            background-color: #111827;
+            border: 2px solid #4b5563; /* Gray border default */
+            color: #9ca3af;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .data-chip::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 4px;
+            background-color: #357889; /* Cyan indicator */
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .data-chip:hover {
+            border-color: #357889;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(53, 120, 137, 0.3);
+        }
+        .data-chip.active {
+            background-color: #D34716; /* Burnt Orange Active */
+            border-color: #D34716;
+            color: white;
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 15px rgba(211, 71, 22, 0.4);
+        }
+        .data-chip.active::after { opacity: 1; background-color: white; }
+        
+        .status-light {
+            width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; /* Red */
+            box-shadow: 0 0 8px #ef4444;
+            transition: all 0.5s;
+        }
+        .status-light.ready {
+            background-color: #10b981; /* Green */
+            box-shadow: 0 0 8px #10b981;
+        }
+
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -538,7 +559,7 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
-                <!-- 1. STARTUP SCREEN (Matches OS Template) -->
+                <!-- 1. STARTUP SCREEN -->
                 <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
@@ -558,7 +579,7 @@
                 </div>
 
                 <!-- 2. Header (Navigation & Controls) -->
-                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center z-30 relative">
+                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
                             <!-- HARDCODED DEFAULT: Agent Learner (Will update if auth loads different name) -->
@@ -572,7 +593,6 @@
                             <!-- Control Cluster -->
                             <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 mr-2" title="Go to Cover (Long-Press to System Menu)"><i data-lucide="home" class="w-6 h-6"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <!-- FIX: Blueprint toggle is now MOON -->
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="moon" class="w-5 h-5"></i></button>
                             <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode"><i data-lucide="maximize" class="w-5 h-5"></i></button>
                             <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Jump to Page"><i data-lucide="menu" class="w-7 h-7"></i></button>
@@ -851,6 +871,7 @@
                             </div>
                         </div>
                         
+                        <!-- Manual Confirm Button (No Auto-Advance) -->
                         <div id="role-confirm" class="mt-8 text-center opacity-0 transition-opacity pointer-events-none transform translate-y-4 duration-500">
                             <button class="bg-allgood-dark text-white px-10 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-gray-800 flex items-center mx-auto" onclick="window.showPage(6)">
                                 Confirm Mindset <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
@@ -932,58 +953,65 @@
                         </div>
                     </div>
 
-                    <!-- Page 8: Context Stack (UPGRADED) -->
+                    <!-- Page 8: Context Stack (UPGRADED TO COCKPIT CHIPS) -->
                     <div class="page" id="page-8">
-                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Recipe Builder</h2></section>
-                        <p class="text-sm text-gray-600 mb-8 text-center">Add ingredients to the prompt processor.</p>
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">System Check</h2></section>
                         
-                        <div class="flex flex-col items-center space-y-4" id="recipe-container">
-                            <!-- Ingredients -->
-                            <div class="flex justify-center space-x-6 w-full">
-                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Role">
-                                    <i data-lucide="user" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                    <span class="text-[10px] font-bold text-gray-500">ROLE</span>
-                                </div>
-                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Task">
-                                    <i data-lucide="file-text" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                    <span class="text-[10px] font-bold text-gray-500">TASK</span>
-                                </div>
-                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Goal">
-                                    <i data-lucide="target" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                    <span class="text-[10px] font-bold text-gray-500">GOAL</span>
-                                </div>
-                            </div>
+                        <div class="w-full max-w-md mx-auto">
                             
-                            <!-- Flow Lines -->
-                            <div class="flex justify-center space-x-16 w-full h-8 overflow-hidden">
-                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
-                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
-                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
+                            <!-- HUD DASHBOARD -->
+                            <div class="hud-panel rounded-xl p-6 text-center mb-6">
+                                <div class="flex items-center justify-between mb-6 border-b border-gray-700 pb-2">
+                                    <div class="text-[10px] font-mono text-gray-400 tracking-widest uppercase">Prompt Engine v2.0</div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest transition-colors duration-500" id="system-text">Offline</div>
+                                        <div class="status-light" id="system-light"></div>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-gray-400 mb-4 font-mono">INSERT DATA CHIPS TO INITIALIZE</p>
+
+                                <div class="grid grid-cols-3 gap-3 mb-6" id="chip-container">
+                                    <!-- Chip 1: Role -->
+                                    <button class="data-chip rounded-lg h-24 flex flex-col items-center justify-center gap-2 group" onclick="activateChip(this)">
+                                        <i data-lucide="user-circle" class="w-6 h-6 group-hover:text-cyan-300 transition-colors"></i>
+                                        <span class="text-[10px] font-bold uppercase tracking-wide">Role</span>
+                                        <div class="text-[8px] opacity-50 font-mono">UNMOUNTED</div>
+                                    </button>
+                                    
+                                    <!-- Chip 2: Task -->
+                                    <button class="data-chip rounded-lg h-24 flex flex-col items-center justify-center gap-2 group" onclick="activateChip(this)">
+                                        <i data-lucide="cpu" class="w-6 h-6 group-hover:text-cyan-300 transition-colors"></i>
+                                        <span class="text-[10px] font-bold uppercase tracking-wide">Task</span>
+                                        <div class="text-[8px] opacity-50 font-mono">UNMOUNTED</div>
+                                    </button>
+                                    
+                                    <!-- Chip 3: Goal -->
+                                    <button class="data-chip rounded-lg h-24 flex flex-col items-center justify-center gap-2 group" onclick="activateChip(this)">
+                                        <i data-lucide="crosshair" class="w-6 h-6 group-hover:text-cyan-300 transition-colors"></i>
+                                        <span class="text-[10px] font-bold uppercase tracking-wide">Goal</span>
+                                        <div class="text-[8px] opacity-50 font-mono">UNMOUNTED</div>
+                                    </button>
+                                </div>
+
+                                <!-- Generate Button Area -->
+                                <button id="generate-output-btn" onclick="generatePromptOutput()" disabled class="w-full bg-gray-700 text-gray-400 py-3 rounded text-sm font-bold shadow-inner transition-all duration-300 flex items-center justify-center border border-gray-600 font-mono disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
+                                    <i data-lucide="power" class="w-4 h-4 mr-2"></i> Initialize System
+                                </button>
                             </div>
 
-                            <!-- Processor -->
-                            <div class="w-full max-w-xs bg-allgood-dark text-white p-4 rounded-lg shadow-lg text-center relative overflow-hidden">
-                                <div class="absolute inset-0 bg-allgood-primary opacity-0 transition-opacity duration-500" id="processor-glow"></div>
-                                <h3 class="font-bold relative z-10">PROMPT ENGINE</h3>
-                                <p class="text-xs text-gray-400 mt-1 relative z-10" id="recipe-status">Waiting for ingredients...</p>
-                            </div>
-                            
-                            <!-- NEW GENERATE BUTTON -->
-                            <button id="generate-output-btn" onclick="generatePromptOutput()" disabled class="mt-4 bg-allgood-secondary text-white px-8 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-allgood-accent flex items-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                                ✨ Generate Output
-                            </button>
-
-                            <div class="dynamic-text-box fade-in-up w-full mt-4">
+                            <div class="dynamic-text-box fade-in-up w-full">
                                 <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p8">Context:</h4>
                                 <p class="text-sm text-gray-800 italic" id="dynamic-p8">...</p>
                             </div>
-                        </div>
-                        
-                        <!-- NEW LLM OUTPUT AREA -->
-                        <div id="llm-output-p8" class="mt-8 p-4 bg-white border border-gray-200 rounded-lg shadow-inner hidden">
-                            <h4 class="text-sm font-bold text-allgood-primary uppercase mb-2">Generated Output:</h4>
-                            <div id="llm-result" class="text-sm text-gray-700 whitespace-pre-wrap min-h-[50px] italic"></div>
-                            <div id="llm-sources" class="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500 hidden"></div>
+
+                            <!-- NEW LLM OUTPUT AREA -->
+                            <div id="llm-output-p8" class="mt-6 p-4 bg-white border border-gray-200 rounded-lg shadow-inner hidden">
+                                <h4 class="text-xs font-bold text-allgood-primary uppercase mb-2 border-b border-gray-100 pb-1">System Output:</h4>
+                                <div id="llm-result" class="text-sm text-gray-700 whitespace-pre-wrap min-h-[50px] italic font-medium leading-relaxed"></div>
+                                <div id="llm-sources" class="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500 hidden"></div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -1233,6 +1261,87 @@
                         <span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
                     </button>
                 </footer>
+
+                <!-- 3. Login Modal (Standardized from Airport Navigator) -->
+                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
+                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
+                        <div class="flex items-center justify-center gap-2 mb-6 relative">
+                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
+                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
+                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
+                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. <strong>Performance data is logged in real-time</strong> to improve the GoodBlock experience. All personal data is <strong>kept confidential</strong> and <strong>never sold.</strong></p>
+                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
+                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
+                                </div>
+                            </button>
+                        </div>
+                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start Mission</button>
+                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Menu Modal -->
+                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/60 flex justify-end modal-transition">
+                    <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
+                        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <span class="font-bold text-allgood-dark font-heading">Mission Log</span>
+                            <button id="close-menu" class="text-gray-500"><i data-lucide="x" class="w-6 h-6"></i></button>
+                        </div>
+                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body">
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold" data-page="1">1. Cover</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="2">2. The Myth</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="3">3. The Paradigm</button>
+                            <div class="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">The ACT Framework</div>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="4">4. Overview</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="5">5. Identity</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="6">6. Framework</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="7">7. Action</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="8">8. Context</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="9">9. Tone</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold text-allgood-primary" data-page="10">10. ACT Sort Drill</button>
+                            <div class="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">Application</div>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="11">11. Daily Habits</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="12">12. Crisis Scenario</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="13">13. Outcome</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="14">14. The Challenge</button>
+                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold text-allgood-secondary" data-page="15">15. Certification</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. System Menu Modal -->
+                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
+                        <div class="mb-4">
+                            <i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i>
+                        </div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
+                        
+                        <div class="space-y-3">
+                            <button onclick="handleSystemReset()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="power" class="w-4 h-4 mr-2"></i> Reset Mission
+                            </button>
+                            <button onclick="handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
+                            <button onclick="closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -1531,38 +1640,70 @@
             }, 300);
         };
 
-        // Page 8: Recipe Builder
-        let ingredientsAdded = 0;
-        window.addIngredient = function(el) {
-            if(el.classList.contains('opacity-50')) return; // Already added
+        // Page 8: Cockpit Chip Logic (REPLACED Recipe Builder)
+        let chipsActive = 0;
+        window.activateChip = function(el) {
+            if(el.classList.contains('active')) return; // Already active
             
-            el.classList.add('opacity-50', 'scale-90'); // Visually "used"
-            ingredientsAdded++;
-            sfx.tick();
+            // Activate Visuals
+            el.classList.add('active');
             
-            // Visual feedback on processor
-            document.getElementById('recipe-status').innerText = `Added ${ingredientsAdded}/3 ingredients...`;
+            // Change subtext from "UNMOUNTED" to "MOUNTED"
+            const subtext = el.querySelector('.font-mono');
+            if(subtext) {
+                subtext.innerText = "MOUNTED";
+                subtext.classList.remove('opacity-50');
+            }
             
-            if(ingredientsAdded === 3) {
-                document.getElementById('recipe-container').classList.add('recipe-active');
-                document.getElementById('processor-glow').style.opacity = '0.5';
-                document.getElementById('recipe-status').innerText = "RECIPE COMPLETE. PROMPT GENERATED.";
-                document.getElementById('recipe-status').classList.add('text-green-400', 'font-bold');
+            chipsActive++;
+            // Different sound for tactile feel if available, else standard tick
+            sfx.tick(); 
+            
+            if(chipsActive === 3) {
+                // System Ready State
+                const sysText = document.getElementById('system-text');
+                const sysLight = document.getElementById('system-light');
+                const btn = document.getElementById('generate-output-btn');
+
+                sysText.innerText = "SYSTEM READY";
+                sysText.classList.remove('text-red-400');
+                sysText.classList.add('text-green-400', 'animate-pulse'); // Green pulse
                 
-                // ENABLE GENERATE BUTTON
-                document.getElementById('generate-output-btn').disabled = false;
-                
-                document.getElementById('dynamic-header-p8').innerText = "GENERATED CONTEXT:";
+                sysLight.classList.add('ready');
+
+                // Update Button Visuals
+                btn.disabled = false;
+                btn.classList.remove('bg-gray-700', 'text-gray-400', 'border-gray-600');
+                btn.classList.add('bg-allgood-primary', 'text-white', 'border-transparent', 'hover:bg-allgood-hover', 'hover:scale-105', 'shadow-lg');
+                btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 mr-2 fill-current"></i> EXECUTE PROMPT';
+
+                // Context update
+                document.getElementById('dynamic-header-p8').innerText = "SYSTEM CONTEXT LOADED:";
                 document.getElementById('dynamic-p8').innerText = "Role: Senior PM. Task: Summarize Q3 Report. Goal: Brief VP on risks.";
                 
                 sfx.success();
             }
         };
 
-        // Page 8: LLM Generation
-        window.generatePromptOutput = async function() {
-            if (ingredientsAdded !== 3) {
-                document.getElementById('recipe-status').innerText = "Error: Please add all 3 ingredients first.";
+        // SIMULATED OUTPUT DATA
+        const simulatedOutputs = {
+            optimizer: {
+                text: "Here is the efficiency summary:\n• Reduce meeting times by 15% using async updates.\n• Automate weekly report generation via the new CRM tool.\n• Immediate action: Schedule a 10-minute stand-up to align on these changes.",
+                source: "Source: Internal Efficiency Audit 2024"
+            },
+            innovator: {
+                text: "Idea Spark: Imagine the team as a jazz band—improvising within a structure. What if we rotated leadership weekly to keep perspectives fresh? Metaphor: We are currently gardening in winter; let's prep the soil before planting new seeds.",
+                source: "Source: Creative Leadership Review"
+            },
+            strategist: {
+                text: "Executive Summary: The Q3 data indicates a 12% risk in supply chain volatility, but a significant opportunity in emerging markets. Recommendation: Pivot resources to the APAC region immediately to capitalize on the trend. Decision required by Friday.",
+                source: "Source: Q3 Strategic Outlook"
+            }
+        };
+
+        // Page 8: Simulated Generation (Hardcoded)
+        window.generatePromptOutput = function() {
+            if (chipsActive !== 3) {
                 sfx.error();
                 return;
             }
@@ -1572,93 +1713,39 @@
             const outputContainer = document.getElementById('llm-output-p8');
             const sourcesDiv = document.getElementById('llm-sources');
 
+            // Set Loading State
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i> Generating...';
+            const originalClasses = btn.className;
+            
+            btn.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i> PROCESSING...';
+            btn.className = "w-full bg-allgood-secondary text-white py-3 rounded text-sm font-bold shadow-inner flex items-center justify-center border border-transparent font-mono uppercase tracking-wider cursor-wait";
+            
             btn.disabled = true;
-            resultDiv.innerHTML = '<span class="text-gray-400 italic">Processing request. Please wait...</span>';
+            resultDiv.innerHTML = '<span class="text-gray-400 italic">Accessing Co-Pilot Neural Net...</span>';
             outputContainer.classList.remove('hidden');
             sourcesDiv.classList.add('hidden');
-            sourcesDiv.innerHTML = '';
             
             if(window.lucide) window.lucide.createIcons();
 
-            const role = currentRole || 'strategist'; // Default to strategist if not selected
-            
-            // 1. Construct System Instruction based on Role
-            let systemPrompt = `You are an AI Co-Pilot for the Allgood Academy. The user has defined their role as a '${role}'. You must adhere to that persona and focus.`;
-            let userQuery = "";
-            let placeholderTopic = "the latest trends in hybrid work environments";
+            // Simulate Delay
+            setTimeout(() => {
+                const role = currentRole || 'strategist'; // Default
+                const outputData = simulatedOutputs[role] || simulatedOutputs['strategist'];
 
-            if (role === 'optimizer') {
-                systemPrompt += "Your primary goal is efficiency. Provide concise, bulleted summaries and focus on actionable metrics and time savings.";
-                userQuery = `Act as a time-saving assistant. Summarize the key action items and metrics from an article about ${placeholderTopic}. Provide exactly 3 bullet points.`;
-            } else if (role === 'innovator') {
-                systemPrompt += "Your primary goal is creative growth. Generate new ideas and perspectives. Use a light, inspiring, and engaging tone.";
-                userQuery = `Act as a creative partner. Generate 5 unique, divergent ideas or metaphors for approaching a business challenge related to ${placeholderTopic}.`;
-            } else if (role === 'strategist') {
-                systemPrompt += "Your primary goal is strategic clarity. Analyze complex data and provide objective, balanced executive summaries for decision-making.";
-                userQuery = `Act as an executive analyst. Analyze the strategic risks and opportunities associated with ${placeholderTopic}. Provide a one-paragraph summary for a VP.`;
-            }
-
-            // OPTION 1: GLOBAL SYSTEM CONSTRAINT (Applied to all roles)
-            systemPrompt += " CRITICAL CONSTRAINT: Keep your response under 50 words or 3-4 sentences maximum.";
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                // Use Google Search grounding to make the result relevant and grounded
-                tools: [{ "google_search": {} }],
-            };
-
-            try {
-                const response = await retryFetch(GEMINI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-                let generatedText = "Error: Could not retrieve content.";
-                let sourcesHtml = "";
-
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    generatedText = candidate.content.parts[0].text;
-                    
-                    // Extract Grounding Sources
-                    const groundingMetadata = candidate.groundingMetadata;
-                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                        const sources = groundingMetadata.groundingAttributions
-                            .map((attr, index) => {
-                                const uri = attr.web?.uri;
-                                const title = attr.web?.title || 'Untitled Source';
-                                if (uri && title) {
-                                    return `<li>[${index + 1}] <a href="${uri}" target="_blank" class="text-allgood-secondary hover:text-allgood-primary underline">${title}</a></li>`;
-                                }
-                                return '';
-                            })
-                            .filter(html => html.length > 0);
-
-                        if (sources.length > 0) {
-                            sourcesHtml = `<p class="font-bold mb-1">Sources Used:</p><ul class="list-disc ml-4 space-y-0.5">${sources.join('')}</ul>`;
-                            sourcesDiv.innerHTML = sourcesHtml;
-                            sourcesDiv.classList.remove('hidden');
-                        }
-                    }
-                }
+                resultDiv.innerText = outputData.text;
                 
-                resultDiv.innerText = generatedText;
+                // Optional: Show a simulated source
+                sourcesDiv.innerHTML = `<p class="font-bold mb-1">Simulated Source:</p><ul class="list-disc ml-4 space-y-0.5"><li><span class="text-allgood-secondary">${outputData.source}</span></li></ul>`;
+                sourcesDiv.classList.remove('hidden');
 
-            } catch (error) {
-                console.error("Gemini API Call Failed:", error);
-                resultDiv.innerText = `[Error] Failed to generate content. Failed to connect to the AI Co-Pilot.`;
-                sfx.error();
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                // Reset Button (Optional: Keep it active or disable?)
+                // Let's keep it "Executed" state
+                btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-2"></i> COMPLETE';
+                btn.className = "w-full bg-green-600 text-white py-3 rounded text-sm font-bold shadow-md flex items-center justify-center border border-transparent font-mono uppercase tracking-wider";
+                
                 if(window.lucide) window.lucide.createIcons();
-            }
-            sfx.success();
+                sfx.success();
+            }, 1500); // 1.5 second delay for realism
         };
 
         // Page 9: Tone Dial
