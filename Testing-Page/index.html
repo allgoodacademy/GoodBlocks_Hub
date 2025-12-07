@@ -267,7 +267,25 @@
     </script>
 
     <style>
-        body { font-family: Verdana, sans-serif; background-color: #1a1a1a; min-height: 100vh; margin: 0; padding: 0; }
+        body { 
+            font-family: Verdana, sans-serif; 
+            background-color: #1a1a1a; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 0;
+            /* Global Native App Lock */
+            -webkit-touch-callout: none; /* Stops the "Save Image / Copy" menu */
+            -webkit-user-select: none;   /* Stops highlighting text */
+            user-select: none;           /* Standard version of above */
+            -webkit-tap-highlight-color: transparent; /* Removes the gray tap box on buttons */
+        }
+
+        /* CRITICAL: Re-enable selection for inputs so users can type */
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
         h1, h2, h3, h4 { font-family: Georgia, serif; }
 
         .tablet-frame {
