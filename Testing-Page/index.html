@@ -704,7 +704,7 @@
                                 <div class="bg-white p-6 rounded-md text-center">
                                     <div class="mb-4 relative inline-block"><i id="badge-icon" data-lucide="award" class="relative w-16 h-16 text-allgood-primary mx-auto"></i></div>
                                     <h3 class="font-heading font-bold text-xl text-allgood-dark mb-2">Digital Architect Certification</h3>
-                                    <p id="cert-req-text" class="text-sm text-gray-600 mb-6">You need **80 points** to achieve this certification.</p>
+                                    <p id="cert-req-text" class="text-sm text-gray-600 mb-6">You need 80 points to achieve this certification.</p>
                                     <button id="download-badge-btn" onclick="window.downloadBadge()" disabled class="w-full bg-gray-300 text-white font-bold py-3 rounded shadow-none cursor-not-allowed flex items-center justify-center transition-all duration-300">
                                         <i id="btn-icon" data-lucide="lock" class="w-4 h-4 mr-2"></i><span id="btn-text">Certification Locked</span>
                                     </button>
@@ -1156,7 +1156,8 @@
 
             function renderScenarioPage(pageElement, scenarioIndex) {
                 const data = SCENARIO_DATA[scenarioIndex - 1];
-                const isAnswered = answeredScenarioScores[scenarioIndex];
+                // FIX: Check for undefined specifically, so 0 is treated as a valid answer
+                const isAnswered = answeredScenarioScores[scenarioIndex] !== undefined;
                 
                 // 1. DETERMINE INTERFACE TYPE
                 let uiType = 'system'; // Default
@@ -1246,7 +1247,9 @@
             window.selectScenarioChoice = function(sIdx, cIdx) {
                 const data = SCENARIO_DATA[sIdx - 1];
                 const chosen = data.choices[cIdx];
-                if (!answeredScenarioScores[sIdx]) {
+                
+                // FIX: Check undefined so we don't overwrite 0-point answers or allow double-scoring
+                if (answeredScenarioScores[sIdx] === undefined) {
                     totalChallengeScore += chosen.score;
                     answeredScenarioScores[sIdx] = chosen.score;
                     
