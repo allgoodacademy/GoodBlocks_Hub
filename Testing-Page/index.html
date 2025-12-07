@@ -868,9 +868,13 @@
 
                 // Simple logic for standard next
                 let btnText = 'Next';
-                if (index === 0) btnText = 'Start Challenge';
-                else if (index === 32) btnText = 'Reset';
-                else if (index >= 2) {
+                if (index === 0) {
+                    btnText = 'Start Challenge';
+                } else if (index === 32) {
+                    btnText = 'Reset';
+                    // FIX: Trigger the score update logic when landing on the final page
+                    if(window.updateFinalScorePage) window.updateFinalScorePage();
+                } else if (index >= 2) {
                     const isDone = Object.keys(answeredScenarioScores).length === 30;
                     btnText = isDone ? 'View Score' : 'Next';
                 }
