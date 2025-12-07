@@ -1962,6 +1962,9 @@
         window.downloadBadge = function() {
             const svgContent = window.getBadgeSVG();
             
+            // Log completion/save artifact again to ensure it is captured upon user interaction
+            window.logModuleCompletion(svgContent);
+
             // Trigger download
             const blob = new Blob([svgContent], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
