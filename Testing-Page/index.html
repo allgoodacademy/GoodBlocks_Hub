@@ -394,6 +394,8 @@
                 display: flex;
                 flex-direction: column;
                 background: #F7F7F7;
+                overflow: hidden; /* Ensure footer doesn't float out */
+                position: relative; /* Anchor for absolute footer */
             }
 
             /* 4. SAFE AREA AND COMPACT NAVS */
@@ -408,24 +410,28 @@
                 background-color: #357889; /* Ensure bg is solid */
             }
             
-            /* Bottom Navbar - INCREASED PADDING FOR CHROME iOS */
+            /* Bottom Navbar - ABSOLUTE POSITION FIX FOR IOS CHROME */
             footer.footer-content {
-                padding-bottom: max(env(safe-area-inset-bottom), 24px); /* Extra padding for bottom bar */
+                position: absolute; /* Anchor strictly to bottom */
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                padding-bottom: max(env(safe-area-inset-bottom), 20px);
                 padding-top: 12px;
                 height: auto;
-                min-height: 70px; /* Taller touch target */
-                flex-shrink: 0; /* Ensures it is never squashed */
-                z-index: 50;
+                min-height: 80px; /* Taller touch target */
+                z-index: 100; /* Ensure on top of content */
                 background-color: white;
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); /* Lift it up visually */
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); 
+                border-top: 1px solid #e5e7eb;
             }
 
-            /* Ensure content area scrolls properly between fixed bars */
+            /* Ensure content area scrolls properly behind the absolute footer */
             .page {
                 flex: 1;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                padding-bottom: 40px; /* Extra internal padding so content isn't cut off */
+                padding-bottom: 120px !important; /* Huge padding to clear the absolute footer */
             }
         }
     </style>
@@ -569,7 +575,7 @@
                                 <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
-                                <p class="mb-4 text-sm text-allgood-dark">Use the **Control Cluster** in the top right to customize your environment.</p>
+                                <p class="mb-4 text-sm text-allgood-dark">Use the Control Cluster in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
                                     <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
