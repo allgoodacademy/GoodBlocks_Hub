@@ -1941,9 +1941,9 @@
             window.SessionManager.log("Challenge", "Accepted");
         };
 
-        // Page 15: Badge
-        window.downloadBadge = function() {
-            const svgContent = `
+        // --- NEW HELPER: Get Badge SVG (Shared between Download and Unlock) ---
+        window.getBadgeSVG = function() {
+            return `
             <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
               <defs>
                 <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1956,10 +1956,12 @@
               <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Verdana, sans-serif" font-size="36" fill="white" font-weight="bold">CO-PILOT</text>
               <text x="50%" y="70%" dominant-baseline="middle" text-anchor="middle" font-family="Verdana, sans-serif" font-size="16" fill="#D34716">${window.currentUserName}</text>
             </svg>`;
-            
-            // Log completion to Firebase
-            window.logModuleCompletion(svgContent);
+        };
 
+        // Page 15: Badge Download
+        window.downloadBadge = function() {
+            const svgContent = window.getBadgeSVG();
+            
             // Trigger download
             const blob = new Blob([svgContent], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
@@ -2191,17 +2193,29 @@
             if (reqsMet === 3) {
                 setTimeout(() => {
                     const btn = document.getElementById('download-badge-btn');
-                    btn.disabled = false;
-                    btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
-                    
-                    document.getElementById('btn-text').innerText = "ISSUE CERTIFICATE";
-                    document.getElementById('btn-icon').setAttribute('data-lucide', 'download');
-                    if(window.lucide) window.lucide.createIcons();
-                    
-                    sfx.success();
+                    // Prevent re-running animation if already unlocked
+                    if (btn.disabled) {
+                        btn.disabled = false;
+                        btn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
+                        
+                        document.getElementById('btn-text').innerText = "ISSUE CERTIFICATE";
+                        document.getElementById('btn-icon').setAttribute('data-lucide', 'download');
+                        if(window.lucide) window.lucide.createIcons();
+                        
+                        sfx.success();
+
+                        // --- CRITICAL UPDATE: Send 'complete: true' signal immediately on unlock ---
+                        console.log("[System] Certification Unlocked. Sending completion signal.");
+                        window.logModuleCompletion(window.getBadgeSVG());
+                    }
                 }, 800);
             }
+        };
+        
+        // --- SYSTEM EXIT LOGIC (Updated to Redirect) ---
+        window.handleSystemExit = () => {
+            window.location.href = "https://www.allgoodacademy.com";
         };
 
         // Init
