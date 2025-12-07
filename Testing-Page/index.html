@@ -746,78 +746,98 @@
             }
 
             // --- SCENARIO LOGIC ---
-            function getScenarioTemplate(type, title, icon) {
+            function getScenarioTemplate(type, title, icon, choicesHtml, feedbackHtml) {
                 // Remove the "Question: What do you do?" part for the visual context
                 const cleanText = title.split(" Question:")[0];
                 
-                // Helper for the "Desk" background styles
+                // Helper for the "Desk" background styles (Only applied on SM+ screens now via wrapper)
                 const deskStyleMobile = `background-image: radial-gradient(#cfc8c2 2px, transparent 2px), radial-gradient(#cfc8c2 2px, transparent 2px); background-color: #f0ebe6; background-position: 0 0, 10px 10px; background-size: 20px 20px;`;
                 const deskStyleDesktop = `background-image: linear-gradient(135deg, #e2e8f0 25%, #cbd5e1 25%, #cbd5e1 50%, #e2e8f0 50%, #e2e8f0 75%, #cbd5e1 75%, #cbd5e1 100%); background-size: 40px 40px;`;
 
+                // Common wrapper for choices
+                const choicesWrapper = `<div class="mt-4 pt-4 border-t border-slate-100"><p class="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-2">Select Response:</p><div class="space-y-2">${choicesHtml}</div></div>`;
+                const feedbackWrapper = feedbackHtml ? `<div class="mt-4 animate-fade-in">${feedbackHtml}</div>` : '';
+
                 if (type === 'chat') {
                     return `
-                    <div class="relative py-8 px-2 sm:px-8 rounded-xl overflow-hidden shadow-inner border border-stone-200 mb-6 transition-all duration-500 hover:shadow-lg" style="${deskStyleMobile}">
-                        <!-- Phone Device -->
-                        <div class="relative mx-auto border-gray-800 bg-gray-800 border-[8px] rounded-[2rem] h-[400px] max-w-[260px] shadow-2xl flex flex-col transform transition-transform hover:scale-[1.02] duration-300">
-                            <!-- Buttons -->
-                            <div class="h-[32px] w-[3px] bg-gray-700 absolute -left-[10px] top-[72px] rounded-l-lg"></div>
-                            <div class="h-[46px] w-[3px] bg-gray-700 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
-                            <div class="h-[64px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-6 transition-all duration-500">
+                        <!-- Desk Background (Hidden on Mobile) -->
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
+                        
+                        <!-- Phone Device Container -->
+                        <div class="relative z-10 mx-auto bg-gray-800 sm:border-[8px] sm:border-gray-800 sm:rounded-[2rem] h-auto sm:h-[600px] w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
+                            
+                            <!-- Hardware Buttons (Hidden on Mobile) -->
+                            <div class="hidden sm:block h-[32px] w-[3px] bg-gray-700 absolute -left-[10px] top-[72px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-700 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
                             
                             <!-- Screen -->
-                            <div class="rounded-[1.5rem] overflow-hidden w-full h-full bg-slate-50 relative flex flex-col font-sans">
+                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-slate-50 relative flex flex-col font-sans border-x border-slate-200 sm:border-0">
                                 <!-- Status Bar -->
-                                <div class="bg-slate-50 h-6 w-full absolute top-0 z-20 flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-100">
+                                <div class="bg-slate-50 h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-100 shrink-0">
                                     <span>9:41</span>
                                     <div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div>
                                 </div>
                                 <!-- App Header -->
-                                <div class="mt-6 bg-slate-100/90 backdrop-blur-sm px-4 py-2 border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-center">
+                                <div class="mt-0 sm:mt-6 bg-slate-100/90 backdrop-blur-sm px-4 py-2 border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-center shrink-0">
                                     <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Messages</span>
                                 </div>
-                                <!-- Content -->
-                                <div class="flex-1 p-3 overflow-y-auto">
+                                <!-- Content (Scrolls naturally on mobile, internal scroll on desktop) -->
+                                <div class="flex-1 p-3 overflow-visible sm:overflow-y-auto pb-12">
                                     <div class="flex items-center justify-center mb-4"><span class="text-[9px] text-slate-400 font-bold">Today 9:41 AM</span></div>
-                                    <div class="flex items-end group">
+                                    
+                                    <!-- Incoming Message -->
+                                    <div class="flex items-end group mb-4">
                                         <div class="w-6 h-6 rounded-full bg-slate-200 flex-shrink-0 mr-2 flex items-center justify-center text-slate-500 border border-white shadow-sm">
                                             <i data-lucide="${icon}" class="w-3 h-3"></i>
                                         </div>
-                                        <div class="bg-white p-3 rounded-2xl rounded-bl-none shadow-sm text-xs text-slate-700 leading-snug max-w-[85%] border border-slate-100 relative group-hover:shadow-md transition-shadow">
+                                        <div class="bg-white p-3 rounded-2xl rounded-bl-none shadow-sm text-xs text-slate-700 leading-snug max-w-[85%] border border-slate-100 relative">
                                             ${cleanText}
                                         </div>
                                     </div>
-                                    <div class="text-[8px] text-slate-300 text-left ml-9 mt-1 font-medium">Delivered</div>
+                                    
+                                    <!-- INTEGRATED CHOICES -->
+                                    <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/60">
+                                        ${choicesWrapper}
+                                    </div>
+
+                                    <!-- INTEGRATED FEEDBACK -->
+                                    ${feedbackWrapper}
                                 </div>
-                                <!-- Home Indicator -->
-                                <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
+                                <!-- Home Indicator (Hidden on Mobile) -->
+                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
                             </div>
                         </div>
                     </div>`;
                 } else if (type === 'social') {
                     return `
-                    <div class="relative py-8 px-2 sm:px-8 rounded-xl overflow-hidden shadow-inner border border-stone-200 mb-6 transition-all duration-500 hover:shadow-lg" style="${deskStyleMobile}">
-                        <div class="relative mx-auto border-gray-900 bg-gray-900 border-[8px] rounded-[2rem] h-[400px] max-w-[260px] shadow-2xl flex flex-col transform transition-transform hover:scale-[1.02] duration-300">
-                            <!-- Buttons -->
-                            <div class="h-[46px] w-[3px] bg-gray-800 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
-                            <div class="h-[64px] w-[3px] bg-gray-800 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-6 transition-all duration-500">
+                         <!-- Desk Background (Hidden on Mobile) -->
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
+
+                        <div class="relative z-10 mx-auto bg-gray-900 sm:border-[8px] sm:border-gray-900 sm:rounded-[2rem] h-auto sm:h-[600px] w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
+                            <!-- Hardware Buttons -->
+                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-800 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-800 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
 
                             <!-- Screen -->
-                            <div class="rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans">
+                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans border-x border-gray-100 sm:border-0">
                                 <!-- Status Bar -->
-                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-gray-50 z-20">
+                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-gray-50 z-20 shrink-0">
                                     <span>10:24</span>
                                     <div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-battery-three-quarters"></i></div>
                                 </div>
                                 
                                 <!-- Social App Header -->
-                                <div class="px-3 py-2 flex items-center justify-between border-b border-gray-100">
+                                <div class="px-3 py-2 flex items-center justify-between border-b border-gray-100 shrink-0">
                                     <i data-lucide="chevron-left" class="w-4 h-4 text-gray-800"></i>
                                     <span class="text-[10px] font-bold text-gray-900">Feed</span>
                                     <i data-lucide="send" class="w-4 h-4 text-gray-800"></i>
                                 </div>
 
                                 <!-- Post -->
-                                <div class="flex-1 overflow-y-auto bg-gray-50">
+                                <div class="flex-1 overflow-visible sm:overflow-y-auto bg-gray-50 pb-8">
                                     <div class="bg-white mb-2 pb-2">
                                         <div class="px-3 py-2 flex items-center justify-between">
                                             <div class="flex items-center space-x-2">
@@ -848,23 +868,33 @@
                                             <div class="text-[9px] text-gray-500 mt-1">View all 128 comments</div>
                                         </div>
                                     </div>
+                                    
+                                    <!-- INTEGRATED ACTION AREA -->
+                                    <div class="mx-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                        ${choicesWrapper}
+                                        ${feedbackWrapper}
+                                    </div>
                                 </div>
                                 <!-- Home Indicator -->
-                                <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
+                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
                             </div>
                         </div>
                     </div>`;
                 } else if (type === 'browser') {
                     return `
-                    <div class="relative py-8 px-4 sm:px-8 rounded-xl overflow-hidden shadow-inner border border-slate-300 mb-6" style="${deskStyleDesktop}">
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-6 transition-all duration-500">
+                         <!-- Desk Background (Hidden on Mobile) -->
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
+
                         <!-- Laptop Screen -->
-                        <div class="bg-gray-800 rounded-t-xl p-3 pb-0 max-w-lg mx-auto shadow-2xl transform transition-transform hover:scale-[1.01] duration-500">
+                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
                              <!-- Camera Dot -->
-                             <div class="flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
+                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
+                             
                              <!-- Screen Bezel Interior -->
-                             <div class="bg-white rounded-t-lg overflow-hidden border-4 border-gray-800 border-b-0 min-h-[220px] font-sans relative">
+                             <div class="bg-white sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 min-h-[400px] font-sans relative flex flex-col border border-gray-300 rounded-lg">
                                 <!-- Browser Chrome -->
-                                <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200">
+                                <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200 flex-shrink-0">
                                     <div class="flex space-x-1.5">
                                         <div class="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20"></div>
                                         <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-500/20"></div>
@@ -876,29 +906,38 @@
                                     </div>
                                 </div>
                                 <!-- Browser Content -->
-                                <div class="p-5 bg-white">
+                                <div class="p-5 bg-white flex-1 overflow-visible sm:overflow-y-auto">
                                     <div class="text-[10px] text-gray-500 mb-1 flex items-center"><span class="bg-gray-200 rounded px-1 mr-1">Ad</span> www.result.com</div>
                                     <h3 class="text-base text-blue-700 hover:underline font-medium mb-1 cursor-pointer truncate">Search Result: ${cleanText.substring(0, 40)}...</h3>
-                                    <p class="text-sm text-gray-600 leading-relaxed">${cleanText}</p>
+                                    <p class="text-sm text-gray-600 leading-relaxed mb-6">${cleanText}</p>
+                                    
+                                    <!-- INTEGRATED ACTION AREA -->
+                                    <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                                        ${choicesWrapper}
+                                        ${feedbackWrapper}
+                                    </div>
                                 </div>
                                 <!-- Scrollbar Mock -->
-                                <div class="absolute right-0 top-10 bottom-0 w-3 bg-gray-50 border-l border-gray-100 flex flex-col items-center py-1">
+                                <div class="hidden sm:flex absolute right-0 top-10 bottom-0 w-3 bg-gray-50 border-l border-gray-100 flex-col items-center py-1 pointer-events-none">
                                     <div class="w-1.5 h-12 bg-gray-300 rounded-full"></div>
                                 </div>
                              </div>
                         </div>
-                        <div class="h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg flex justify-center items-start">
+                        <!-- Laptop Hinge (Hidden on Mobile) -->
+                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start">
                              <div class="w-16 h-1 bg-gray-600 rounded-b-md"></div>
                         </div>
                     </div>`;
                 } else {
                     // System / App (Tablet / Glassmorphism)
                     return `
-                    <div class="relative py-10 px-4 rounded-xl overflow-hidden shadow-inner border border-slate-200 mb-6" style="background: radial-gradient(circle at center, #f8fafc, #e2e8f0);">
-                        <div class="bg-white/80 backdrop-blur-md rounded-xl overflow-hidden border border-white/50 shadow-xl font-sans mb-6 max-w-sm mx-auto relative transform scale-95 hover:scale-100 transition-transform duration-300">
+                    <div class="relative w-full sm:py-10 sm:px-4 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-200 mb-6">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="background: radial-gradient(circle at center, #f8fafc, #e2e8f0);"></div>
+                        
+                        <div class="relative z-10 bg-white/80 backdrop-blur-md rounded-xl overflow-hidden border border-white/50 shadow-sm sm:shadow-xl font-sans mb-6 max-w-sm mx-auto transform sm:scale-95 sm:hover:scale-100 transition-transform duration-300">
                             <div class="absolute top-0 left-0 w-full h-1 bg-allgood-primary"></div>
                             <div class="p-6">
-                                <div class="flex items-start space-x-3">
+                                <div class="flex items-start space-x-3 mb-4">
                                     <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm">
                                         <i data-lucide="${icon}" class="w-6 h-6 text-allgood-primary"></i>
                                     </div>
@@ -907,10 +946,10 @@
                                         <p class="text-sm text-gray-600 leading-snug">${cleanText}</p>
                                     </div>
                                 </div>
-                                <div class="mt-4 flex space-x-2 opacity-30 pointer-events-none">
-                                    <div class="flex-1 bg-gray-200 h-2 rounded"></div>
-                                    <div class="w-1/3 bg-gray-200 h-2 rounded"></div>
-                                </div>
+                                
+                                ${choicesWrapper}
+                                ${feedbackWrapper}
+
                             </div>
                         </div>
                     </div>`;
@@ -929,44 +968,75 @@
                 else if (['users', 'users-x', 'user-plus', 'heart-off', 'camera-off', 'user-round-minus', 'user-round-x', 'thumbs-down'].includes(icon)) uiType = 'social';
                 else if (['search', 'globe', 'search-check', 'book-open-check', 'image', 'image-up'].includes(icon)) uiType = 'browser';
                 
-                // 2. GENERATE VISUAL CONTAINER
-                const visualHtml = getScenarioTemplate(uiType, data.title, icon);
-
+                // 2. GENERATE CHOICES HTML (BEFORE Template)
                 let choicesHtml = data.choices.map((choice, index) => {
-                    let btnClass = 'choice-btn';
-                    let disabled = '';
+                    let btnClass = 'w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all shadow-sm mb-2 border';
+                    // Dynamic styling based on state
                     if (isAnswered) {
-                        if (choice.score === 3) btnClass += ' choice-correct';
-                        else if (choice.score === 1) btnClass += ' choice-less-effective';
-                        else btnClass += ' choice-least-effective';
-                        if (answeredScenarioScores[scenarioIndex] !== choice.score) {
-                            disabled = 'disabled'; btnClass += ' opacity-50';
+                         // Locked State Styles
+                        if (choice.score === 3) {
+                            btnClass += ' bg-emerald-50 border-emerald-200 text-emerald-800 ring-1 ring-emerald-300'; // Correct
+                        } else if (answeredScenarioScores[scenarioIndex] === choice.score) {
+                            // Selected but wrong/sub-optimal
+                             btnClass += choice.score === 1 
+                                ? ' bg-amber-50 border-amber-200 text-amber-800 ring-1 ring-amber-300' 
+                                : ' bg-rose-50 border-rose-200 text-rose-800 ring-1 ring-rose-300';
+                        } else {
+                            // Unselected
+                            btnClass += ' bg-gray-50 border-gray-100 text-gray-400 opacity-60';
                         }
+                    } else {
+                        // Active State Styles
+                        btnClass += ' bg-white border-gray-200 text-gray-700 hover:border-allgood-primary hover:bg-orange-50 hover:text-allgood-primary cursor-pointer active:scale-[0.98]';
                     }
-                    return `<button class="w-full text-left p-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabled}><span class="font-bold mr-1 text-gray-400 text-xs uppercase tracking-wide">Option ${String.fromCharCode(65 + index)}</span><div class="mt-0.5">${sanitizeText(choice.text)}</div></button>`;
+                    
+                    const disabledAttr = isAnswered ? 'disabled' : '';
+                    
+                    return `<button class="${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabledAttr}>
+                        <div class="flex items-start">
+                            <span class="font-bold mr-2 opacity-50 text-[10px] uppercase mt-0.5">${String.fromCharCode(65 + index)}</span>
+                            <span>${sanitizeText(choice.text)}</span>
+                        </div>
+                    </button>`;
                 }).join('');
 
+                // 3. GENERATE FEEDBACK HTML (BEFORE Template)
                 let feedbackHtml = '';
                 if (isAnswered) {
                     const chosen = data.choices.find(c => c.score === answeredScenarioScores[scenarioIndex]);
-                    let fbClass = chosen.score === 3 ? 'feedback-correct' : (chosen.score === 1 ? 'feedback-less' : 'feedback-least');
-                    feedbackHtml = `<div class="feedback-box p-4 rounded-lg shadow-inner mt-4 ${fbClass}"><p class="font-bold text-xs text-gray-500 mb-1">Score: ${chosen.score}/3</p><p class="text-sm text-gray-700 leading-relaxed">${sanitizeText(chosen.feedback)}</p></div>`;
+                    
+                    // Styled to look like a system notification inside the device
+                    let bgClass = chosen.score === 3 ? 'bg-emerald-100 border-emerald-200' : (chosen.score === 1 ? 'bg-amber-100 border-amber-200' : 'bg-rose-100 border-rose-200');
+                    let textClass = chosen.score === 3 ? 'text-emerald-800' : (chosen.score === 1 ? 'text-amber-800' : 'text-rose-800');
+                    let iconName = chosen.score === 3 ? 'check-circle' : 'alert-circle';
+                    
+                    feedbackHtml = `
+                    <div class="${bgClass} border rounded-lg p-3 flex items-start gap-3 shadow-sm">
+                         <i data-lucide="${iconName}" class="w-5 h-5 ${textClass} flex-shrink-0 mt-0.5"></i>
+                         <div>
+                             <p class="text-[10px] font-bold uppercase tracking-wider ${textClass} mb-1">
+                                ${chosen.effectiveness.replace('-', ' ')}
+                             </p>
+                             <p class="text-xs ${textClass} leading-relaxed">
+                                ${sanitizeText(chosen.feedback)}
+                             </p>
+                         </div>
+                    </div>`;
                 }
 
-                // Render with new structure
+                // 4. GENERATE VISUAL CONTAINER WITH INTEGRATED CONTENT
+                const visualHtml = getScenarioTemplate(uiType, data.title, icon, choicesHtml, feedbackHtml);
+
+                // Render with new structure (Removed external choice box)
                 pageElement.innerHTML = `
                     <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
                         <h2 class="text-xl font-heading font-bold text-allgood-dark">Scenario ${scenarioIndex}</h2>
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Decide</span>
                     </section>
                     
-                    <!-- VISUAL CONTEXT CONTAINER -->
-                    ${visualHtml}
-
-                    <div class="bg-white p-6 rounded border border-gray-200 shadow-sm mb-6">
-                        <h4 class="font-bold text-base text-allgood-dark mb-4 border-b border-gray-100 pb-2">What is the most effective action?</h4>
-                        <div class="space-y-3 mb-4">${choicesHtml}</div>
-                        ${feedbackHtml}
+                    <!-- FULL INTEGRATED INTERFACE -->
+                    <div class="flex justify-center">
+                        ${visualHtml}
                     </div>`;
             }
 
