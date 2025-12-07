@@ -535,6 +535,14 @@
         /* Mentor Bar Static State - REMOVED COLLAPSE STYLES */
         #mentor-bar { transition: opacity 0.3s ease-in-out; }
 
+        /* --- MOBILE LONG PRESS FIX --- */
+        #home-button {
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            touch-action: manipulation;
+        }
+
         /* --- OPTION 3: COCKPIT DATA CHIPS STYLES --- */
         .hud-panel {
             background-color: #1f2937; /* Dark Gray bg */
@@ -2387,15 +2395,56 @@
         // Home Button Logic
         const homeBtn = document.getElementById('home-button');
         let pressTimer;
+        let isLongPress = false;
+
         if(homeBtn) {
-            homeBtn.addEventListener('mousedown', () => {
+            // Shared Start Function
+            const startPress = () => {
+                isLongPress = false;
                 pressTimer = setTimeout(() => {
+                    isLongPress = true; // Mark that we triggered the long press
                     document.getElementById('system-menu-modal').classList.remove('hidden-modal');
                     document.getElementById('system-menu-modal').classList.add('visible-modal');
-                }, 1000);
+                    if(window.sfx) window.sfx.nav();
+                }, 800); // 800ms feels snappier than 1000ms on mobile
+            };
+
+            const endPress = () => {
+                clearTimeout(pressTimer);
+            };
+
+            // Mouse Events
+            homeBtn.addEventListener('mousedown', startPress);
+            homeBtn.addEventListener('mouseup', endPress);
+            homeBtn.addEventListener('mouseleave', endPress);
+
+            // Touch Events (Mobile)
+            homeBtn.addEventListener('touchstart', (e) => {
+                startPress();
+            }, { passive: true }); // Passive allows scrolling if they miss the button slightly
+            
+            homeBtn.addEventListener('touchend', endPress);
+            homeBtn.addEventListener('touchcancel', endPress);
+
+            // CRITICAL: Prevent the native context menu (Copy/Save/Inspect)
+            homeBtn.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
             });
-            homeBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
-            homeBtn.addEventListener('click', () => window.showPage(1));
+
+            // Click Handler
+            homeBtn.addEventListener('click', (e) => {
+                // If the timer fired (isLongPress is true), ignore this click
+                if(isLongPress) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isLongPress = false; // Reset
+                } else {
+                    // Otherwise, it was a short tap -> Go Home
+                    window.showPage(1);
+                }
+            });
         }
 
         window.closeSystemMenu = () => {
