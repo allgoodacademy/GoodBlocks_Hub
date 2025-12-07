@@ -1398,8 +1398,8 @@
         };
 
         // Navigation Event Listeners
-        backBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage - 1); });
-        nextBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage + 1); });
+        if(backBtn) backBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage - 1); });
+        if(nextBtn) nextBtn.addEventListener('click', () => { sfx.nav(); window.showPage(currentPage + 1); });
         
         // --- 4. STARTUP SEQUENCE ---
         const startupScreen = document.getElementById('startup-screen');
@@ -1872,23 +1872,28 @@
         // --- 6. MENU & SYSTEM CONTROLS ---
         
         // --- FIX: ENABLE TOGGLES ---
-        document.getElementById('blueprint-toggle').addEventListener('click', () => {
+        const blueprintToggle = document.getElementById('blueprint-toggle');
+        if(blueprintToggle) blueprintToggle.addEventListener('click', () => {
             document.body.classList.toggle('blueprint-mode');
             sfx.tick();
         });
 
-        document.getElementById('fullscreen-toggle').addEventListener('click', () => {
+        const fullscreenToggle = document.getElementById('fullscreen-toggle');
+        if(fullscreenToggle) fullscreenToggle.addEventListener('click', () => {
             document.querySelector('.tablet-frame').classList.toggle('focus-mode');
             document.body.classList.toggle('is-focused');
             sfx.tick();
         });
 
         // Basic Menu Toggles
-        document.getElementById('menu-toggle').addEventListener('click', () => {
+        const menuToggle = document.getElementById('menu-toggle');
+        if(menuToggle) menuToggle.addEventListener('click', () => {
              document.getElementById('menu-modal').classList.remove('hidden-modal');
              document.getElementById('menu-modal').classList.add('visible-modal');
         });
-        document.getElementById('close-menu').addEventListener('click', () => {
+
+        const closeMenu = document.getElementById('close-menu');
+        if(closeMenu) closeMenu.addEventListener('click', () => {
              document.getElementById('menu-modal').classList.add('hidden-modal');
              document.getElementById('menu-modal').classList.remove('visible-modal');
         });
@@ -1906,14 +1911,16 @@
         // Home Button Logic
         const homeBtn = document.getElementById('home-button');
         let pressTimer;
-        homeBtn.addEventListener('mousedown', () => {
-            pressTimer = setTimeout(() => {
-                document.getElementById('system-menu-modal').classList.remove('hidden-modal');
-                document.getElementById('system-menu-modal').classList.add('visible-modal');
-            }, 1000);
-        });
-        homeBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
-        homeBtn.addEventListener('click', () => window.showPage(1));
+        if(homeBtn) {
+            homeBtn.addEventListener('mousedown', () => {
+                pressTimer = setTimeout(() => {
+                    document.getElementById('system-menu-modal').classList.remove('hidden-modal');
+                    document.getElementById('system-menu-modal').classList.add('visible-modal');
+                }, 1000);
+            });
+            homeBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
+            homeBtn.addEventListener('click', () => window.showPage(1));
+        }
 
         window.closeSystemMenu = () => {
              document.getElementById('system-menu-modal').classList.add('hidden-modal');
