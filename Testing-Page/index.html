@@ -261,6 +261,39 @@
             }
         })();
     </script>
+    
+    <script>
+        // --- 0. GEMINI API SETUP ---
+        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${window.__api_key || ""}`;
+
+        // Helper for Exponential Backoff
+        async function retryFetch(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        // If it's a 429, retry
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                            console.warn(`[API] Rate limit hit. Retrying in ${delay / 1000}s...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue; 
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    console.warn(`[API] Fetch failed. Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+    </script>
 
     <!-- Tailwind Config -->
     <script>
@@ -342,11 +375,11 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        /* Scrollbar */
-        .page::-webkit-scrollbar { width: 14px; }
-        .page::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
-        .page::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
-        .page::-webkit-scrollbar-thumb:hover { background-color: #EB8D69; }
+        /* SCROLLBAR: Move custom styles to the new Main Scroll View */
+        #main-scroll-view::-webkit-scrollbar { width: 14px; }
+        #main-scroll-view::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
+        #main-scroll-view::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
+        #main-scroll-view::-webkit-scrollbar-thumb:hover { background-color: #EB8D69; }
 
         /* Modal Styles */
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
@@ -355,8 +388,11 @@
 
         /* Layout Structure */
         .navbar-content { flex: 0 0 60px; z-index: 20; }
-        .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
+        
+        /* UPDATED .page: No internal scroll, height auto to fill wrapper */
+        .page { width: 100%; height: auto; padding: 20px; position: relative; display: none; overflow: visible; }
         .page.active { display: block; }
+        
         .footer-content { flex: 0 0 60px; z-index: 20; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
         
         #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
@@ -492,6 +528,8 @@
         /* Page 14: Signature */
         .signature-font { font-family: 'Brush Script MT', cursive; font-size: 2rem; color: #1a1a1a; }
         
+        /* Mentor Bar Static State - REMOVED COLLAPSE STYLES */
+        #mentor-bar { transition: opacity 0.3s ease-in-out; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -520,7 +558,7 @@
                 </div>
 
                 <!-- 2. Header (Navigation & Controls) -->
-                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
+                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center z-30 relative">
                     <div class="w-full px-4 flex items-center justify-between h-full">
                         <div class="flex items-center overflow-hidden">
                             <!-- HARDCODED DEFAULT: Agent Learner (Will update if auth loads different name) -->
@@ -542,665 +580,647 @@
                     </div>
                 </header>
 
-                <!-- Mentor Bar (Relocated & Themed: Key Insight) -->
-                <div id="mentor-bar" class="w-full bg-yellow-50 border-b border-yellow-200 border-l-4 border-l-allgood-primary p-3 flex items-start gap-3 transition-all duration-300 hidden">
-                    <div class="mt-0.5">
-                        <i data-lucide="lightbulb" class="w-5 h-5 text-allgood-primary"></i>
-                    </div>
-                    <div class="flex-1">
-                        <div class="text-[10px] font-bold text-allgood-primary uppercase tracking-wider mb-0.5">Key Insight</div>
-                        <p id="mentor-text" class="text-xs sm:text-sm font-medium text-gray-800 leading-snug font-body"></p>
-                    </div>
-                </div>
+                <!-- MAIN SCROLL VIEW: Updated with min-h-0 and flex-basis-0 to prevent collapse -->
+                <div id="main-scroll-view" class="flex-1 min-h-0 overflow-y-auto w-full relative bg-[#F7F7F7] flex flex-col">
 
-                <!-- 3. Login Modal (Standardized from Airport Navigator) -->
-                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
-                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
-                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
-                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
-                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
-                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
-                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. <strong>Performance data is logged in real-time</strong> to improve the GoodBlock experience. All personal data is <strong>kept confidential</strong> and <strong>never sold.</strong></p>
-                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
-                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
-                                </div>
-                            </button>
+                    <!-- Mentor Bar: Now part of the scrollable flow -->
+                    <div id="mentor-bar" class="w-full bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-start gap-4 transition-opacity duration-300 hidden shrink-0">
+                        <div class="mt-0.5 shrink-0">
+                            <i data-lucide="lightbulb" class="w-5 h-5 text-allgood-primary"></i>
                         </div>
-                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start Mission</button>
-                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
-                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 4. Menu Modal -->
-                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/60 flex justify-end modal-transition">
-                    <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
-                        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <span class="font-bold text-allgood-dark font-heading">Mission Log</span>
-                            <button id="close-menu" class="text-gray-500"><i data-lucide="x" class="w-6 h-6"></i></button>
-                        </div>
-                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body">
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold" data-page="1">1. Cover</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="2">2. The Myth</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="3">3. The Paradigm</button>
-                            <div class="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">The ACT Framework</div>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="4">4. Overview</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="5">5. Identity</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="6">6. Framework</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="7">7. Action</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="8">8. Context</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="9">9. Tone</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold text-allgood-primary" data-page="10">10. ACT Sort Drill</button>
-                            <div class="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">Application</div>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="11">11. Daily Habits</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="12">12. Crisis Scenario</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="13">13. Outcome</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-page="14">14. The Challenge</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold text-allgood-secondary" data-page="15">15. Certification</button>
+                        <div class="flex-1">
+                            <p id="mentor-text" class="text-sm font-medium text-gray-700 leading-relaxed font-body"></p>
                         </div>
                     </div>
-                </div>
 
-                <!-- 5. System Menu Modal -->
-                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
-                        <div class="mb-4">
-                            <i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i>
-                        </div>
-                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
-                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
-                        
-                        <div class="space-y-3">
-                            <button onclick="handleSystemReset()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
-                                <i data-lucide="power" class="w-4 h-4 mr-2"></i> Reset Mission
-                            </button>
-                            <button onclick="handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
-                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Exit to Dashboard
-                            </button>
-                            <button onclick="closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    <!-- --- PAGES --- -->
 
-                <!-- --- PAGES --- -->
-
-                <!-- Page 1: Cover -->
-                <div class="page active" id="page-1">
-                    <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-12">
-                        <div class="mb-6"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h1 class="text-3xl sm:text-4xl font-heading font-bold text-allgood-dark mb-8 leading-tight tracking-tight">The AI Co-Pilot:<br><span class="text-allgood-primary">GoodBlock</span></h1>
-                        
-                        <div class="w-full max-w-lg text-left mx-auto space-y-4">
-                            <!-- Accordion 1: About this module -->
-                            <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
-                                <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
-                                    <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">About this module</span>
-                                    <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="hidden accordion-content bg-gray-50 border-t border-gray-200 p-5 text-gray-600 shadow-inner text-sm font-body">
-                                    <p class="mb-4 leading-relaxed">The world of work is changing. You don't need more tools; you need a new mindset. In this session, you will learn the <strong>one skill</strong> that matters most.</p>
-                                    <div class="flex items-center text-xs font-bold text-allgood-primary uppercase tracking-wide">
-                                        <i data-lucide="clock" class="w-4 h-4 mr-2"></i> 15 Minute Mission
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Accordion 2: How to use this GoodBlock -->
-                            <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
-                                <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
-                                    <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
-                                    <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="hidden accordion-content bg-gray-50 border-t border-gray-200 p-5 text-gray-600 shadow-inner text-xs font-body">
-                                    <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
-                                        <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
-                                        <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
-                                        <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 2: The Myth -->
-                <div class="page" id="page-2">
-                    <section class="mb-4 text-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Myth vs. Reality</h2>
-                    </section>
-                    
-                    <div class="relative w-full h-[400px] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-inner group cursor-pointer" onclick="toggleMyth()">
-                        <!-- Background Split -->
-                        <div class="absolute inset-0 flex transition-transform duration-700" id="myth-slider">
-                            <!-- Left: Myth (Gray) -->
-                            <div class="w-full min-w-full h-full bg-gray-200 flex flex-col items-center justify-center p-8 text-center transition-opacity duration-500" id="myth-panel">
-                                <div class="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center mb-6">
-                                    <i data-lucide="bot" class="w-12 h-12 text-gray-500"></i>
-                                    <i data-lucide="ban" class="w-24 h-24 text-red-500/20 absolute"></i>
-                                </div>
-                                <h3 class="text-2xl font-bold text-gray-600 mb-2">"AI is a Job Killer"</h3>
-                                <p class="text-gray-500 text-sm">The fear: It replaces you.</p>
-                                <div class="mt-8 px-4 py-2 bg-white rounded-full text-xs font-bold text-gray-400 shadow-sm">Tap to Reveal Truth</div>
-                            </div>
+                    <!-- Page 1: Cover -->
+                    <div class="page active" id="page-1">
+                        <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-12">
+                            <div class="mb-6"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
+                            <h1 class="text-3xl sm:text-4xl font-heading font-bold text-allgood-dark mb-8 leading-tight tracking-tight">The AI Co-Pilot:<br><span class="text-allgood-primary">GoodBlock</span></h1>
                             
-                            <!-- Right: Reality (Color) - Hidden initially via transform -->
-                            <div class="w-full min-w-full h-full bg-gradient-to-br from-allgood-secondary to-allgood-accent flex flex-col items-center justify-center p-8 text-center text-white" id="reality-panel">
-                                <div class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 backdrop-blur-md shadow-xl animate-bounce">
-                                    <i data-lucide="zap" class="w-12 h-12 text-yellow-300"></i>
+                            <div class="w-full max-w-lg text-left mx-auto space-y-4">
+                                <!-- Accordion 1: About this module -->
+                                <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
+                                    <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
+                                        <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">About this module</span>
+                                        <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                    </button>
+                                    <div class="hidden accordion-content bg-gray-50 border-t border-gray-200 p-5 text-gray-600 shadow-inner text-sm font-body">
+                                        <p class="mb-4 leading-relaxed">The world of work is changing. You don't need more tools; you need a new mindset. In this session, you will learn the <strong>one skill</strong> that matters most.</p>
+                                        <div class="flex items-center text-xs font-bold text-allgood-primary uppercase tracking-wide">
+                                            <i data-lucide="clock" class="w-4 h-4 mr-2"></i> 15 Minute Mission
+                                        </div>
+                                    </div>
                                 </div>
-                                <h3 class="text-2xl font-bold text-white mb-2">"AI is a Task Killer"</h3>
-                                <p class="text-white/80 text-sm max-w-xs">The reality: It removes the drudgery so you can focus on strategy.</p>
+
+                                <!-- Accordion 2: How to use this GoodBlock -->
+                                <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
+                                    <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
+                                        <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
+                                        <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                    </button>
+                                    <div class="hidden accordion-content bg-gray-50 border-t border-gray-200 p-5 text-gray-600 shadow-inner text-xs font-body">
+                                        <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
+                                            <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                            <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                            <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page 2: The Myth -->
+                    <div class="page" id="page-2">
+                        <section class="mb-4 text-center">
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Myth vs. Reality</h2>
+                        </section>
+                        
+                        <div class="relative w-full h-[400px] bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-inner group cursor-pointer" onclick="toggleMyth()">
+                            <!-- Background Split -->
+                            <div class="absolute inset-0 flex transition-transform duration-700" id="myth-slider">
+                                <!-- Left: Myth (Gray) -->
+                                <div class="w-full min-w-full h-full bg-gray-200 flex flex-col items-center justify-center p-8 text-center transition-opacity duration-500" id="myth-panel">
+                                    <div class="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center mb-6">
+                                        <i data-lucide="bot" class="w-12 h-12 text-gray-500"></i>
+                                        <i data-lucide="ban" class="w-24 h-24 text-red-500/20 absolute"></i>
+                                    </div>
+                                    <h3 class="text-2xl font-bold text-gray-600 mb-2">"AI is a Job Killer"</h3>
+                                    <p class="text-gray-500 text-sm">The fear: It replaces you.</p>
+                                    <div class="mt-8 px-4 py-2 bg-white rounded-full text-xs font-bold text-gray-400 shadow-sm">Tap to Reveal Truth</div>
+                                </div>
                                 
-                                <div class="mt-8 grid grid-cols-2 gap-4 w-full max-w-xs">
-                                    <div class="bg-white/10 p-2 rounded text-center">
-                                        <div class="text-[10px] font-bold opacity-70 uppercase tracking-wide">Unskilled + AI</div>
-                                        <div class="text-sm font-bold text-red-200">Generic</div>
+                                <!-- Right: Reality (Color) - Hidden initially via transform -->
+                                <div class="w-full min-w-full h-full bg-gradient-to-br from-allgood-secondary to-allgood-accent flex flex-col items-center justify-center p-8 text-center text-white" id="reality-panel">
+                                    <div class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 backdrop-blur-md shadow-xl animate-bounce">
+                                        <i data-lucide="zap" class="w-12 h-12 text-yellow-300"></i>
                                     </div>
-                                    <div class="bg-white/20 p-2 rounded text-center border border-white/30">
-                                        <div class="text-[10px] font-bold opacity-90 uppercase tracking-wide">Skilled + AI</div>
-                                        <div class="text-sm font-bold text-green-200">Superpowered</div>
+                                    <h3 class="text-2xl font-bold text-white mb-2">"AI is a Task Killer"</h3>
+                                    <p class="text-white/80 text-sm max-w-xs">The reality: It removes the drudgery so you can focus on strategy.</p>
+                                    
+                                    <div class="mt-8 grid grid-cols-2 gap-4 w-full max-w-xs">
+                                        <div class="bg-white/10 p-2 rounded text-center">
+                                            <div class="text-[10px] font-bold opacity-70 uppercase tracking-wide">Unskilled + AI</div>
+                                            <div class="text-sm font-bold text-red-200">Generic</div>
+                                        </div>
+                                        <div class="bg-white/20 p-2 rounded text-center border border-white/30">
+                                            <div class="text-[10px] font-bold opacity-90 uppercase tracking-wide">Skilled + AI</div>
+                                            <div class="text-sm font-bold text-green-200">Superpowered</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Page 3: The Paradigm (UPGRADED) -->
-                <div class="page" id="page-3">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Cockpit View</h2></section>
-                    <p class="text-sm text-gray-600 mb-6 text-center">Stop flying solo. <strong>Tap the card</strong> to engage your co-pilot.</p>
-                    
-                    <div class="flip-card max-w-sm mx-auto h-[320px]" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                        <div class="flip-card-inner">
-                            <!-- Front: Stressed -->
-                            <div class="flip-card-front bg-gray-50 border-gray-200">
-                                <div class="absolute top-4 right-4"><i data-lucide="alert-circle" class="w-6 h-6 text-red-400"></i></div>
-                                <i data-lucide="user" class="w-20 h-20 text-gray-400 mb-6"></i>
-                                <div class="flex justify-center gap-2 mb-6">
-                                    <i data-lucide="file" class="w-6 h-6 text-gray-300 transform -rotate-12"></i>
-                                    <i data-lucide="mail" class="w-6 h-6 text-gray-300 transform rotate-12"></i>
-                                    <i data-lucide="calendar" class="w-6 h-6 text-gray-300 transform -rotate-6"></i>
-                                </div>
-                                <h3 class="text-2xl font-bold text-gray-600">Solo Pilot</h3>
-                                <p class="text-xs text-gray-400 mt-2 font-bold uppercase tracking-widest">Manual Mode</p>
-                            </div>
-                            
-                            <!-- Back: Relaxed -->
-                            <div class="flip-card-back bg-gradient-to-br from-allgood-secondary to-allgood-accent">
-                                <div class="absolute top-4 right-4"><i data-lucide="check-circle" class="w-6 h-6 text-green-300"></i></div>
-                                <div class="flex items-center justify-center space-x-2 mb-6">
-                                    <i data-lucide="coffee" class="w-16 h-16 text-white"></i>
-                                    <div class="h-px w-8 bg-white/30"></div>
-                                    <i data-lucide="bot" class="w-12 h-12 text-white/80"></i>
-                                </div>
-                                <h3 class="text-2xl font-bold text-white">Co-Pilot Commander</h3>
-                                <p class="text-sm text-white/90 mt-4 px-4 leading-relaxed">You set the course.<br>AI handles the turbulence.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 4: WIIFM (UPGRADED) -->
-                <div class="page" id="page-4">
-                    <section class="mb-4 text-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Power Trio</h2>
-                        <p class="text-sm text-gray-500 mt-1">Why learn this? Tap to unlock benefits.</p>
-                    </section>
-
-                    <!-- UPDATED CONTAINER: Reduced height to min-h-[350px] -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[350px]">
-                        <!-- Card 1: Time -->
-                        <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner h-full">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
-                                    <div class="bg-blue-50 p-4 rounded-full mb-4 flex items-center justify-center">
-                                        <i data-lucide="clock" class="w-10 h-10 text-blue-600"></i>
+                    <!-- Page 3: The Paradigm (UPGRADED) -->
+                    <div class="page" id="page-3">
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Cockpit View</h2></section>
+                        <p class="text-sm text-gray-600 mb-6 text-center">Stop flying solo. <strong>Tap the card</strong> to engage your co-pilot.</p>
+                        
+                        <div class="flip-card max-w-sm mx-auto h-[320px]" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                            <div class="flip-card-inner">
+                                <!-- Front: Stressed -->
+                                <div class="flip-card-front bg-gray-50 border-gray-200">
+                                    <div class="absolute top-4 right-4"><i data-lucide="alert-circle" class="w-6 h-6 text-red-400"></i></div>
+                                    <i data-lucide="user" class="w-20 h-20 text-gray-400 mb-6"></i>
+                                    <div class="flex justify-center gap-2 mb-6">
+                                        <i data-lucide="file" class="w-6 h-6 text-gray-300 transform -rotate-12"></i>
+                                        <i data-lucide="mail" class="w-6 h-6 text-gray-300 transform rotate-12"></i>
+                                        <i data-lucide="calendar" class="w-6 h-6 text-gray-300 transform -rotate-6"></i>
                                     </div>
-                                    <h3 class="font-bold text-allgood-dark text-xl">Time</h3>
+                                    <h3 class="text-2xl font-bold text-gray-600">Solo Pilot</h3>
+                                    <p class="text-xs text-gray-400 mt-2 font-bold uppercase tracking-widest">Manual Mode</p>
                                 </div>
-                                <div class="flip-card-back bg-blue-600 h-full flex flex-col items-center justify-center p-6 text-center">
-                                    <h3 class="font-bold mb-2 text-xl text-white">Reclaim It.</h3>
-                                    <p class="text-xs leading-relaxed text-white/90">Drafting emails? Summarizing notes? Stop doing "robotic" work manually. Automate the drudgery.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 2: Creativity -->
-                        <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner h-full">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
-                                    <div class="bg-orange-50 p-4 rounded-full mb-4 flex items-center justify-center">
-                                        <i data-lucide="sparkles" class="w-10 h-10 text-orange-500"></i>
+                                
+                                <!-- Back: Relaxed -->
+                                <div class="flip-card-back bg-gradient-to-br from-allgood-secondary to-allgood-accent">
+                                    <div class="absolute top-4 right-4"><i data-lucide="check-circle" class="w-6 h-6 text-green-300"></i></div>
+                                    <div class="flex items-center justify-center space-x-2 mb-6">
+                                        <i data-lucide="coffee" class="w-16 h-16 text-white"></i>
+                                        <div class="h-px w-8 bg-white/30"></div>
+                                        <i data-lucide="bot" class="w-12 h-12 text-white/80"></i>
                                     </div>
-                                    <h3 class="font-bold text-allgood-dark text-xl">Creativity</h3>
-                                </div>
-                                <div class="flip-card-back bg-orange-500 h-full flex flex-col items-center justify-center p-6 text-center">
-                                    <h3 class="font-bold mb-2 text-xl text-white">Ignite It.</h3>
-                                    <p class="text-xs leading-relaxed text-white/90">Never start from a blank page. Use AI to brainstorm 10 ideas in 10 seconds. Spark your ideas, don't replace them.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 3: Confidence -->
-                        <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner h-full">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
-                                    <div class="bg-green-50 p-4 rounded-full mb-4 flex items-center justify-center">
-                                        <i data-lucide="shield-check" class="w-10 h-10 text-green-600"></i>
-                                    </div>
-                                    <h3 class="font-bold text-allgood-dark text-xl">Confidence</h3>
-                                </div>
-                                <div class="flip-card-back bg-green-600 h-full flex flex-col items-center justify-center p-6 text-center">
-                                    <h3 class="font-bold mb-2 text-xl text-white">Boost It.</h3>
-                                    <p class="text-xs leading-relaxed text-white/90">"Does this sound right?" Use AI as your editor-in-chief before you hit send. Communicate with precision.</p>
+                                    <h3 class="text-2xl font-bold text-white">Co-Pilot Commander</h3>
+                                    <p class="text-sm text-white/90 mt-4 px-4 leading-relaxed">You set the course.<br>AI handles the turbulence.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Page 5: Role Selector (UPGRADED) -->
-                <div class="page" id="page-5">
-                    <section class="mb-4 text-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Choose Your Mindset</h2>
-                        <p class="text-sm text-gray-500 mt-1">How will you deploy your Co-Pilot today?</p>
-                    </section>
+                    <!-- Page 4: WIIFM (UPGRADED) -->
+                    <div class="page" id="page-4">
+                        <section class="mb-4 text-center">
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">The Power Trio</h2>
+                            <p class="text-sm text-gray-500 mt-1">Why learn this? Tap to unlock benefits.</p>
+                        </section>
 
-                    <div class="space-y-4 max-w-md mx-auto">
-                        <!-- Option B1: The Optimizer -->
-                        <div class="role-card group relative bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:-translate-y-1" onclick="selectRole('optimizer', this)">
-                            <!-- Watermark Icon -->
-                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <i data-lucide="zap" class="w-32 h-32 text-blue-600"></i>
-                            </div>
-                            
-                            <div class="flex items-start relative z-10">
-                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mr-4 shadow-sm shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                    <i data-lucide="zap" class="w-6 h-6"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex justify-between items-center">
-                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-blue-700 transition-colors">The Optimizer</h3>
-                                        <i data-lucide="check-circle" class="w-5 h-5 text-blue-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                        <!-- UPDATED CONTAINER: Reduced height to min-h-[350px] -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[350px]">
+                            <!-- Card 1: Time -->
+                            <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                                <div class="flip-card-inner h-full">
+                                    <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                        <div class="bg-blue-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                            <i data-lucide="clock" class="w-10 h-10 text-blue-600"></i>
+                                        </div>
+                                        <h3 class="font-bold text-allgood-dark text-xl">Time</h3>
                                     </div>
-                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
-                                        <strong>Goal: Efficiency.</strong> You want to automate the boring stuff. Speed up drafts, summaries, and routine emails.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Option B2: The Innovator -->
-                        <div class="role-card group relative bg-gradient-to-br from-white to-orange-50 p-5 rounded-xl shadow-sm border border-orange-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-orange-300 hover:-translate-y-1" onclick="selectRole('innovator', this)">
-                            <!-- Watermark Icon -->
-                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <i data-lucide="sparkles" class="w-32 h-32 text-orange-500"></i>
-                            </div>
-                            
-                            <div class="flex items-start relative z-10">
-                                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500 mr-4 shadow-sm shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                                    <i data-lucide="lightbulb" class="w-6 h-6"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex justify-between items-center">
-                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-orange-600 transition-colors">The Innovator</h3>
-                                        <i data-lucide="check-circle" class="w-5 h-5 text-orange-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                    <div class="flip-card-back bg-blue-600 h-full flex flex-col items-center justify-center p-6 text-center">
+                                        <h3 class="font-bold mb-2 text-xl text-white">Reclaim It.</h3>
+                                        <p class="text-xs leading-relaxed text-white/90">Drafting emails? Summarizing notes? Stop doing "robotic" work manually. Automate the drudgery.</p>
                                     </div>
-                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
-                                        <strong>Goal: Growth.</strong> You want to break through creative blocks. Brainstorm ideas, rephrase content, and explore new angles.
-                                    </p>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Option B3: The Strategist -->
-                        <div class="role-card group relative bg-gradient-to-br from-white to-green-50 p-5 rounded-xl shadow-sm border border-green-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-green-300 hover:-translate-y-1" onclick="selectRole('strategist', this)">
-                            <!-- Watermark Icon -->
-                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <i data-lucide="map" class="w-32 h-32 text-green-600"></i>
-                            </div>
-                            
-                            <div class="flex items-start relative z-10">
-                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mr-4 shadow-sm shrink-0 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                                    <i data-lucide="compass" class="w-6 h-6"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex justify-between items-center">
-                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-green-700 transition-colors">The Strategist</h3>
-                                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                            <!-- Card 2: Creativity -->
+                            <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                                <div class="flip-card-inner h-full">
+                                    <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                        <div class="bg-orange-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                            <i data-lucide="sparkles" class="w-10 h-10 text-orange-500"></i>
+                                        </div>
+                                        <h3 class="font-bold text-allgood-dark text-xl">Creativity</h3>
                                     </div>
-                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
-                                        <strong>Goal: Clarity.</strong> You want better decisions. Synthesize complex reports, analyze data, and plan next steps.
-                                    </p>
+                                    <div class="flip-card-back bg-orange-500 h-full flex flex-col items-center justify-center p-6 text-center">
+                                        <h3 class="font-bold mb-2 text-xl text-white">Ignite It.</h3>
+                                        <p class="text-xs leading-relaxed text-white/90">Never start from a blank page. Use AI to brainstorm 10 ideas in 10 seconds. Spark your ideas, don't replace them.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 3: Confidence -->
+                            <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
+                                <div class="flip-card-inner h-full">
+                                    <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                        <div class="bg-green-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                            <i data-lucide="shield-check" class="w-10 h-10 text-green-600"></i>
+                                        </div>
+                                        <h3 class="font-bold text-allgood-dark text-xl">Confidence</h3>
+                                    </div>
+                                    <div class="flip-card-back bg-green-600 h-full flex flex-col items-center justify-center p-6 text-center">
+                                        <h3 class="font-bold mb-2 text-xl text-white">Boost It.</h3>
+                                        <p class="text-xs leading-relaxed text-white/90">"Does this sound right?" Use AI as your editor-in-chief before you hit send. Communicate with precision.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div id="role-confirm" class="mt-8 text-center opacity-0 transition-opacity pointer-events-none transform translate-y-4 duration-500">
-                        <button class="bg-allgood-dark text-white px-10 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-gray-800 flex items-center mx-auto" onclick="window.showPage(5)">
-                            Confirm Mindset <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Page 6: ACT Framework (UPGRADED PYRAMID) -->
-                <div class="page" id="page-6">
-                    <section class="mb-2 text-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">The ACT Pyramid</h2>
-                        <p class="text-xs text-gray-500">Build your prompt from the ground up.</p>
-                    </section>
+                    <!-- Page 5: Role Selector (UPGRADED) -->
+                    <div class="page" id="page-5">
+                        <section class="mb-4 text-center">
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Choose Your Mindset</h2>
+                            <p class="text-sm text-gray-500 mt-1">How will you deploy your Co-Pilot today?</p>
+                        </section>
 
-                    <div class="pyramid-container">
-                        <!-- Top: Tone -->
-                        <div class="pyramid-block block-top" onclick="togglePyramid(this, 'Tone')">
-                            <span>TONE</span>
-                            <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
-                                "The Polish"<br>Professional? Witty? Strict?
+                        <div class="space-y-4 max-w-md mx-auto">
+                            <!-- Option B1: The Optimizer -->
+                            <div class="role-card group relative bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:-translate-y-1" onclick="selectRole('optimizer', this)">
+                                <!-- Watermark Icon -->
+                                <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="zap" class="w-32 h-32 text-blue-600"></i>
+                                </div>
+                                
+                                <div class="flex items-start relative z-10">
+                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mr-4 shadow-sm shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                        <i data-lucide="zap" class="w-6 h-6"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="font-bold text-allgood-dark text-lg group-hover:text-blue-700 transition-colors">The Optimizer</h3>
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-blue-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                        </div>
+                                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                            <strong>Goal: Efficiency.</strong> You want to automate the boring stuff. Speed up drafts, summaries, and routine emails.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option B2: The Innovator -->
+                            <div class="role-card group relative bg-gradient-to-br from-white to-orange-50 p-5 rounded-xl shadow-sm border border-orange-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-orange-300 hover:-translate-y-1" onclick="selectRole('innovator', this)">
+                                <!-- Watermark Icon -->
+                                <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="sparkles" class="w-32 h-32 text-orange-500"></i>
+                                </div>
+                                
+                                <div class="flex items-start relative z-10">
+                                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500 mr-4 shadow-sm shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                        <i data-lucide="lightbulb" class="w-6 h-6"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="font-bold text-allgood-dark text-lg group-hover:text-orange-600 transition-colors">The Innovator</h3>
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-orange-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                        </div>
+                                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                            <strong>Goal: Growth.</strong> You want to break through creative blocks. Brainstorm ideas, rephrase content, and explore new angles.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option B3: The Strategist -->
+                            <div class="role-card group relative bg-gradient-to-br from-white to-green-50 p-5 rounded-xl shadow-sm border border-green-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-green-300 hover:-translate-y-1" onclick="selectRole('strategist', this)">
+                                <!-- Watermark Icon -->
+                                <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="map" class="w-32 h-32 text-green-600"></i>
+                                </div>
+                                
+                                <div class="flex items-start relative z-10">
+                                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mr-4 shadow-sm shrink-0 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                        <i data-lucide="compass" class="w-6 h-6"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="font-bold text-allgood-dark text-lg group-hover:text-green-700 transition-colors">The Strategist</h3>
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-600 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                        </div>
+                                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                            <strong>Goal: Clarity.</strong> You want better decisions. Synthesize complex reports, analyze data, and plan next steps.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <!-- Mid: Context -->
-                        <div class="pyramid-block block-mid" onclick="togglePyramid(this, 'Context')">
-                            <span>CONTEXT</span>
-                            <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
-                                "The Structure"<br>Audience? Background? Format?
-                            </div>
-                        </div>
-                        <!-- Base: Action -->
-                        <div class="pyramid-block block-base" onclick="togglePyramid(this, 'Action')">
-                            <span>ACTION</span>
-                            <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
-                                "The Foundation"<br>Draft. Summarize. Analyze.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="pyramid-detail" class="mt-6 text-center text-sm text-gray-600 h-12 italic">
-                        Tap a block to inspect the layer.
-                    </div>
-                </div>
-
-                <!-- Page 7: Action Drill (UPGRADED) -->
-                <div class="page" id="page-7">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Magic Wand</h2></section>
-                    
-                    <div class="relative max-w-md mx-auto">
-                        <!-- Weak State -->
-                        <div id="action-weak" class="bg-gray-100 p-8 rounded-lg border-2 border-dashed border-gray-300 text-center transition-all duration-500">
-                            <p class="text-xs uppercase font-bold text-gray-400 mb-4">Weak Input</p>
-                            <h3 class="text-2xl font-mono text-gray-500 mb-6">"Write something."</h3>
-                            <button onclick="activateMagicWand()" class="bg-white border border-gray-300 text-gray-600 px-6 py-2 rounded-full text-sm font-bold shadow-sm hover:bg-gray-50 flex items-center mx-auto">
-                                <i data-lucide="wand-2" class="w-4 h-4 mr-2"></i> Upgrade
+                        
+                        <div id="role-confirm" class="mt-8 text-center opacity-0 transition-opacity pointer-events-none transform translate-y-4 duration-500">
+                            <button class="bg-allgood-dark text-white px-10 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-gray-800 flex items-center mx-auto" onclick="window.showPage(6)">
+                                Confirm Mindset <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
                             </button>
                         </div>
+                    </div>
 
-                        <!-- Strong State (Hidden) -->
-                        <div id="action-strong" class="absolute inset-0 bg-white p-8 rounded-lg border-2 border-allgood-primary shadow-xl text-center opacity-0 pointer-events-none transform scale-95 transition-all duration-700 flex flex-col items-center justify-center shimmer-card">
-                            <div class="absolute top-2 right-2"><i data-lucide="sparkles" class="w-5 h-5 text-yellow-400 animate-pulse"></i></div>
-                            <p class="text-xs uppercase font-bold text-allgood-primary mb-2">Strong Output</p>
-                            <h3 class="text-xl font-bold text-allgood-dark">"Draft a detailed proposal..."</h3>
-                            <div class="mt-4 pt-4 border-t border-gray-100 w-full">
-                                <p class="text-xs text-gray-500 italic" id="dynamic-p7">Dynamic context loading...</p>
+                    <!-- Page 6: ACT Framework (UPGRADED PYRAMID) -->
+                    <div class="page" id="page-6">
+                        <section class="mb-2 text-center">
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">The ACT Pyramid</h2>
+                            <p class="text-xs text-gray-500">Build your prompt from the ground up.</p>
+                        </section>
+
+                        <div class="pyramid-container">
+                            <!-- Top: Tone -->
+                            <div class="pyramid-block block-top" onclick="togglePyramid(this, 'Tone')">
+                                <span>TONE</span>
+                                <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
+                                    "The Polish"<br>Professional? Witty? Strict?
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 8: Context Stack (UPGRADED) -->
-                <div class="page" id="page-8">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Recipe Builder</h2></section>
-                    <p class="text-sm text-gray-600 mb-8 text-center">Add ingredients to the prompt processor.</p>
-                    
-                    <div class="flex flex-col items-center space-y-4" id="recipe-container">
-                        <!-- Ingredients -->
-                        <div class="flex justify-center space-x-6 w-full">
-                            <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)">
-                                <i data-lucide="user" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                <span class="text-[10px] font-bold text-gray-500">ROLE</span>
+                            <!-- Mid: Context -->
+                            <div class="pyramid-block block-mid" onclick="togglePyramid(this, 'Context')">
+                                <span>CONTEXT</span>
+                                <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
+                                    "The Structure"<br>Audience? Background? Format?
+                                </div>
                             </div>
-                            <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)">
-                                <i data-lucide="file-text" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                <span class="text-[10px] font-bold text-gray-500">TASK</span>
-                            </div>
-                            <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)">
-                                <i data-lucide="target" class="w-8 h-8 text-gray-400 mb-2"></i>
-                                <span class="text-[10px] font-bold text-gray-500">GOAL</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Flow Lines -->
-                        <div class="flex justify-center space-x-16 w-full h-8 overflow-hidden">
-                            <div class="w-px h-full bg-gray-300 dashed-line"></div>
-                            <div class="w-px h-full bg-gray-300 dashed-line"></div>
-                            <div class="w-px h-full bg-gray-300 dashed-line"></div>
-                        </div>
-
-                        <!-- Processor -->
-                        <div class="w-full max-w-xs bg-allgood-dark text-white p-4 rounded-lg shadow-lg text-center relative overflow-hidden">
-                            <div class="absolute inset-0 bg-allgood-primary opacity-0 transition-opacity duration-500" id="processor-glow"></div>
-                            <h3 class="font-bold relative z-10">PROMPT ENGINE</h3>
-                            <p class="text-xs text-gray-400 mt-1 relative z-10" id="recipe-status">Waiting for ingredients...</p>
-                        </div>
-                        
-                        <div class="dynamic-text-box fade-in-up w-full mt-4">
-                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p8">Context:</h4>
-                            <p class="text-sm text-gray-800 italic" id="dynamic-p8">...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 9: Tone Dial (UPGRADED) -->
-                <div class="page" id="page-9">
-                    <section class="mb-4 text-center"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Equalizer</h2></section>
-                    
-                    <div class="flex flex-col items-center">
-                        <!-- DIAL CONTAINER: Now houses the emoji inside -->
-                        <div class="dial-container mb-8 scale-75 relative" id="tone-dial">
-                            <!-- The rotating part -->
-                            <div class="dial-knob" style="transform: rotate(0deg);">
-                                <div class="dial-marker"></div>
-                            </div>
-                            
-                            <!-- The Emoji (Centered Absolutely) -->
-                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <div class="text-6xl transition-all duration-300 transform drop-shadow-md" id="tone-emoji">😐</div>
-                            </div>
-                        </div>
-                        
-                        <!-- EXPANDED BUTTONS: 2 Rows of 3 -->
-                        <div class="grid grid-cols-3 gap-2 mb-6 w-full max-w-sm">
-                            <button onclick="rotateDial(-70, 'Witty')" class="px-3 py-2 bg-purple-50 text-purple-800 rounded text-[10px] font-bold border border-purple-200 hover:bg-purple-100">Witty</button>
-                            <button onclick="rotateDial(-35, 'Option A')" class="px-3 py-2 bg-blue-50 text-blue-800 rounded text-[10px] font-bold border border-blue-200 hover:bg-blue-100">Professional</button>
-                            <button onclick="rotateDial(-15, 'Direct')" class="px-3 py-2 bg-red-50 text-red-800 rounded text-[10px] font-bold border border-red-200 hover:bg-red-100">Direct</button>
-                            
-                            <button onclick="rotateDial(15, 'Neutral')" class="px-3 py-2 bg-gray-50 text-gray-800 rounded text-[10px] font-bold border border-gray-200 hover:bg-gray-100">Neutral</button>
-                            <button onclick="rotateDial(35, 'Option B')" class="px-3 py-2 bg-orange-50 text-orange-800 rounded text-[10px] font-bold border border-orange-200 hover:bg-orange-100">Empathetic</button>
-                            <button onclick="rotateDial(70, 'Socratic')" class="px-3 py-2 bg-teal-50 text-teal-800 rounded text-[10px] font-bold border border-teal-200 hover:bg-teal-100">Socratic</button>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 w-full shadow-sm" id="tone-box">
-                            <p id="tone-output" class="text-lg font-serif italic text-gray-600">"Select a tone to adjust the frequency."</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 10: ACT Sort Drill (UPGRADED) -->
-                <div class="page" id="page-10">
-                    <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">The Sort Buckets</h2></section>
-                    
-                    <div class="grid grid-cols-3 gap-3 mb-6">
-                        <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-allgood-primary min-h-[120px] shadow-inner text-center" data-cat="A">
-                            <i data-lucide="play" class="w-6 h-6 mx-auto text-allgood-primary mb-2"></i>
-                            <span class="text-xs font-bold text-gray-500">ACTION</span>
-                        </div>
-                        <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-gray-500 min-h-[120px] shadow-inner text-center" data-cat="C">
-                            <i data-lucide="map" class="w-6 h-6 mx-auto text-gray-500 mb-2"></i>
-                            <span class="text-xs font-bold text-gray-500">CONTEXT</span>
-                        </div>
-                        <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-allgood-secondary min-h-[120px] shadow-inner text-center" data-cat="T">
-                            <i data-lucide="music" class="w-6 h-6 mx-auto text-allgood-secondary mb-2"></i>
-                            <span class="text-xs font-bold text-gray-500">TONE</span>
-                        </div>
-                    </div>
-
-                    <div id="act-draggables" class="flex flex-wrap gap-3 justify-center">
-                        <!-- Puzzle Piece Style -->
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="A">Summarize</div>
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="C">For the CEO</div>
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="T">Witty</div>
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="A">Draft Email</div>
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="C">Using this PDF</div>
-                        <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="T">Authoritative</div>
-                    </div>
-                    
-                    <div id="sort-feedback" class="mt-4 text-center hidden animate-bounce text-green-600 font-bold">
-                        <i data-lucide="check-circle" class="inline w-5 h-5 mr-1"></i> All Sorted!
-                    </div>
-                </div>
-
-                <!-- Page 11: Habits (UPGRADED) -->
-                <div class="page" id="page-11">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Daily Timeline</h2></section>
-                    
-                    <div class="timeline-container">
-                        <!-- Morning -->
-                        <div class="timeline-item" onclick="activateTimeline(this)">
-                            <div class="timeline-dot"></div>
-                            <h3 class="text-lg font-bold text-allgood-dark">Morning: The Draft</h3>
-                            <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
-                                <i data-lucide="coffee" class="w-4 h-4 mr-1"></i> 8:00 AM
-                            </div>
-                            <p class="text-sm text-gray-600">"Draft a response to this angry email." Don't start with a blank page.</p>
-                        </div>
-
-                        <!-- Noon -->
-                        <div class="timeline-item" onclick="activateTimeline(this)">
-                            <div class="timeline-dot"></div>
-                            <h3 class="text-lg font-bold text-allgood-dark">Noon: The Summary</h3>
-                            <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
-                                <i data-lucide="file-text" class="w-4 h-4 mr-1"></i> 12:30 PM
-                            </div>
-                            <p class="text-sm text-gray-600">"Summarize this meeting transcript." Catch up in seconds, not hours.</p>
-                        </div>
-
-                        <!-- Afternoon -->
-                        <div class="timeline-item" onclick="activateTimeline(this)">
-                            <div class="timeline-dot"></div>
-                            <h3 class="text-lg font-bold text-allgood-dark">Afternoon: The Spark</h3>
-                            <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
-                                <i data-lucide="lightbulb" class="w-4 h-4 mr-1"></i> 3:45 PM
-                            </div>
-                            <p class="text-sm text-gray-600">"Give me 10 ideas for..." Break the afternoon slump.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 12: Crisis (UPGRADED) -->
-                <div class="page" id="page-12">
-                    <div class="alert-bg absolute inset-0 -z-10 rounded-lg opacity-50"></div>
-                    <section class="mb-4 text-center relative z-10">
-                        <div class="inline-block p-3 bg-red-100 rounded-full mb-2 animate-ping-slow">
-                            <i data-lucide="siren" class="w-8 h-8 text-red-600"></i>
-                    <!-- Decision Options -->
-                    <div class="space-y-3">
-                        <h3 class="font-bold text-allgood-dark text-lg mb-2">What is your move?</h3>
-                        
-                        <!-- Option A -->
-                        <button onclick="checkScenario('A')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
-                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">A.</span>
-                            <span class="text-sm text-gray-600">Read it fast. (Speed Read)</span>
-                        </button>
-                        
-                        <!-- Option B -->
-                        <button onclick="checkScenario('B')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
-                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">B.</span>
-                            <span class="text-sm text-gray-600">Decline the task. (Not enough time)</span>
-                        </button>
-                        
-                        <!-- Option C (Fixed to match A & B exactly) -->
-                        <button onclick="checkScenario('C')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
-                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">C.</span>
-                            <span class="text-sm text-gray-600">ACT Prompt: "Summarize (A) this report (C) for key risks (T)."</span>
-                        </button>
-                    </div>
-                    
-                    <div id="scenario-feedback" class="mt-4 text-sm font-bold text-center h-6"></div>
-                    </div>
-                </div>
-
-                <!-- Page 13: Outcome (UPGRADED) -->
-                <div class="page" id="page-13">
-                    <div class="flex flex-col items-center justify-center h-full text-center">
-                        <div class="relative mb-8">
-                            <svg class="w-32 h-32 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path class="checkmark-path" d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        
-                        <h2 class="text-4xl font-heading font-bold text-allgood-dark mb-2">Mission Success</h2>
-                        <div class="h-1 w-20 bg-allgood-primary mx-auto mb-6 rounded-full"></div>
-                        
-                        <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm max-w-sm mx-auto transform translate-y-4 animate-[fadeInUp_1s_ease-out_forwards]">
-                            <p class="text-gray-600 italic font-serif text-lg">"AI didn't replace you.<br>It just made you look like a genius."</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 14: Challenge (UPGRADED) -->
-                <div class="page" id="page-14">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Contract</h2></section>
-                    
-                    <div class="bg-yellow-50 p-8 rounded shadow-lg border border-yellow-200 relative max-w-sm mx-auto rotate-1 hover:rotate-0 transition-transform duration-500">
-                        <div class="absolute top-4 right-4 text-yellow-800/20"><i data-lucide="file-signature" class="w-24 h-24"></i></div>
-                        
-                        <h3 class="font-heading font-bold text-xl mb-4 text-allgood-dark uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Mission Dossier</h3>
-                        <p class="text-sm text-gray-800 mb-6 leading-relaxed relative z-10">
-                            I, the undersigned, hereby agree to delegate <strong>ONE (1)</strong> mundane task to my AI Co-Pilot within the next 24 hours.
-                        </p>
-                        
-                        <div class="mt-8 border-b-2 border-black w-full relative h-12 cursor-pointer" onclick="signContract(this)">
-                            <span class="absolute bottom-1 left-0 text-xs text-gray-500 uppercase">x Sign Here</span>
-                            <div class="signature-font absolute bottom-2 left-10 opacity-0 transition-opacity duration-1000 text-allgood-primary transform -rotate-3" id="signature-text">Agent Learner</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Page 15: Certification (UPGRADED) -->
-                <div class="page" id="page-15">
-                    <div class="flex flex-col items-center justify-center h-full text-center">
-                        <div class="relative group cursor-pointer" onclick="downloadBadge()">
-                            <!-- Badge Preview with Shimmer -->
-                            <div class="w-48 h-48 bg-white rounded-full border-4 border-allgood-secondary flex items-center justify-center shadow-2xl relative overflow-hidden shimmer-card">
-                                <i data-lucide="award" class="w-24 h-24 text-allgood-primary"></i>
-                                <div class="absolute inset-0 bg-white/50 backdrop-blur-sm group-hover:backdrop-blur-none transition-all duration-700 flex items-center justify-center">
-                                    <span class="text-xs font-bold uppercase tracking-widest text-allgood-dark bg-white/80 px-2 py-1 rounded">Reveal</span>
+                            <!-- Base: Action -->
+                            <div class="pyramid-block block-base" onclick="togglePyramid(this, 'Action')">
+                                <span>ACTION</span>
+                                <div class="hidden text-xs font-normal mt-2 p-2 bg-white/20 rounded">
+                                    "The Foundation"<br>Draft. Summarize. Analyze.
                                 </div>
                             </div>
                         </div>
                         
-                        <h2 class="text-3xl font-heading font-bold text-allgood-dark mt-8 mb-2">Certified Co-Pilot</h2>
-                        <p class="text-sm text-gray-600 mb-8">You are ready for the future of work.</p>
-                        
-                        <button onclick="downloadBadge()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-8 py-4 rounded-full font-bold shadow-lg flex items-center transition-transform hover:scale-105">
-                            <i data-lucide="download" class="w-5 h-5 mr-2"></i> Issue Badge
-                        </button>
+                        <div id="pyramid-detail" class="mt-6 text-center text-sm text-gray-600 h-12 italic">
+                            Tap a block to inspect the layer.
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="dynamic-text-box fade-in-up mt-6">
+                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p6">Why this matters:</h4>
+                            <p class="text-sm text-gray-800 italic" id="dynamic-p6">Select a mindset on Page 5 to see your specific context.</p>
+                        </div>
                     </div>
-                </div>
+
+                    <!-- Page 7: Action Drill (UPGRADED) -->
+                    <div class="page" id="page-7">
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Magic Wand</h2></section>
+                        
+                        <div class="relative max-w-md mx-auto mb-6">
+                            <!-- Weak State -->
+                            <div id="action-weak" class="bg-gray-100 p-8 rounded-lg border-2 border-dashed border-gray-300 text-center transition-all duration-500">
+                                <p class="text-xs uppercase font-bold text-gray-400 mb-4">Weak Input</p>
+                                <h3 class="text-2xl font-mono text-gray-500 mb-6">"Write something."</h3>
+                                <button onclick="activateMagicWand()" class="bg-white border border-gray-300 text-gray-600 px-6 py-2 rounded-full text-sm font-bold shadow-sm hover:bg-gray-50 flex items-center mx-auto">
+                                    <i data-lucide="wand-2" class="w-4 h-4 mr-2"></i> Upgrade
+                                </button>
+                            </div>
+
+                            <!-- Strong State (Hidden) -->
+                            <div id="action-strong" class="absolute inset-0 bg-white p-8 rounded-lg border-2 border-allgood-primary shadow-xl text-center opacity-0 pointer-events-none transform scale-95 transition-all duration-700 flex flex-col items-center justify-center shimmer-card">
+                                <div class="absolute top-2 right-2"><i data-lucide="sparkles" class="w-5 h-5 text-yellow-400 animate-pulse"></i></div>
+                                <p class="text-xs uppercase font-bold text-allgood-primary mb-2">Strong Output</p>
+                                <h3 class="text-xl font-bold text-allgood-dark" id="strong-prompt-text">"Draft a detailed proposal..."</h3>
+                                <div class="mt-4 pt-4 border-t border-gray-100 w-full">
+                                    <p class="text-xs text-gray-500 italic" id="dynamic-p7-status">Dynamic context loading...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="dynamic-text-box fade-in-up">
+                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p7">Why this matters:</h4>
+                            <p class="text-sm text-gray-800 italic" id="dynamic-p7">Select a mindset on Page 5 to see your specific context.</p>
+                        </div>
+                    </div>
+
+                    <!-- Page 8: Context Stack (UPGRADED) -->
+                    <div class="page" id="page-8">
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Recipe Builder</h2></section>
+                        <p class="text-sm text-gray-600 mb-8 text-center">Add ingredients to the prompt processor.</p>
+                        
+                        <div class="flex flex-col items-center space-y-4" id="recipe-container">
+                            <!-- Ingredients -->
+                            <div class="flex justify-center space-x-6 w-full">
+                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Role">
+                                    <i data-lucide="user" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                    <span class="text-[10px] font-bold text-gray-500">ROLE</span>
+                                </div>
+                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Task">
+                                    <i data-lucide="file-text" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                    <span class="text-[10px] font-bold text-gray-500">TASK</span>
+                                </div>
+                                <div class="ingredient-circle flex flex-col items-center p-2 rounded-lg border border-gray-200 bg-white w-20 h-24 justify-center" onclick="addIngredient(this)" data-input="Goal">
+                                    <i data-lucide="target" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                    <span class="text-[10px] font-bold text-gray-500">GOAL</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Flow Lines -->
+                            <div class="flex justify-center space-x-16 w-full h-8 overflow-hidden">
+                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
+                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
+                                <div class="w-px h-full bg-gray-300 dashed-line"></div>
+                            </div>
+
+                            <!-- Processor -->
+                            <div class="w-full max-w-xs bg-allgood-dark text-white p-4 rounded-lg shadow-lg text-center relative overflow-hidden">
+                                <div class="absolute inset-0 bg-allgood-primary opacity-0 transition-opacity duration-500" id="processor-glow"></div>
+                                <h3 class="font-bold relative z-10">PROMPT ENGINE</h3>
+                                <p class="text-xs text-gray-400 mt-1 relative z-10" id="recipe-status">Waiting for ingredients...</p>
+                            </div>
+                            
+                            <!-- NEW GENERATE BUTTON -->
+                            <button id="generate-output-btn" onclick="generatePromptOutput()" disabled class="mt-4 bg-allgood-secondary text-white px-8 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-allgood-accent flex items-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                                ✨ Generate Output
+                            </button>
+
+                            <div class="dynamic-text-box fade-in-up w-full mt-4">
+                                <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p8">Context:</h4>
+                                <p class="text-sm text-gray-800 italic" id="dynamic-p8">...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- NEW LLM OUTPUT AREA -->
+                        <div id="llm-output-p8" class="mt-8 p-4 bg-white border border-gray-200 rounded-lg shadow-inner hidden">
+                            <h4 class="text-sm font-bold text-allgood-primary uppercase mb-2">Generated Output:</h4>
+                            <div id="llm-result" class="text-sm text-gray-700 whitespace-pre-wrap min-h-[50px] italic"></div>
+                            <div id="llm-sources" class="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500 hidden"></div>
+                        </div>
+                    </div>
+
+                    <!-- Page 9: Tone Dial (UPGRADED) -->
+                    <div class="page" id="page-9">
+                        <section class="mb-4 text-center"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Equalizer</h2></section>
+                        
+                        <div class="flex flex-col items-center">
+                            <!-- DIAL CONTAINER: Now houses the emoji inside -->
+                            <div class="dial-container mb-8 scale-75 relative" id="tone-dial">
+                                <!-- The rotating part -->
+                                <div class="dial-knob" style="transform: rotate(0deg);">
+                                    <div class="dial-marker"></div>
+                                </div>
+                                
+                                <!-- The Emoji (Centered Absolutely) -->
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                    <div class="text-6xl transition-all duration-300 transform drop-shadow-md" id="tone-emoji">😐</div>
+                                </div>
+                            </div>
+                            
+                            <!-- EXPANDED BUTTONS: 2 Rows of 3 -->
+                            <div class="grid grid-cols-3 gap-2 mb-6 w-full max-w-sm">
+                                <button onclick="rotateDial(-70, 'Witty')" class="px-3 py-2 bg-purple-50 text-purple-800 rounded text-[10px] font-bold border border-purple-200 hover:bg-purple-100">Witty</button>
+                                <button onclick="rotateDial(-35, 'Option A')" class="px-3 py-2 bg-blue-50 text-blue-800 rounded text-[10px] font-bold border border-blue-200 hover:bg-blue-100">Professional</button>
+                                <button onclick="rotateDial(-15, 'Direct')" class="px-3 py-2 bg-red-50 text-red-800 rounded text-[10px] font-bold border border-red-200 hover:bg-red-100">Direct</button>
+                                
+                                <button onclick="rotateDial(15, 'Neutral')" class="px-3 py-2 bg-gray-50 text-gray-800 rounded text-[10px] font-bold border border-gray-200 hover:bg-gray-100">Neutral</button>
+                                <button onclick="rotateDial(35, 'Option B')" class="px-3 py-2 bg-orange-50 text-orange-800 rounded text-[10px] font-bold border border-orange-200 hover:bg-orange-100">Empathetic</button>
+                                <button onclick="rotateDial(70, 'Socratic')" class="px-3 py-2 bg-teal-50 text-teal-800 rounded text-[10px] font-bold border border-teal-200 hover:bg-teal-100">Socratic</button>
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 w-full shadow-sm mb-6" id="tone-box">
+                                <p id="tone-output" class="text-lg font-serif italic text-gray-600">"Select a tone to adjust the frequency."</p>
+                            </div>
+
+                            <!-- Context Anchor -->
+                            <div class="dynamic-text-box fade-in-up w-full">
+                                <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p9">Why this matters:</h4>
+                                <p class="text-sm text-gray-800 italic" id="dynamic-p9">Select a mindset on Page 5 to see your specific context.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page 10: ACT Sort Drill (UPGRADED) -->
+                    <div class="page" id="page-10">
+                        <section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">The Sort Buckets</h2></section>
+                        
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-allgood-primary min-h-[120px] shadow-inner text-center" data-cat="A">
+                                <i data-lucide="play" class="w-6 h-6 mx-auto text-allgood-primary mb-2"></i>
+                                <span class="text-xs font-bold text-gray-500">ACTION</span>
+                            </div>
+                            <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-gray-500 min-h-[120px] shadow-inner text-center" data-cat="C">
+                                <i data-lucide="map" class="w-6 h-6 mx-auto text-gray-500 mb-2"></i>
+                                <span class="text-xs font-bold text-gray-500">CONTEXT</span>
+                            </div>
+                            <div class="drop-zone p-4 bg-gray-100 rounded-b-xl border-t-4 border-allgood-secondary min-h-[120px] shadow-inner text-center" data-cat="T">
+                                <i data-lucide="music" class="w-6 h-6 mx-auto text-allgood-secondary mb-2"></i>
+                                <span class="text-xs font-bold text-gray-500">TONE</span>
+                            </div>
+                        </div>
+
+                        <div id="act-draggables" class="flex flex-wrap gap-3 justify-center">
+                            <!-- Puzzle Piece Style -->
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="A">Summarize</div>
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="C">For the CEO</div>
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="T">Witty</div>
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="A">Draft Email</div>
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="C">Using this PDF</div>
+                            <div class="draggable-item bg-white border-2 border-gray-200 px-4 py-2 rounded-lg text-xs font-bold shadow-sm cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform" draggable="true" data-target="T">Authoritative</div>
+                        </div>
+                        
+                        <div id="sort-feedback" class="mt-4 text-center hidden animate-bounce text-green-600 font-bold">
+                            <i data-lucide="check-circle" class="inline w-5 h-5 mr-1"></i> All Sorted!
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="dynamic-text-box fade-in-up mt-6">
+                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p10">Why this matters:</h4>
+                            <p class="text-sm text-gray-800 italic" id="dynamic-p10">Select a mindset on Page 5 to see your specific context.</p>
+                        </div>
+                    </div>
+
+                    <!-- Page 11: Habits (UPGRADED) -->
+                    <div class="page" id="page-11">
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Daily Timeline</h2></section>
+                        
+                        <div class="timeline-container">
+                            <!-- Morning -->
+                            <div class="timeline-item" onclick="activateTimeline(this)">
+                                <div class="timeline-dot"></div>
+                                <h3 class="text-lg font-bold text-allgood-dark">Morning: The Draft</h3>
+                                <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
+                                    <i data-lucide="coffee" class="w-4 h-4 mr-1"></i> 8:00 AM
+                                </div>
+                                <p class="text-sm text-gray-600">"Draft a response to this angry email." Don't start with a blank page.</p>
+                            </div>
+
+                            <!-- Noon -->
+                            <div class="timeline-item" onclick="activateTimeline(this)">
+                                <div class="timeline-dot"></div>
+                                <h3 class="text-lg font-bold text-allgood-dark">Noon: The Summary</h3>
+                                <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
+                                    <i data-lucide="file-text" class="w-4 h-4 mr-1"></i> 12:30 PM
+                                </div>
+                                <p class="text-sm text-gray-600">"Summarize this meeting transcript." Catch up in seconds, not hours.</p>
+                            </div>
+
+                            <!-- Afternoon -->
+                            <div class="timeline-item" onclick="activateTimeline(this)">
+                                <div class="timeline-dot"></div>
+                                <h3 class="text-lg font-bold text-allgood-dark">Afternoon: The Spark</h3>
+                                <div class="flex items-center text-xs text-gray-500 mt-1 mb-2">
+                                    <i data-lucide="lightbulb" class="w-4 h-4 mr-1"></i> 3:45 PM
+                                </div>
+                                <p class="text-sm text-gray-600">"Give me 10 ideas for..." Break the afternoon slump.</p>
+                            </div>
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="dynamic-text-box fade-in-up mt-6">
+                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p11">Why this matters:</h4>
+                            <p class="text-sm text-gray-800 italic" id="dynamic-p11">Select a mindset on Page 5 to see your specific context.</p>
+                        </div>
+                    </div>
+
+                    <!-- Page 12: Crisis (UPGRADED) -->
+                    <div class="page" id="page-12">
+                        <div class="alert-bg absolute inset-0 -z-10 rounded-lg opacity-50"></div>
+                        <section class="mb-4 text-center relative z-10">
+                            <div class="inline-block p-3 bg-red-100 rounded-full mb-2 animate-ping-slow">
+                                <i data-lucide="siren" class="w-8 h-8 text-red-600"></i>
+                            </div>
+                            <h2 class="text-2xl font-heading font-bold text-red-700">RED ALERT MODE</h2>
+                        </section>
+                        
+                        <!-- Tension Bar -->
+                        <div class="w-full bg-gray-200 rounded-full h-4 mb-6 relative overflow-hidden border border-gray-300">
+                            <div class="bg-red-500 h-4 rounded-full" style="width: 85%"></div>
+                            <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">TIME REMAINING: CRITICAL</span>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500 relative z-10">
+                            <p class="text-gray-800 font-bold mb-4">Scenario: 10-page report dump. Meeting in 15 mins. VP needs a brief.</p>
+                            <hr class="my-4 border-gray-200">
+                            
+                            <div class="space-y-3">
+                                <!-- Option A -->
+                                <button onclick="checkScenario('A')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                                    <span class="font-bold text-gray-500 mr-2 shrink-0">A.</span>
+                                    <span class="text-sm text-gray-600">Read it fast. (Speed Read)</span>
+                                </button>
+                                
+                                <!-- Option B -->
+                                <button onclick="checkScenario('B')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                                    <span class="font-bold text-gray-500 mr-2 shrink-0">B.</span>
+                                    <span class="text-sm text-gray-600">Decline the task. (Not enough time)</span>
+                                </button>
+                                
+                                <!-- Option C (Fixed to match A & B exactly) -->
+                                <button onclick="checkScenario('C')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                                    <span class="font-bold text-gray-500 mr-2 shrink-0">C.</span>
+                                    <span class="text-sm text-gray-600">ACT Prompt: "Summarize (A) this report (C) for key risks (T)."</span>
+                                </button>
+                            </div>
+                            <div id="scenario-feedback" class="mt-4 text-sm font-bold text-center h-6"></div>
+                        </div>
+
+                        <!-- Context Anchor -->
+                        <div class="dynamic-text-box fade-in-up mt-6">
+                            <h4 class="text-xs font-bold text-allgood-secondary uppercase mb-1" id="dynamic-header-p12">Why this matters:</h4>
+                            <p class="text-sm text-gray-800 italic" id="dynamic-p12">Select a mindset on Page 5 to see your specific context.</p>
+                        </div>
+                    </div>
+
+                    <!-- Page 13: Outcome (UPGRADED) -->
+                    <div class="page" id="page-13">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <div class="relative mb-8">
+                                <svg class="w-32 h-32 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path class="checkmark-path" d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            
+                            <h2 class="text-4xl font-heading font-bold text-allgood-dark mb-2">Mission Success</h2>
+                            <div class="h-1 w-20 bg-allgood-primary mx-auto mb-6 rounded-full"></div>
+                            
+                            <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm max-w-sm mx-auto transform translate-y-4 animate-[fadeInUp_1s_ease-out_forwards]">
+                                <p class="text-gray-600 italic font-serif text-lg">"AI didn't replace you.<br>It just made you look like a genius."</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page 14: Challenge (UPGRADED) -->
+                    <div class="page" id="page-14">
+                        <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Contract</h2></section>
+                        
+                        <div class="bg-yellow-50 p-8 rounded shadow-lg border border-yellow-200 relative max-w-sm mx-auto rotate-1 hover:rotate-0 transition-transform duration-500">
+                            <div class="absolute top-4 right-4 text-yellow-800/20"><i data-lucide="file-signature" class="w-24 h-24"></i></div>
+                            
+                            <h3 class="font-heading font-bold text-xl mb-4 text-allgood-dark uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Mission Dossier</h3>
+                            <p class="text-sm text-gray-800 mb-6 leading-relaxed relative z-10">
+                                I, the undersigned, hereby agree to delegate <strong>ONE (1)</strong> mundane task to my AI Co-Pilot within the next 24 hours.
+                            </p>
+                            
+                            <div class="mt-8 border-b-2 border-black w-full relative h-12 cursor-pointer" onclick="signContract(this)">
+                                <span class="absolute bottom-1 left-0 text-xs text-gray-500 uppercase">x Sign Here</span>
+                                <div class="signature-font absolute bottom-2 left-10 opacity-0 transition-opacity duration-1000 text-allgood-primary transform -rotate-3" id="signature-text">Agent Learner</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page 15: Certification (UPGRADED) -->
+                    <div class="page" id="page-15">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <div class="relative group cursor-pointer" onclick="downloadBadge()">
+                                <!-- Badge Preview with Shimmer -->
+                                <div class="w-48 h-48 bg-white rounded-full border-4 border-allgood-secondary flex items-center justify-center shadow-2xl relative overflow-hidden shimmer-card">
+                                    <i data-lucide="award" class="w-24 h-24 text-allgood-primary"></i>
+                                    <div class="absolute inset-0 bg-white/50 backdrop-blur-sm group-hover:backdrop-blur-none transition-all duration-700 flex items-center justify-center">
+                                        <span class="text-xs font-bold uppercase tracking-widest text-allgood-dark bg-white/80 px-2 py-1 rounded">Reveal</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h2 class="text-3xl font-heading font-bold text-allgood-dark mt-8 mb-2">Certified Co-Pilot</h2>
+                            <p class="text-sm text-gray-600 mb-8">You are ready for the future of work.</p>
+                            
+                            <button onclick="downloadBadge()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-8 py-4 rounded-full font-bold shadow-lg flex items-center transition-transform hover:scale-105">
+                                <i data-lucide="download" class="w-5 h-5 mr-2"></i> Issue Badge
+                            </button>
+                        </div>
+                    </div>
+
+                </div> 
+                <!-- END MAIN SCROLL VIEW -->
 
                 <!-- Footer -->
                 <footer class="footer-content flex items-center justify-between px-6 border-t border-gray-200 bg-white z-20 relative">
@@ -1220,6 +1240,8 @@
 
     <script>
         // --- 1. SESSION MANAGER ---
+        let currentRole = null; // Store selected role
+
         const SessionManager = {
             startTime: Date.now(),
             userEmail: "",
@@ -1242,25 +1264,43 @@
         };
         window.SessionManager = SessionManager;
 
-        // Role Content Data - DEFINED HERE
+        // Role Content Data - FULLY POPULATED
         const roleContent = {
             optimizer: {
                 name: "Optimizer",
+                p6: "Structure is speed. The ACT framework cuts down on 'back-and-forth' chat. You get the right answer on the first try.",
                 p7: "Don't ask 'Write an email.' Ask 'Draft a concise update for the team that cuts reading time in half.'",
-                p8: "Context is speed. AI needs to know 'Format' (Bullet points) and 'Constraint' (Under 200 words).",
-                p9: "Tone drives efficiency. Use 'Direct', 'Brief', or 'Action-Oriented' to get straight to the point.",
+                p8: "Context is speed. AI needs to know 'Format' (Bullet points) and 'Constraint' (Under 200 words) so you don't have to edit it later.",
+                p9: "Tone drives efficiency. Use 'Direct', 'Brief', or 'Action-Oriented' to get straight to the point without fluff.",
+                p10: "Sorting inputs quickly is a superpower. Knowing what to feed the AI means you spend less time prompting and more time doing.",
+                p11: "Your day is a race. Use these habits to automate the 'churn' work so you can focus on high-leverage tasks.",
+                p12: "In a crisis, speed is everything. The ACT framework creates a usable brief in seconds, not hours.",
+                p13: "Productivity isn't about working harder; it's about leveraging tools to multiply your output.",
+                p14: "One task a day. That's 260 tasks a year you don't have to do manually. Start tomorrow."
             },
             innovator: {
                 name: "Innovator",
+                p6: "Structure is a canvas. The ACT framework gives you a way to constrain the AI so it produces more creative, focused results.",
                 p7: "Don't ask 'Give me ideas.' Ask 'Generate 10 divergent metaphors for this concept to spark a new perspective.'",
-                p8: "Context is the canvas. AI needs to know 'Theme' (Futuristic) and 'Goal' (Inspire the audience).",
-                p9: "Tone drives engagement. Use 'Whimsical', 'Provocative', or 'Story-driven' to capture attention.",
+                p8: "Context is the prompt. AI needs to know 'Theme' (Futuristic) and 'Goal' (Inspire the audience) to give you something fresh.",
+                p9: "Tone drives engagement. Use 'Whimsical', 'Provocative', or 'Story-driven' to capture attention and break through the noise.",
+                p10: "Creativity requires inputs. Sorting the right context into your prompt is like choosing the right colors for your palette.",
+                p11: "Creative blocks happen. Use these habits to force the AI to 'pitch' you ideas so you never stare at a blank page.",
+                p12: "Crisis kills creativity. Use AI to handle the summary so your brain stays fresh for the strategic solution.",
+                p13: "Creativity is a multiplier. AI allows you to explore 100 paths in the time it used to take to explore one.",
+                p14: "Challenge yourself to use AI for something weird tomorrow. Push the boundaries of what it can do."
             },
             strategist: {
                 name: "Strategist",
+                p6: "Structure is clarity. The ACT framework ensures your instructions are unambiguous, leading to high-quality strategic output.",
                 p7: "Don't ask 'What does this say?' Ask 'Extract the top 3 risks and opportunities from this report for executive review.'",
-                p8: "Context is the stakes. AI needs to know 'Stakeholder' (The CEO) and 'Decision' (Go/No-Go).",
-                p9: "Tone drives authority. Use 'Objective', 'Analytical', or 'Balanced' to build trust.",
+                p8: "Context is the stakes. AI needs to know 'Stakeholder' (The CEO) and 'Decision' (Go/No-Go) to provide relevant analysis.",
+                p9: "Tone drives authority. Use 'Objective', 'Analytical', or 'Balanced' to build trust with your audience.",
+                p10: "Strategy is about pattern recognition. Sorting ACT components helps you see the gaps in your own thinking.",
+                p11: "Strategic thinking requires mental space. These habits clear the administrative clutter so you can think big picture.",
+                p12: "Leaders don't panic; they process. Use AI to synthesize the noise so you can make the decision.",
+                p13: "Strategy is about leverage. You are moving from 'doing the work' to 'directing the outcome.'",
+                p14: "Delegate the tactics. Keep the strategy. Pick one strategic document tomorrow and have AI review it."
             }
         };
 
@@ -1330,9 +1370,9 @@
             const targetPage = document.getElementById(`page-${index}`);
             if(targetPage) targetPage.classList.add('active');
 
-            // Scroll to top of new page
-            const screen = document.getElementById('screen');
-            if(screen) screen.scrollTop = 0;
+            // SCROLL RESET: Target the new main-scroll-view
+            const scrollView = document.getElementById('main-scroll-view');
+            if(scrollView) scrollView.scrollTop = 0;
 
             currentPage = index;
             pageIndicator.innerText = `${currentPage} / ${totalPages}`;
@@ -1342,7 +1382,7 @@
             progressBar.style.width = `${progress}%`;
 
             // Button States
-            backBtn.disabled = currentPage === 0;
+            backBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages;
 
             // Log navigation
@@ -1351,8 +1391,10 @@
             // Init Lucide icons on new content
             if(window.lucide) window.lucide.createIcons();
 
-            // UPDATE MENTOR BAR
+            // UPDATE MENTOR BAR & CONTEXT
             updateMentorBar(index);
+            // FIXED: Use 'index' directly, not 'index - 1', so Page 8 loads p8 content
+            updatePageContent(index); 
         };
 
         // Navigation Event Listeners
@@ -1428,11 +1470,16 @@
             document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary', 'bg-opacity-100'));
             card.classList.add('selected', 'ring-2', 'ring-allgood-primary'); 
             
-            // Confirm Button
+            // Reveal Confirm Button
             const confirmBtn = document.getElementById('role-confirm');
             confirmBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+            
             sfx.success();
             SessionManager.log("Role_Select", role);
+            currentRole = role;
+
+            // REMOVED: Auto-advance logic (setTimeout)
+            // User must now click "Confirm Mindset" or "Next"
         };
 
         // Page 6: Pyramid Logic
@@ -1458,13 +1505,29 @@
             document.getElementById('action-weak').style.transform = 'scale(0.9)';
             
             const strong = document.getElementById('action-strong');
+            const strongText = document.getElementById('strong-prompt-text');
+            const status = document.getElementById('dynamic-p7-status');
+            
+            // Role-Specific Output
+            if (currentRole === 'optimizer') {
+                strongText.innerHTML = '"<u>Draft</u> a concise update..."';
+                status.innerText = "Applying brevity filter... Removing fluff...";
+            } else if (currentRole === 'innovator') {
+                strongText.innerHTML = '"<u>Generate</u> 10 divergent metaphors..."';
+                status.innerText = "Accessing creative lateral thinking... Sparking ideas...";
+            } else if (currentRole === 'strategist') {
+                strongText.innerHTML = '"<u>Extract</u> top 3 risks..."';
+                status.innerText = "Analyzing for executive relevance... Identifying key data...";
+            } else {
+                strongText.innerHTML = '"<u>Draft</u> a detailed proposal..."';
+                status.innerText = "Dynamic context loading...";
+            }
+
             strong.classList.remove('pointer-events-none');
             setTimeout(() => {
                 strong.style.opacity = '1';
                 strong.style.transform = 'scale(1)';
                 sfx.success();
-                // Simulate context loading
-                setTimeout(() => document.getElementById('dynamic-p7').innerText = "Analyzing sender intent... Risk detected... Softening tone...", 1000);
             }, 300);
         };
 
@@ -1486,11 +1549,116 @@
                 document.getElementById('recipe-status').innerText = "RECIPE COMPLETE. PROMPT GENERATED.";
                 document.getElementById('recipe-status').classList.add('text-green-400', 'font-bold');
                 
+                // ENABLE GENERATE BUTTON
+                document.getElementById('generate-output-btn').disabled = false;
+                
                 document.getElementById('dynamic-header-p8').innerText = "GENERATED CONTEXT:";
                 document.getElementById('dynamic-p8').innerText = "Role: Senior PM. Task: Summarize Q3 Report. Goal: Brief VP on risks.";
                 
                 sfx.success();
             }
+        };
+
+        // Page 8: LLM Generation
+        window.generatePromptOutput = async function() {
+            if (ingredientsAdded !== 3) {
+                document.getElementById('recipe-status').innerText = "Error: Please add all 3 ingredients first.";
+                sfx.error();
+                return;
+            }
+
+            const btn = document.getElementById('generate-output-btn');
+            const resultDiv = document.getElementById('llm-result');
+            const outputContainer = document.getElementById('llm-output-p8');
+            const sourcesDiv = document.getElementById('llm-sources');
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i> Generating...';
+            btn.disabled = true;
+            resultDiv.innerHTML = '<span class="text-gray-400 italic">Processing request. Please wait...</span>';
+            outputContainer.classList.remove('hidden');
+            sourcesDiv.classList.add('hidden');
+            sourcesDiv.innerHTML = '';
+            
+            if(window.lucide) window.lucide.createIcons();
+
+            const role = currentRole || 'strategist'; // Default to strategist if not selected
+            
+            // 1. Construct System Instruction based on Role
+            let systemPrompt = `You are an AI Co-Pilot for the Allgood Academy. The user has defined their role as a '${role}'. You must adhere to that persona and focus.`;
+            let userQuery = "";
+            let placeholderTopic = "the latest trends in hybrid work environments";
+
+            if (role === 'optimizer') {
+                systemPrompt += "Your primary goal is efficiency. Provide concise, bulleted summaries and focus on actionable metrics and time savings.";
+                userQuery = `Act as a time-saving assistant. Summarize the key action items and metrics from an article about ${placeholderTopic}. Provide exactly 3 bullet points.`;
+            } else if (role === 'innovator') {
+                systemPrompt += "Your primary goal is creative growth. Generate new ideas and perspectives. Use a light, inspiring, and engaging tone.";
+                userQuery = `Act as a creative partner. Generate 5 unique, divergent ideas or metaphors for approaching a business challenge related to ${placeholderTopic}.`;
+            } else if (role === 'strategist') {
+                systemPrompt += "Your primary goal is strategic clarity. Analyze complex data and provide objective, balanced executive summaries for decision-making.";
+                userQuery = `Act as an executive analyst. Analyze the strategic risks and opportunities associated with ${placeholderTopic}. Provide a one-paragraph summary for a VP.`;
+            }
+
+            // OPTION 1: GLOBAL SYSTEM CONSTRAINT (Applied to all roles)
+            systemPrompt += " CRITICAL CONSTRAINT: Keep your response under 50 words or 3-4 sentences maximum.";
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                // Use Google Search grounding to make the result relevant and grounded
+                tools: [{ "google_search": {} }],
+            };
+
+            try {
+                const response = await retryFetch(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+                let generatedText = "Error: Could not retrieve content.";
+                let sourcesHtml = "";
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    generatedText = candidate.content.parts[0].text;
+                    
+                    // Extract Grounding Sources
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        const sources = groundingMetadata.groundingAttributions
+                            .map((attr, index) => {
+                                const uri = attr.web?.uri;
+                                const title = attr.web?.title || 'Untitled Source';
+                                if (uri && title) {
+                                    return `<li>[${index + 1}] <a href="${uri}" target="_blank" class="text-allgood-secondary hover:text-allgood-primary underline">${title}</a></li>`;
+                                }
+                                return '';
+                            })
+                            .filter(html => html.length > 0);
+
+                        if (sources.length > 0) {
+                            sourcesHtml = `<p class="font-bold mb-1">Sources Used:</p><ul class="list-disc ml-4 space-y-0.5">${sources.join('')}</ul>`;
+                            sourcesDiv.innerHTML = sourcesHtml;
+                            sourcesDiv.classList.remove('hidden');
+                        }
+                    }
+                }
+                
+                resultDiv.innerText = generatedText;
+
+            } catch (error) {
+                console.error("Gemini API Call Failed:", error);
+                resultDiv.innerText = `[Error] Failed to generate content. Failed to connect to the AI Co-Pilot.`;
+                sfx.error();
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                if(window.lucide) window.lucide.createIcons();
+            }
+            sfx.success();
         };
 
         // Page 9: Tone Dial
@@ -1678,41 +1846,27 @@
             "You're ready. This badge isn't just a pixel; it's a signal that you have upgraded your operating system. Well done, Commander." // Page 15
         ];
 
-        let typeInterval;
         function updateMentorBar(pageIndex) {
             const bar = document.getElementById('mentor-bar');
             const textContainer = document.getElementById('mentor-text');
             
-            // Note: pageIndex from showPage is 1-based (1 to 15)
-            // narrativeScripts uses 0-based index implicitly matching page 1 at index 0
-            // But we want to skip page 1 (index 0).
-            // So narrativeScripts[pageIndex-1] gets the text for the current page.
-            // Page 1 -> index 0 -> text "" (correct)
-            // Page 2 -> index 1 -> text "Headlines..." (correct)
-            
             // Check if page 1 (cover) or text is empty
             if (pageIndex === 1 || !narrativeScripts[pageIndex-1]) {
-                bar.style.opacity = '0';
-                setTimeout(() => bar.classList.add('hidden'), 300);
+                bar.classList.add('hidden');
                 return;
             }
 
             // Show bar
             bar.classList.remove('hidden');
-            // Small delay to allow display flex to apply before opacity transition
-            setTimeout(() => bar.style.opacity = '1', 10);
-
-            // Typewriter logic
-            const text = narrativeScripts[pageIndex-1];
-            textContainer.innerHTML = '';
-            clearInterval(typeInterval);
             
-            let i = 0;
-            typeInterval = setInterval(() => {
-                textContainer.innerHTML += text.charAt(i);
-                i++;
-                if (i >= text.length) clearInterval(typeInterval);
-            }, 20); // Speed
+            // Static Update
+            const text = narrativeScripts[pageIndex-1];
+            
+            // Instant update for stability
+            textContainer.innerHTML = text; 
+            
+            // Re-run icons in case they are used in text (unlikely but safe)
+            if(window.lucide) window.lucide.createIcons();
         }
 
         // --- 6. MENU & SYSTEM CONTROLS ---
@@ -1771,10 +1925,46 @@
             location.reload();
         };
         
+        // Dynamic Content Injection (RESTORED)
+        function updatePageContent(pageIndex) {
+            // Page Index is 1-based (Page 1 = 1)
+            const pNum = pageIndex; 
+            
+            // 1. Context Box Updates
+            const elementId = `dynamic-p${pNum}`;
+            const headerId = `dynamic-header-p${pNum}`;
+            
+            const element = document.getElementById(elementId);
+            const headerEl = document.getElementById(headerId);
+
+            if (headerEl) {
+                if (currentRole && roleContent[currentRole]) {
+                     headerEl.innerHTML = `<i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to the <strong>${roleContent[currentRole].name}</strong>:`;
+                } else {
+                     headerEl.innerHTML = `<i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Why this matters to you:`;
+                }
+            }
+
+            if (element) {
+                if (currentRole && roleContent[currentRole]) {
+                    const contentKey = `p${pNum}`;
+                    if (roleContent[currentRole][contentKey]) {
+                        element.textContent = roleContent[currentRole][contentKey];
+                    } else {
+                        // Fallback if specific page content missing for role
+                        element.textContent = "Loading context for your role..."; 
+                    }
+                } else {
+                    element.textContent = "Select a mindset on Page 5 to see your specific context.";
+                }
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+        }
+
         // Init
         document.getElementById('current-year').innerText = new Date().getFullYear();
         if(window.lucide) window.lucide.createIcons();
-
     </script>
 </body>
 </html>
