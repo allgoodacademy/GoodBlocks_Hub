@@ -321,6 +321,27 @@
         .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
         .blueprint-mode .choice-btn { background-color: #1e293b !important; border-color: #334155 !important; }
         
+        /* EXPANDED MODE (Desktop Fullscreen Toggle) */
+        .tablet-frame.expanded-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            aspect-ratio: unset !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            z-index: 9999 !important;
+            background: #F7F7F7 !important;
+            box-shadow: none !important;
+        }
+        .tablet-frame.expanded-mode::before { display: none !important; }
+        .tablet-frame.expanded-mode .screen-container { border-radius: 0 !important; }
+
         @media (max-width: 768px) {
             /* 1. LOCK BODY TO PREVENT BOUNCE SCROLL AND USE DVH FOR SAFARI */
             html, body {
@@ -466,7 +487,8 @@
                             <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Reset"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
-                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
+                            <!-- UPDATED: Hidden on mobile (sm:block) -->
+                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
                             <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         </div>
                     </div>
@@ -1353,13 +1375,16 @@
                 sfx.tick();
             });
 
+            // UPDATED FULLSCREEN LOGIC (CSS Toggle Only)
             document.getElementById('fullscreen-toggle').addEventListener('click', () => {
                 const frame = document.querySelector('.tablet-frame');
-                frame.classList.toggle('focus-mode');
-                const isFocus = frame.classList.contains('focus-mode');
-                if (isFocus) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
-                else { if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }
-                document.getElementById('fullscreen-toggle').classList.toggle('text-green-300');
+                frame.classList.toggle('expanded-mode');
+                
+                // Toggle Icon Color
+                const btn = document.getElementById('fullscreen-toggle');
+                btn.classList.toggle('text-green-300');
+                btn.classList.toggle('text-gray-200');
+                
                 sfx.tick();
             });
 
