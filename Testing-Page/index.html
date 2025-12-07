@@ -542,6 +542,17 @@
                     </div>
                 </header>
 
+                <!-- Mentor Bar (Relocated & Themed: Key Insight) -->
+                <div id="mentor-bar" class="w-full bg-yellow-50 border-b border-yellow-200 border-l-4 border-l-allgood-primary p-3 flex items-start gap-3 transition-all duration-300 hidden">
+                    <div class="mt-0.5">
+                        <i data-lucide="lightbulb" class="w-5 h-5 text-allgood-primary"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-[10px] font-bold text-allgood-primary uppercase tracking-wider mb-0.5">Key Insight</div>
+                        <p id="mentor-text" class="text-xs sm:text-sm font-medium text-gray-800 leading-snug font-body"></p>
+                    </div>
+                </div>
+
                 <!-- 3. Login Modal (Standardized from Airport Navigator) -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
@@ -751,45 +762,52 @@
                         <p class="text-sm text-gray-500 mt-1">Why learn this? Tap to unlock benefits.</p>
                     </section>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 h-[400px] md:h-auto">
+                    <!-- UPDATED CONTAINER: Reduced height to min-h-[350px] -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[350px]">
                         <!-- Card 1: Time -->
                         <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow">
-                                    <div class="bg-blue-50 p-4 rounded-full mb-4"><i data-lucide="clock" class="w-10 h-10 text-blue-600"></i></div>
-                                    <h3 class="font-bold text-allgood-dark text-lg">Time</h3>
+                            <div class="flip-card-inner h-full">
+                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                    <div class="bg-blue-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                        <i data-lucide="clock" class="w-10 h-10 text-blue-600"></i>
+                                    </div>
+                                    <h3 class="font-bold text-allgood-dark text-xl">Time</h3>
                                 </div>
-                                <div class="flip-card-back bg-blue-600">
-                                    <h3 class="font-bold mb-2 text-lg">Reclaim It.</h3>
-                                    <p class="text-xs leading-relaxed">Drafting emails? Summarizing notes? Stop doing "robotic" work manually.</p>
+                                <div class="flip-card-back bg-blue-600 h-full flex flex-col items-center justify-center p-6 text-center">
+                                    <h3 class="font-bold mb-2 text-xl text-white">Reclaim It.</h3>
+                                    <p class="text-xs leading-relaxed text-white/90">Drafting emails? Summarizing notes? Stop doing "robotic" work manually. Automate the drudgery.</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 2: Creativity -->
                         <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow">
-                                    <div class="bg-orange-50 p-4 rounded-full mb-4"><i data-lucide="sparkles" class="w-10 h-10 text-orange-500"></i></div>
-                                    <h3 class="font-bold text-allgood-dark text-lg">Creativity</h3>
+                            <div class="flip-card-inner h-full">
+                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                    <div class="bg-orange-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                        <i data-lucide="sparkles" class="w-10 h-10 text-orange-500"></i>
+                                    </div>
+                                    <h3 class="font-bold text-allgood-dark text-xl">Creativity</h3>
                                 </div>
-                                <div class="flip-card-back bg-orange-500">
-                                    <h3 class="font-bold mb-2 text-lg">Ignite It.</h3>
-                                    <p class="text-xs leading-relaxed">Never start from a blank page. Use AI to brainstorm 10 ideas in 10 seconds.</p>
+                                <div class="flip-card-back bg-orange-500 h-full flex flex-col items-center justify-center p-6 text-center">
+                                    <h3 class="font-bold mb-2 text-xl text-white">Ignite It.</h3>
+                                    <p class="text-xs leading-relaxed text-white/90">Never start from a blank page. Use AI to brainstorm 10 ideas in 10 seconds. Spark your ideas, don't replace them.</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 3: Confidence -->
                         <div class="flip-card h-full" onclick="this.classList.toggle('flipped'); sfx.tick()">
-                            <div class="flip-card-inner">
-                                <div class="flip-card-front hover:shadow-lg transition-shadow">
-                                    <div class="bg-green-50 p-4 rounded-full mb-4"><i data-lucide="shield-check" class="w-10 h-10 text-green-600"></i></div>
-                                    <h3 class="font-bold text-allgood-dark text-lg">Confidence</h3>
+                            <div class="flip-card-inner h-full">
+                                <div class="flip-card-front hover:shadow-lg transition-shadow h-full flex flex-col items-center justify-center p-6">
+                                    <div class="bg-green-50 p-4 rounded-full mb-4 flex items-center justify-center">
+                                        <i data-lucide="shield-check" class="w-10 h-10 text-green-600"></i>
+                                    </div>
+                                    <h3 class="font-bold text-allgood-dark text-xl">Confidence</h3>
                                 </div>
-                                <div class="flip-card-back bg-green-600">
-                                    <h3 class="font-bold mb-2 text-lg">Boost It.</h3>
-                                    <p class="text-xs leading-relaxed">"Does this sound right?" Use AI as your editor-in-chief before you hit send.</p>
+                                <div class="flip-card-back bg-green-600 h-full flex flex-col items-center justify-center p-6 text-center">
+                                    <h3 class="font-bold mb-2 text-xl text-white">Boost It.</h3>
+                                    <p class="text-xs leading-relaxed text-white/90">"Does this sound right?" Use AI as your editor-in-chief before you hit send. Communicate with precision.</p>
                                 </div>
                             </div>
                         </div>
@@ -799,57 +817,84 @@
                 <!-- Page 5: Role Selector (UPGRADED) -->
                 <div class="page" id="page-5">
                     <section class="mb-4 text-center">
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Identity Badges</h2>
-                        <p class="text-xs text-gray-500 mt-1">Select your profile to verify credentials.</p>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark">Choose Your Mindset</h2>
+                        <p class="text-sm text-gray-500 mt-1">How will you deploy your Co-Pilot today?</p>
                     </section>
 
                     <div class="space-y-4 max-w-md mx-auto">
-                        <!-- Professional -->
-                        <div class="role-card bg-white p-4 rounded-lg shadow-sm flex items-center justify-between group cursor-pointer relative overflow-hidden" onclick="selectRole('professional', this)">
-                            <div class="flex items-center">
-                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 mr-4 group-hover:bg-allgood-primary group-hover:text-white transition-colors">
-                                    <i data-lucide="briefcase" class="w-6 h-6"></i>
+                        <!-- Option B1: The Optimizer -->
+                        <div class="role-card group relative bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:-translate-y-1" onclick="selectRole('optimizer', this)">
+                            <!-- Watermark Icon -->
+                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <i data-lucide="zap" class="w-32 h-32 text-blue-600"></i>
+                            </div>
+                            
+                            <div class="flex items-start relative z-10">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mr-4 shadow-sm shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i data-lucide="zap" class="w-6 h-6"></i>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-bold text-allgood-dark">Professional</h3>
-                                    <p class="text-[10px] text-gray-500">The Architect of ROI</p>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-blue-700 transition-colors">The Optimizer</h3>
+                                        <i data-lucide="check-circle" class="w-5 h-5 text-blue-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                        <strong>Goal: Efficiency.</strong> You want to automate the boring stuff. Speed up drafts, summaries, and routine emails.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="opacity-0 group-[.selected]:opacity-100 transition-opacity text-allgood-primary"><i data-lucide="badge-check" class="w-6 h-6"></i></div>
                         </div>
 
-                        <!-- Educator -->
-                        <div class="role-card bg-white p-4 rounded-lg shadow-sm flex items-center justify-between group cursor-pointer relative overflow-hidden" onclick="selectRole('educator', this)">
-                            <div class="flex items-center">
-                                <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 mr-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                                    <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        <!-- Option B2: The Innovator -->
+                        <div class="role-card group relative bg-gradient-to-br from-white to-orange-50 p-5 rounded-xl shadow-sm border border-orange-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-orange-300 hover:-translate-y-1" onclick="selectRole('innovator', this)">
+                            <!-- Watermark Icon -->
+                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <i data-lucide="sparkles" class="w-32 h-32 text-orange-500"></i>
+                            </div>
+                            
+                            <div class="flex items-start relative z-10">
+                                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500 mr-4 shadow-sm shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                    <i data-lucide="lightbulb" class="w-6 h-6"></i>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-bold text-allgood-dark">Educator</h3>
-                                    <p class="text-[10px] text-gray-500">The Guide of Minds</p>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-orange-600 transition-colors">The Innovator</h3>
+                                        <i data-lucide="check-circle" class="w-5 h-5 text-orange-500 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                        <strong>Goal: Growth.</strong> You want to break through creative blocks. Brainstorm ideas, rephrase content, and explore new angles.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="opacity-0 group-[.selected]:opacity-100 transition-opacity text-green-500"><i data-lucide="badge-check" class="w-6 h-6"></i></div>
                         </div>
 
-                        <!-- Student -->
-                        <div class="role-card bg-white p-4 rounded-lg shadow-sm flex items-center justify-between group cursor-pointer relative overflow-hidden" onclick="selectRole('student', this)">
-                            <div class="flex items-center">
-                                <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-600 mr-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                                    <i data-lucide="book-open" class="w-6 h-6"></i>
+                        <!-- Option B3: The Strategist -->
+                        <div class="role-card group relative bg-gradient-to-br from-white to-green-50 p-5 rounded-xl shadow-sm border border-green-100 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-md hover:border-green-300 hover:-translate-y-1" onclick="selectRole('strategist', this)">
+                            <!-- Watermark Icon -->
+                            <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <i data-lucide="map" class="w-32 h-32 text-green-600"></i>
+                            </div>
+                            
+                            <div class="flex items-start relative z-10">
+                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mr-4 shadow-sm shrink-0 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                    <i data-lucide="compass" class="w-6 h-6"></i>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-bold text-allgood-dark">Student</h3>
-                                    <p class="text-[10px] text-gray-500">The Scholar of Concepts</p>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-bold text-allgood-dark text-lg group-hover:text-green-700 transition-colors">The Strategist</h3>
+                                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 opacity-0 transform scale-50 transition-all duration-300 group-[.selected]:opacity-100 group-[.selected]:scale-100"></i>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                                        <strong>Goal: Clarity.</strong> You want better decisions. Synthesize complex reports, analyze data, and plan next steps.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="opacity-0 group-[.selected]:opacity-100 transition-opacity text-orange-500"><i data-lucide="badge-check" class="w-6 h-6"></i></div>
                         </div>
                     </div>
                     
-                    <div id="role-confirm" class="mt-8 text-center opacity-0 transition-opacity pointer-events-none">
-                        <button class="bg-allgood-dark text-white px-10 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform" onclick="window.showPage(5)">
-                            Confirm Identity <i data-lucide="arrow-right" class="w-4 h-4 inline ml-2"></i>
+                    <div id="role-confirm" class="mt-8 text-center opacity-0 transition-opacity pointer-events-none transform translate-y-4 duration-500">
+                        <button class="bg-allgood-dark text-white px-10 py-3 rounded-full text-sm font-bold shadow-xl hover:scale-105 transition-transform hover:bg-gray-800 flex items-center mx-auto" onclick="window.showPage(5)">
+                            Confirm Mindset <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
                         </button>
                     </div>
                 </div>
@@ -964,18 +1009,28 @@
                     <section class="mb-4 text-center"><h2 class="text-2xl font-heading font-bold text-allgood-dark">The Equalizer</h2></section>
                     
                     <div class="flex flex-col items-center">
-                        <div class="text-4xl mb-4 transition-all duration-300 transform" id="tone-emoji">😐</div>
-                        
-                        <div class="dial-container mb-8 scale-75" id="tone-dial">
+                        <!-- DIAL CONTAINER: Now houses the emoji inside -->
+                        <div class="dial-container mb-8 scale-75 relative" id="tone-dial">
+                            <!-- The rotating part -->
                             <div class="dial-knob" style="transform: rotate(0deg);">
                                 <div class="dial-marker"></div>
                             </div>
+                            
+                            <!-- The Emoji (Centered Absolutely) -->
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                <div class="text-6xl transition-all duration-300 transform drop-shadow-md" id="tone-emoji">😐</div>
+                            </div>
                         </div>
                         
-                        <div class="flex justify-center space-x-2 mb-6">
-                            <button onclick="rotateDial(-45, 'Option A')" class="px-4 py-2 bg-blue-50 text-blue-800 rounded-full text-xs font-bold border border-blue-200 hover:bg-blue-100">Professional</button>
-                            <button onclick="rotateDial(0, 'Neutral')" class="px-4 py-2 bg-gray-50 text-gray-800 rounded-full text-xs font-bold border border-gray-200 hover:bg-gray-100">Neutral</button>
-                            <button onclick="rotateDial(45, 'Option B')" class="px-4 py-2 bg-orange-50 text-orange-800 rounded-full text-xs font-bold border border-orange-200 hover:bg-orange-100">Empathetic</button>
+                        <!-- EXPANDED BUTTONS: 2 Rows of 3 -->
+                        <div class="grid grid-cols-3 gap-2 mb-6 w-full max-w-sm">
+                            <button onclick="rotateDial(-70, 'Witty')" class="px-3 py-2 bg-purple-50 text-purple-800 rounded text-[10px] font-bold border border-purple-200 hover:bg-purple-100">Witty</button>
+                            <button onclick="rotateDial(-35, 'Option A')" class="px-3 py-2 bg-blue-50 text-blue-800 rounded text-[10px] font-bold border border-blue-200 hover:bg-blue-100">Professional</button>
+                            <button onclick="rotateDial(-15, 'Direct')" class="px-3 py-2 bg-red-50 text-red-800 rounded text-[10px] font-bold border border-red-200 hover:bg-red-100">Direct</button>
+                            
+                            <button onclick="rotateDial(15, 'Neutral')" class="px-3 py-2 bg-gray-50 text-gray-800 rounded text-[10px] font-bold border border-gray-200 hover:bg-gray-100">Neutral</button>
+                            <button onclick="rotateDial(35, 'Option B')" class="px-3 py-2 bg-orange-50 text-orange-800 rounded text-[10px] font-bold border border-orange-200 hover:bg-orange-100">Empathetic</button>
+                            <button onclick="rotateDial(70, 'Socratic')" class="px-3 py-2 bg-teal-50 text-teal-800 rounded text-[10px] font-bold border border-teal-200 hover:bg-teal-100">Socratic</button>
                         </div>
 
                         <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 w-full shadow-sm" id="tone-box">
@@ -1061,28 +1116,30 @@
                     <section class="mb-4 text-center relative z-10">
                         <div class="inline-block p-3 bg-red-100 rounded-full mb-2 animate-ping-slow">
                             <i data-lucide="siren" class="w-8 h-8 text-red-600"></i>
-                        </div>
-                        <h2 class="text-2xl font-heading font-bold text-red-700">RED ALERT MODE</h2>
-                    </section>
-                    
-                    <!-- Tension Bar -->
-                    <div class="w-full bg-gray-200 rounded-full h-4 mb-6 relative overflow-hidden border border-gray-300">
-                        <div class="bg-red-500 h-4 rounded-full" style="width: 85%"></div>
-                        <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">TIME REMAINING: CRITICAL</span>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500 relative z-10">
-                        <p class="text-gray-800 font-bold mb-4">Scenario: 10-page report dump. Meeting in 15 mins. VP needs a brief.</p>
-                        <hr class="my-4 border-gray-200">
+                    <!-- Decision Options -->
+                    <div class="space-y-3">
+                        <h3 class="font-bold text-allgood-dark text-lg mb-2">What is your move?</h3>
                         
-                        <div class="space-y-3">
-                            <button onclick="checkScenario('A')" class="w-full text-left p-3 hover:bg-gray-50 border rounded text-sm text-gray-600">A. Read fast & pray.</button>
-                            <button onclick="checkScenario('B')" class="w-full text-left p-3 hover:bg-gray-50 border rounded text-sm text-gray-600">B. Decline the meeting.</button>
-                            <button onclick="checkScenario('C')" class="w-full text-left p-3 bg-allgood-secondary text-white font-bold border border-allgood-accent rounded shadow-md hover:bg-allgood-accent transform hover:scale-[1.01] transition-transform">
-                                C. ACT Prompt: "Summarize for Risks"
-                            </button>
-                        </div>
-                        <div id="scenario-feedback" class="mt-4 text-sm font-bold text-center h-6"></div>
+                        <!-- Option A -->
+                        <button onclick="checkScenario('A')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">A.</span>
+                            <span class="text-sm text-gray-600">Read it fast. (Speed Read)</span>
+                        </button>
+                        
+                        <!-- Option B -->
+                        <button onclick="checkScenario('B')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">B.</span>
+                            <span class="text-sm text-gray-600">Decline the task. (Not enough time)</span>
+                        </button>
+                        
+                        <!-- Option C (Fixed to match A & B exactly) -->
+                        <button onclick="checkScenario('C')" class="w-full text-left p-4 bg-white border border-gray-200 rounded hover:bg-gray-50 shadow-sm group transition-colors flex items-start">
+                            <span class="font-bold text-gray-500 mr-2 group-hover:text-allgood-primary shrink-0">C.</span>
+                            <span class="text-sm text-gray-600">ACT Prompt: "Summarize (A) this report (C) for key risks (T)."</span>
+                        </button>
+                    </div>
+                    
+                    <div id="scenario-feedback" class="mt-4 text-sm font-bold text-center h-6"></div>
                     </div>
                 </div>
 
@@ -1185,6 +1242,28 @@
         };
         window.SessionManager = SessionManager;
 
+        // Role Content Data - DEFINED HERE
+        const roleContent = {
+            optimizer: {
+                name: "Optimizer",
+                p7: "Don't ask 'Write an email.' Ask 'Draft a concise update for the team that cuts reading time in half.'",
+                p8: "Context is speed. AI needs to know 'Format' (Bullet points) and 'Constraint' (Under 200 words).",
+                p9: "Tone drives efficiency. Use 'Direct', 'Brief', or 'Action-Oriented' to get straight to the point.",
+            },
+            innovator: {
+                name: "Innovator",
+                p7: "Don't ask 'Give me ideas.' Ask 'Generate 10 divergent metaphors for this concept to spark a new perspective.'",
+                p8: "Context is the canvas. AI needs to know 'Theme' (Futuristic) and 'Goal' (Inspire the audience).",
+                p9: "Tone drives engagement. Use 'Whimsical', 'Provocative', or 'Story-driven' to capture attention.",
+            },
+            strategist: {
+                name: "Strategist",
+                p7: "Don't ask 'What does this say?' Ask 'Extract the top 3 risks and opportunities from this report for executive review.'",
+                p8: "Context is the stakes. AI needs to know 'Stakeholder' (The CEO) and 'Decision' (Go/No-Go).",
+                p9: "Tone drives authority. Use 'Objective', 'Analytical', or 'Balanced' to build trust.",
+            }
+        };
+
         // --- 2. AUDIO SYSTEM (RESTORED EXACT ORIGINAL) ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
@@ -1271,6 +1350,9 @@
             
             // Init Lucide icons on new content
             if(window.lucide) window.lucide.createIcons();
+
+            // UPDATE MENTOR BAR
+            updateMentorBar(index);
         };
 
         // Navigation Event Listeners
@@ -1341,12 +1423,15 @@
         });
 
         // Page 5: Role Selection
-        window.selectRole = function(role, el) {
-            document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('role-confirm').style.opacity = '1';
-            document.getElementById('role-confirm').classList.remove('pointer-events-none');
-            sfx.tick();
+        window.selectRole = function(role, card) {
+            // Visuals
+            document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected', 'ring-2', 'ring-allgood-primary', 'bg-opacity-100'));
+            card.classList.add('selected', 'ring-2', 'ring-allgood-primary'); 
+            
+            // Confirm Button
+            const confirmBtn = document.getElementById('role-confirm');
+            confirmBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+            sfx.success();
             SessionManager.log("Role_Select", role);
         };
 
@@ -1418,21 +1503,36 @@
             dial.style.transform = `rotate(${deg}deg)`;
             sfx.tick();
 
-            if(deg === -45) {
+            if(label === 'Witty') {
+                emoji.innerText = "😜";
+                output.innerText = "\"Here's the data, fresh from the oven and ready to impress.\"";
+                output.className = "text-lg font-serif italic text-purple-800";
+                box.className = "bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500 w-full shadow-sm";
+            } else if(label === 'Option A') { // Professional
                 emoji.innerText = "👔";
-                output.innerText = "\"Per your request, attached is the analysis...\"";
+                output.innerText = "\"Per your request, attached is the analysis for review.\"";
                 output.className = "text-lg font-serif italic text-blue-800";
                 box.className = "bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 w-full shadow-sm";
-            } else if (deg === 0) {
+            } else if(label === 'Direct') {
+                emoji.innerText = "💥";
+                output.innerText = "\"Analysis attached. Action required by EOD.\"";
+                output.className = "text-lg font-serif italic text-red-800";
+                box.className = "bg-red-50 p-4 rounded-lg border-l-4 border-red-500 w-full shadow-sm";
+            } else if (label === 'Neutral') {
                 emoji.innerText = "⚖️";
-                output.innerText = "\"Here is the analysis you asked for...\"";
+                output.innerText = "\"Here is the analysis you asked for.\"";
                 output.className = "text-lg font-serif italic text-gray-600";
                 box.className = "bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 w-full shadow-sm";
-            } else if (deg === 45) {
+            } else if (label === 'Option B') { // Empathetic
                 emoji.innerText = "🤝";
-                output.innerText = "\"I know you're busy, so I summarized this for you...\"";
+                output.innerText = "\"I know you're swamped, so I summarized this for you.\"";
                 output.className = "text-lg font-serif italic text-orange-800";
                 box.className = "bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500 w-full shadow-sm";
+            } else if(label === 'Socratic') {
+                emoji.innerText = "🤔";
+                output.innerText = "\"What conclusions can we draw from this data set?\"";
+                output.className = "text-lg font-serif italic text-teal-800";
+                box.className = "bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500 w-full shadow-sm";
             }
         };
 
@@ -1558,6 +1658,62 @@
             document.body.removeChild(a);
             sfx.success();
         };
+
+        // --- MENTOR BAR LOGIC ---
+        const narrativeScripts = [
+            "", // Page 1 (Cover) - Skipped
+            "Headlines sell fear. Reality sells opportunity. You have a choice: view AI as your replacement, or hire it as your assistant.", // Page 2
+            "Pilots didn't disappear when autopilots arrived. They just stopped exhausting themselves on the controls. It's time to upgrade your role.", // Page 3
+            "Why are we doing this? Because time is the only asset you can't buy more of... unless you have a Co-Pilot.", // Page 4
+            "This isn't one-size-fits-all. Tell me who you are, and I'll show you how this applies to <i>your</i> reality.", // Page 5
+            "You don't need to learn code. You just need to learn how to speak clearly. We call it the ACT Framework.", // Page 6
+            "Weak verbs get weak results. Stop asking it to 'write.' Command it to 'Draft,' 'Analyze,' or 'Synthesize.' Be the boss.", // Page 7
+            "An AI without context is like a genius locked in a windowless room. It needs you to open the blinds. Give it the background it lacks.", // Page 8
+            "Facts are cheap; delivery is expensive. You are the conductor. Tell the orchestra exactly how to play the notes.", // Page 9
+            "Theory is nice, but practice is better. Let's see if you can distinguish the signal from the noise. Sort the fragments.", // Page 10
+            "Excellence isn't an act; it's a habit. Here are three 'power moves' you can use before you even finish your morning coffee.", // Page 11
+            "Pressure test. The clock is ticking, and the workload is impossible. Do you panic, or do you prompt?", // Page 12
+            "Look at that result. You didn't 'cheat.' You leveraged technology to deliver value faster. That is the definition of productivity.", // Page 13
+            "Knowledge is potential. Action is power. I'm not asking for a lifetime commitment—just one task, tomorrow.", // Page 14
+            "You're ready. This badge isn't just a pixel; it's a signal that you have upgraded your operating system. Well done, Commander." // Page 15
+        ];
+
+        let typeInterval;
+        function updateMentorBar(pageIndex) {
+            const bar = document.getElementById('mentor-bar');
+            const textContainer = document.getElementById('mentor-text');
+            
+            // Note: pageIndex from showPage is 1-based (1 to 15)
+            // narrativeScripts uses 0-based index implicitly matching page 1 at index 0
+            // But we want to skip page 1 (index 0).
+            // So narrativeScripts[pageIndex-1] gets the text for the current page.
+            // Page 1 -> index 0 -> text "" (correct)
+            // Page 2 -> index 1 -> text "Headlines..." (correct)
+            
+            // Check if page 1 (cover) or text is empty
+            if (pageIndex === 1 || !narrativeScripts[pageIndex-1]) {
+                bar.style.opacity = '0';
+                setTimeout(() => bar.classList.add('hidden'), 300);
+                return;
+            }
+
+            // Show bar
+            bar.classList.remove('hidden');
+            // Small delay to allow display flex to apply before opacity transition
+            setTimeout(() => bar.style.opacity = '1', 10);
+
+            // Typewriter logic
+            const text = narrativeScripts[pageIndex-1];
+            textContainer.innerHTML = '';
+            clearInterval(typeInterval);
+            
+            let i = 0;
+            typeInterval = setInterval(() => {
+                textContainer.innerHTML += text.charAt(i);
+                i++;
+                if (i >= text.length) clearInterval(typeInterval);
+            }, 20); // Speed
+        }
 
         // --- 6. MENU & SYSTEM CONTROLS ---
         
