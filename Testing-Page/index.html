@@ -1630,7 +1630,7 @@
                     </g>
                     <g transform="translate(600, 280)">
                         <text x="0" y="0" font-family="Verdana, sans-serif" font-size="14" fill="#757575" font-weight="bold">CERTIFIED AGENT:</text>
-                        <text x="0" y="50" font-family="Georgia, serif" font-size="40" fill="#357889" font-weight="bold" letter-spacing="1">${nameText}</text>
+                        <text x="0" y="50" font-family="Georgia, serif" font-size="28" fill="#357889" font-weight="bold" letter-spacing="1">${nameText}</text>
                         <text x="0" y="100" font-family="Verdana, sans-serif" font-size="24" fill="#4C4C4C" font-weight="bold" letter-spacing="2">DIGITAL ARCHITECT</text>
                         <rect x="0" y="140" width="500" height="220" rx="10" fill="#F7F7F7" stroke="#E5E7EB" stroke-width="3"/>
                         <g transform="translate(30, 190)" font-family="Courier New, monospace" font-size="22" fill="#357889">
@@ -1643,6 +1643,9 @@
                     <text x="600" y="750" font-family="Georgia, serif" font-style="italic" font-size="18" fill="#757575" text-anchor="middle">"Every click is a brick in your digital footprint."</text>
                 </svg>`;
                 
+                // NEW: Save badge artifact to Firestore
+                window.logFinalScoreToFirestore({ badgeArtifact: badgeSVG });
+
                 const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
