@@ -11,7 +11,8 @@
     <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        // ADDED signOut to imports
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         // 1. CONFIGURATION
@@ -31,6 +32,9 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // Expose signOut for Log Out function
+        window.authSignOut = () => signOut(auth);
 
         // 3. GLOBAL STATE
         window.currentUser = null;
@@ -185,9 +189,9 @@
                 
                 window.updateUserDisplay(displayName);
                 
-                // Start Session Log
+                // Start Session Log - FIX: Use consistent window.sessionId
                 console.log("[Auth] Guest login successful. UID:", user.uid);
-                window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: "init_" + Date.now() });
+                window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
 
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
@@ -267,7 +271,25 @@
     </script>
 
     <style>
-        body { font-family: Verdana, sans-serif; background-color: #1a1a1a; min-height: 100vh; margin: 0; padding: 0; }
+        body { 
+            font-family: Verdana, sans-serif; 
+            background-color: #1a1a1a; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 0;
+            /* Global Native App Lock */
+            -webkit-touch-callout: none; /* Stops the "Save Image / Copy" menu */
+            -webkit-user-select: none;   /* Stops highlighting text */
+            user-select: none;           /* Standard version of above */
+            -webkit-tap-highlight-color: transparent; /* Removes the gray tap box on buttons */
+        }
+
+        /* CRITICAL: Re-enable selection for inputs so users can type */
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
         h1, h2, h3, h4 { font-family: Georgia, serif; }
 
         .tablet-frame {
@@ -308,8 +330,10 @@
         .feedback-less { border-left-color: #FBBF24 !important; }
         .feedback-least { border-left-color: #F87171 !important; }
 
-        .navbar-content { flex: 0 0 60px; z-index: 20; }
-        .footer-content { flex: 0 0 60px; z-index: 20; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        /* HEADER AND FOOTER BASE STYLES */
+        .navbar-content { flex: 0 0 60px; z-index: 50; }
+        .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        
         .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
         .page.active { display: block; }
 
@@ -319,17 +343,125 @@
         .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
         .blueprint-mode .choice-btn { background-color: #1e293b !important; border-color: #334155 !important; }
         
+        /* EXPANDED MODE (Desktop Fullscreen Toggle) */
+        .tablet-frame.expanded-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            aspect-ratio: unset !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            z-index: 9999 !important;
+            background: #F7F7F7 !important;
+            box-shadow: none !important;
+        }
+        .tablet-frame.expanded-mode::before { display: none !important; }
+        .tablet-frame.expanded-mode .screen-container { border-radius: 0 !important; }
+
         @media (max-width: 768px) {
-            .tablet-frame { width: 100% !important; height: 100% !important; border: none; border-radius: 0; background-image: none; box-shadow: none; margin: 0; padding: 0; }
-            .tablet-frame::before { display: none; }
-            .screen-container { border-radius: 0; }
-            html, body, main { height: 100%; overflow: hidden; padding: 0; }
+            /* 1. LOCK BODY TO PREVENT BOUNCE SCROLL AND USE DVH FOR SAFARI/CHROME iOS */
+            html, body {
+                position: fixed; /* Critical for locking viewport on iOS */
+                width: 100%;
+                height: 100dvh; /* Dynamic Viewport Height */
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                background-color: #F7F7F7; /* Match app bg */
+            }
+
+            /* 2. REMOVE MAIN PADDING */
+            main {
+                padding: 0 !important;
+                height: 100dvh !important;
+                width: 100% !important;
+                display: block; /* Remove flex centering */
+                position: fixed;
+                top: 0;
+                left: 0;
+            }
+
+            /* 3. TRANSFORM TABLET FRAME INTO FULL SCREEN APP VIEW */
+            .tablet-frame {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                width: 100% !important; 
+                height: 100% !important;
+                max-width: none !important;
+                max-height: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background: #F7F7F7 !important;
+                aspect-ratio: unset !important; /* CRITICAL FIX: Stops the squash */
+                transform: none !important;
+            }
+
+            /* Hide the bezel/desk effects */
+            .tablet-frame::before { display: none !important; }
+            
+            .screen-container {
+                width: 100%;
+                height: 100%;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
+                background: #F7F7F7;
+                overflow: hidden; /* Ensure footer doesn't float out */
+                position: relative; /* Anchor for absolute footer */
+            }
+
+            /* 4. SAFE AREA AND COMPACT NAVS */
+            /* Top Navbar */
+            header.navbar-content {
+                padding-top: max(env(safe-area-inset-top), 12px);
+                height: auto;
+                min-height: 60px;
+                padding-bottom: 12px;
+                flex-shrink: 0;
+                z-index: 50;
+                background-color: #357889; /* Ensure bg is solid */
+            }
+            
+            /* Bottom Navbar - ABSOLUTE POSITION FIX FOR IOS CHROME */
+            footer.footer-content {
+                position: absolute; /* Anchor strictly to bottom */
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                padding-bottom: max(env(safe-area-inset-bottom), 20px);
+                padding-top: 12px;
+                height: auto;
+                min-height: 80px; /* Taller touch target */
+                z-index: 100; /* Ensure on top of content */
+                background-color: white;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); 
+                border-top: 1px solid #e5e7eb;
+            }
+
+            /* Ensure content area scrolls properly behind the absolute footer */
+            .page {
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 120px !important; /* Huge padding to clear the absolute footer */
+            }
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
 
-    <main class="flex-grow flex items-center justify-center py-8">
+    <!-- UPDATED MAIN TAG: Removed default py-8, added md:py-8 for desktop only -->
+    <main class="flex-grow flex items-center justify-center py-0 md:py-8 h-[100dvh] w-full">
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
@@ -394,7 +526,8 @@
                             <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Reset"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
-                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
+                            <!-- UPDATED: Hidden on mobile (sm:block) -->
+                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
                             <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         </div>
                     </div>
@@ -425,6 +558,30 @@
                     </div>
                 </div>
 
+                <!-- 5. System Menu Modal -->
+                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
+                        <div class="mb-4">
+                            <i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i>
+                        </div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
+                        
+                        <div class="space-y-3">
+                            <!-- UPDATED: Changed Reset to Log Out -->
+                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
+                            </button>
+                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
+                            <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- --- PAGES --- -->
                 <div class="page active" id="page-1">
                     <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-12">
@@ -440,11 +597,14 @@
                                 <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
                                 <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
+                            <!-- UPDATED ACCORDION CONTENT FROM INDEX (7).HTML -->
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
-                                <p class="mb-4 text-sm text-allgood-dark">Use the **Control Cluster** in the top right to customize your environment.</p>
+                                <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. Hold for Reset.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
                         </div>
@@ -515,12 +675,36 @@
                                 <p id="final-score-percent" class="text-xs text-gray-400 mt-1">(0% Effectiveness)</p>
                             </div>
                             <h3 id="final-rank-heading" class="text-xl font-heading font-bold text-allgood-dark mb-2">Digital Learner</h3>
-                            <p id="final-rank-message" class="text-sm text-gray-600 max-w-md mx-auto">Good start. Reread the feedback and try again.</p>
-                            <div id="certification-section" class="w-full max-w-md mx-auto bg-gradient-to-br from-allgood-secondary to-allgood-accent p-1 rounded-lg shadow-xl mt-12 transform transition-all duration-700">
+                            <p id="final-rank-message" class="text-sm text-gray-600 max-w-md mx-auto mb-16">Good start. Reread the feedback and try again.</p>
+                            
+                            <p class="text-sm font-bold text-allgood-primary mb-3">Your score is final. Now, let us know how we did.</p>
+
+                            <!-- MOVED FEEDBACK SECTION (Originally Page 34) -->
+                            <div id="feedback-container" class="w-full max-w-md mx-auto bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-12 text-left relative">
+                                <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this GoodBlock</h3>
+                                <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                    <button onclick="window.setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                </div>
+                                <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools. What worked? What didn't?</label>
+                                <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                <button onclick="window.submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
+                            </div>
+                            <div id="feedback-success" class="hidden w-full max-w-md mx-auto bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-12 text-center">
+                                <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
+                                <h3 class="font-bold text-green-800">Feedback Received.</h3>
+                                <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
+                            </div>
+                            <!-- END FEEDBACK SECTION -->
+
+                            <div id="certification-section" class="w-full max-w-md mx-auto bg-gradient-to-br from-allgood-secondary to-allgood-accent p-1 rounded-lg shadow-xl transform transition-all duration-700">
                                 <div class="bg-white p-6 rounded-md text-center">
                                     <div class="mb-4 relative inline-block"><i id="badge-icon" data-lucide="award" class="relative w-16 h-16 text-allgood-primary mx-auto"></i></div>
                                     <h3 class="font-heading font-bold text-xl text-allgood-dark mb-2">Digital Architect Certification</h3>
-                                    <p id="cert-req-text" class="text-sm text-gray-600 mb-6">You need **80 points** to achieve this certification.</p>
+                                    <p id="cert-req-text" class="text-sm text-gray-600 mb-6">You need 80 points to achieve this certification.</p>
                                     <button id="download-badge-btn" onclick="window.downloadBadge()" disabled class="w-full bg-gray-300 text-white font-bold py-3 rounded shadow-none cursor-not-allowed flex items-center justify-center transition-all duration-300">
                                         <i id="btn-icon" data-lucide="lock" class="w-4 h-4 mr-2"></i><span id="btn-text">Certification Locked</span>
                                     </button>
@@ -531,37 +715,21 @@
                     </div>
                 </div>
 
-                <!-- Page 34: Credits -->
-                <div class="page" id="page-34">
-                    <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8">
-                        <div class="mb-8"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2><p class="text-xs text-gray-400 font-bold tracking-widest uppercase mt-2">Pragmatic Action</p></div>
-                        <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
-                            <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this GoodBlock</h3>
-                            <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
-                                <button onclick="window.setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                <button onclick="window.setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                <button onclick="window.setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                <button onclick="window.setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                <button onclick="window.setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
-                            </div>
-                            <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools. What worked? What didn't?</label>
-                            <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
-                            <button onclick="window.submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
-                        </div>
-                        <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-8 text-center">
-                            <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
-                            <h3 class="font-bold text-green-800">Feedback Received.</h3>
-                            <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Footer -->
-                <footer class="footer-content flex items-center justify-between px-6">
+                <footer class="footer-content flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 bg-white">
                     <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
-                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>Back</button>
+                    
+                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-4 sm:w-4 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        <span class="hidden sm:inline">Back</span>
+                    </button>
+                    
                     <p class="text-gray-400 text-[10px] hidden sm:block font-body">&copy; <a href="https://www.allgoodacademy.com" target="_blank" class="hover:text-allgood-primary transition-colors font-bold">Allgood Academy</a> <span id="current-year"></span></p>
-                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span>Next</span><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    
+                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-4 sm:px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body">
+                        <span class="hidden sm:inline">Next</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-4 sm:w-4 ml-0 sm:ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
                 </footer>
 
             </div>
@@ -604,7 +772,7 @@
         // --- GLOBAL APP VARIABLES ---
         let currentUserName = "Anonymous";
         let currentPageIndex = 0; 
-        const TOTAL_PAGES = 34; 
+        const TOTAL_PAGES = 33; // UPDATED from 34
         const TOTAL_SCENARIOS = 30;
         const MAX_SCORE = 90; 
         const BADGE_THRESHOLD = 80;
@@ -669,14 +837,14 @@
             }
 
             function updateProgress() {
-                const progress = ((currentPageIndex + 1) / 34);	
+                const progress = ((currentPageIndex + 1) / TOTAL_PAGES);	
                 if (progressBar) progressBar.style.width = `${progress * 100}%`;
-                document.getElementById('header-page-indicator').textContent = `${currentPageIndex + 1} / 34`;
+                document.getElementById('header-page-indicator').textContent = `${currentPageIndex + 1} / ${TOTAL_PAGES}`;
             }
 
             // --- PAGE NAVIGATION ---
             window.showPage = function(index) {
-                if (index < 0 || index >= 34) return;
+                if (index < 0 || index >= TOTAL_PAGES) return;
                 
                 // Final Score Check
                 if (index === 32 && Object.keys(answeredScenarioScores).length < TOTAL_SCENARIOS) {
@@ -695,18 +863,25 @@
                 backButton.classList.toggle('opacity-0', index === 0);
 
                 const nextSpan = nextButton.querySelector('span');
-                if (index === 0) nextSpan.textContent = 'Start Challenge';
-                else if (index === 32) { 
-                    window.updateFinalScorePage(); 
-                    nextSpan.textContent = 'Credits'; 
-                } else if (index === 33) nextSpan.textContent = 'Reset';
-                else if (index >= 2) {
+                const startSpan = nextButton.querySelector('.hidden.sm\\:inline'); // Standard desktop text
+                const mobileSpan = nextButton.querySelector('.sm\\:hidden'); // Mobile text
+
+                // Simple logic for standard next
+                let btnText = 'Next';
+                if (index === 0) {
+                    btnText = 'Start Challenge';
+                } else if (index === 32) {
+                    btnText = 'Reset';
+                    // FIX: Trigger the score update logic when landing on the final page
+                    if(window.updateFinalScorePage) window.updateFinalScorePage();
+                } else if (index >= 2) {
                     const isDone = Object.keys(answeredScenarioScores).length === 30;
-                    nextSpan.textContent = isDone ? 'View Score' : 'Next';
-                } else {
-                    nextSpan.textContent = 'Next';
+                    btnText = isDone ? 'View Score' : 'Next';
                 }
+
+                if(startSpan) startSpan.textContent = btnText;
                 
+                // Keep icon visibility logic
                 updateProgress();
                 lucide.createIcons();
             }
@@ -748,38 +923,337 @@
             }
 
             // --- SCENARIO LOGIC ---
+            function getScenarioTemplate(type, title, icon, choicesHtml, feedbackHtml) {
+                // Remove the "Question: What do you do?" part for the visual context
+                const cleanText = title.split(" Question:")[0];
+                
+                // Helper for the "Desk" background styles (Only applied on SM+ screens now via wrapper)
+                const deskStyleMobile = `background-image: radial-gradient(#cfc8c2 2px, transparent 2px), radial-gradient(#cfc8c2 2px, transparent 2px); background-color: #f0ebe6; background-position: 0 0, 10px 10px; background-size: 20px 20px;`;
+                const deskStyleDesktop = `background-image: linear-gradient(135deg, #e2e8f0 25%, #cbd5e1 25%, #cbd5e1 50%, #e2e8f0 50%, #e2e8f0 75%, #cbd5e1 75%, #cbd5e1 100%); background-size: 40px 40px;`;
+
+                // Common wrapper for choices
+                const choicesWrapper = `<div class="mt-2 pt-2 border-t border-slate-100"><p class="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-1">Select Response:</p><div class="space-y-1">${choicesHtml}</div></div>`;
+                const feedbackWrapper = feedbackHtml ? `<div class="mt-2 animate-fade-in">${feedbackHtml}</div>` : '';
+
+                if (type === 'chat') {
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
+                        <div class="relative z-10 mx-auto bg-gray-800 sm:border-[8px] sm:border-gray-800 sm:rounded-[2rem] h-auto sm:h-[600px] w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
+                            <div class="hidden sm:block h-[32px] w-[3px] bg-gray-700 absolute -left-[10px] top-[72px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-700 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
+                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-slate-50 relative flex flex-col font-sans border-x border-slate-200 sm:border-0">
+                                <div class="bg-slate-50 h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-100 shrink-0"><span>9:41</span><div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div></div>
+                                <div class="mt-0 sm:mt-6 bg-slate-100/90 backdrop-blur-sm px-4 py-2 border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-center shrink-0"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Messages</span></div>
+                                <div class="flex-1 p-3 overflow-visible sm:overflow-y-auto pb-4 sm:pb-12">
+                                    <div class="flex items-center justify-center mb-2"><span class="text-[9px] text-slate-400 font-bold">Today 9:41 AM</span></div>
+                                    <div class="flex items-end group mb-2">
+                                        <div class="w-6 h-6 rounded-full bg-slate-200 flex-shrink-0 mr-2 flex items-center justify-center text-slate-500 border border-white shadow-sm"><i data-lucide="${icon}" class="w-3 h-3"></i></div>
+                                        <div class="bg-white p-3 rounded-2xl rounded-bl-none shadow-sm text-xs text-slate-700 leading-snug max-w-[85%] border border-slate-100 relative">${cleanText}</div>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/60">${choicesWrapper}</div>
+                                    ${feedbackWrapper}
+                                </div>
+                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                } else if (type === 'social') {
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
+                        <div class="relative z-10 mx-auto bg-gray-900 sm:border-[8px] sm:border-gray-900 sm:rounded-[2rem] h-auto sm:h-[600px] w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
+                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-800 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
+                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-800 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
+                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans border-x border-gray-100 sm:border-0">
+                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-gray-50 z-20 shrink-0"><span>10:24</span><div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-battery-three-quarters"></i></div></div>
+                                <div class="px-3 py-2 flex items-center justify-between border-b border-gray-100 shrink-0"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-800"></i><span class="text-[10px] font-bold text-gray-900">Feed</span><i data-lucide="send" class="w-4 h-4 text-gray-800"></i></div>
+                                <div class="flex-1 overflow-visible sm:overflow-y-auto bg-gray-50 pb-4 sm:pb-8">
+                                    <div class="bg-white mb-2 pb-2">
+                                        <div class="px-3 py-2 flex items-center justify-between">
+                                            <div class="flex items-center space-x-2"><div class="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 to-pink-600 p-[1.5px]"><div class="w-full h-full rounded-full bg-white p-[1px] flex items-center justify-center"><i data-lucide="user" class="w-3 h-3 text-gray-400"></i></div></div><div class="leading-none"><div class="text-[10px] font-bold text-gray-900">friend_123</div><div class="text-[8px] text-gray-400">Sponsored</div></div></div><i data-lucide="more-horizontal" class="w-3 h-3 text-gray-400"></i>
+                                        </div>
+                                        <div class="bg-gray-100 h-24 sm:h-32 flex items-center justify-center text-center relative overflow-hidden"><div class="absolute inset-0 opacity-10 bg-repeat" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 8px 8px;"></div><p class="text-xs font-serif font-medium text-gray-800 italic relative z-10 px-4">"${cleanText}"</p></div>
+                                        <div class="px-3 py-2"><div class="flex space-x-3 mb-1"><i data-lucide="heart" class="w-4 h-4 text-gray-800"></i><i data-lucide="message-circle" class="w-4 h-4 text-gray-800"></i><i data-lucide="share-2" class="w-4 h-4 text-gray-800"></i></div><div class="text-[9px] font-bold text-gray-900">4,203 likes</div></div>
+                                    </div>
+                                    <div class="mx-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">${choicesWrapper} ${feedbackWrapper}</div>
+                                </div>
+                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                } else if (type === 'browser') {
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
+                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
+                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
+                             <div class="bg-white sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 min-h-[400px] font-sans relative flex flex-col border border-gray-300 rounded-lg">
+                                <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200 flex-shrink-0">
+                                    <div class="flex space-x-1.5"><div class="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-500/20"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400 border border-green-500/20"></div></div>
+                                    <div class="flex-grow bg-white rounded shadow-inner h-6 mx-2 flex items-center px-2 border border-gray-200"><i data-lucide="lock" class="w-2.5 h-2.5 text-green-600 mr-1.5"></i><span class="text-[10px] text-gray-400 font-mono">https://search.web/results</span></div>
+                                </div>
+                                <div class="p-5 bg-white flex-1 overflow-visible sm:overflow-y-auto">
+                                    <div class="text-[10px] text-gray-500 mb-1 flex items-center"><span class="bg-gray-200 rounded px-1 mr-1">Ad</span> www.result.com</div>
+                                    <h3 class="text-base text-blue-700 hover:underline font-medium mb-1 cursor-pointer truncate">Search Result: ${cleanText.substring(0, 40)}...</h3>
+                                    <p class="text-sm text-gray-600 leading-relaxed mb-6">${cleanText}</p>
+                                    <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100">${choicesWrapper} ${feedbackWrapper}</div>
+                                </div>
+                                <div class="hidden sm:flex absolute right-0 top-10 bottom-0 w-3 bg-gray-50 border-l border-gray-100 flex-col items-center py-1 pointer-events-none"><div class="w-1.5 h-12 bg-gray-300 rounded-full"></div></div>
+                             </div>
+                        </div>
+                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                    </div>`;
+                } else if (type === 'email') {
+                    // NEW: Email Client Interface
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
+                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
+                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
+                             <div class="bg-white sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 min-h-[400px] font-sans relative flex flex-col border border-gray-300 rounded-lg">
+                                <!-- Email Header -->
+                                <div class="bg-blue-600 px-3 py-2 flex items-center justify-between border-b border-blue-700 flex-shrink-0 text-white">
+                                    <div class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i><span class="text-xs font-bold">MailClient</span></div>
+                                    <div class="flex space-x-1"><div class="w-2 h-2 rounded-full bg-white/20"></div><div class="w-2 h-2 rounded-full bg-white/20"></div></div>
+                                </div>
+                                <div class="flex flex-1 overflow-hidden">
+                                    <!-- Sidebar -->
+                                    <div class="w-1/4 bg-gray-50 border-r border-gray-200 p-2 hidden sm:block">
+                                        <div class="space-y-1">
+                                            <div class="text-[10px] font-bold text-gray-500 px-2 mb-1">FAVORITES</div>
+                                            <div class="bg-blue-100 text-blue-700 rounded px-2 py-1 text-[10px] font-bold flex items-center gap-1"><i data-lucide="inbox" class="w-3 h-3"></i> Inbox</div>
+                                            <div class="text-gray-600 px-2 py-1 text-[10px] flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> Sent</div>
+                                        </div>
+                                    </div>
+                                    <!-- Main Content -->
+                                    <div class="flex-1 p-5 overflow-visible sm:overflow-y-auto bg-white">
+                                        <div class="border-b border-gray-100 pb-3 mb-3">
+                                            <h3 class="text-sm font-bold text-gray-800 truncate">Professional Opportunity</h3>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[10px] font-bold">HR</div>
+                                                <div class="text-[10px] text-gray-500">To: Me &lt;applicant@email.com&gt;</div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 leading-relaxed mb-6 font-serif">${cleanText}</p>
+                                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm relative">
+                                            <div class="absolute -top-2 left-3 bg-white px-1 text-[9px] font-bold text-gray-400">YOUR RESPONSE</div>
+                                            ${choicesWrapper} ${feedbackWrapper}
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                    </div>`;
+                } else if (type === 'video') {
+                    // NEW: Video Call Interface
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
+                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
+                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
+                             <div class="bg-gray-900 sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 min-h-[400px] font-sans relative flex flex-col border border-gray-300 rounded-lg">
+                                <!-- Video Grid -->
+                                <div class="flex-1 p-2 grid grid-cols-2 gap-2">
+                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700">
+                                        <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">P</div>
+                                        <div class="absolute bottom-1 left-2 text-[9px] text-white font-bold bg-black/50 px-1 rounded">Professor</div>
+                                    </div>
+                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700">
+                                        <i data-lucide="smile" class="text-gray-600 w-10 h-10"></i>
+                                        <div class="absolute bottom-1 left-2 text-[9px] text-white font-bold bg-black/50 px-1 rounded">Classmate A</div>
+                                        <!-- Active Speaker Indicator -->
+                                        <div class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                    </div>
+                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 col-span-2">
+                                        <div class="text-white/80 text-center px-4">
+                                            <p class="text-xs italic mb-2">"${cleanText}"</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Controls -->
+                                <div class="h-12 bg-gray-800 border-t border-gray-700 flex items-center justify-center gap-4 shrink-0">
+                                    <div class="p-2 rounded-full bg-gray-700 text-white"><i data-lucide="mic-off" class="w-4 h-4"></i></div>
+                                    <div class="p-2 rounded-full bg-gray-700 text-white"><i data-lucide="video" class="w-4 h-4"></i></div>
+                                    <div class="p-2 rounded-full bg-red-600 text-white px-4 text-xs font-bold">Leave</div>
+                                </div>
+                                <!-- Overlay Content -->
+                                <div class="bg-gray-800/90 border-t border-gray-700 p-4">
+                                    ${choicesWrapper} ${feedbackWrapper}
+                                </div>
+                             </div>
+                        </div>
+                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                    </div>`;
+                } else if (type === 'game') {
+                    // NEW: Gaming Interface
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0 bg-black"></div>
+                        <div class="relative z-10 bg-black sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
+                             <div class="bg-gray-900 sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 min-h-[400px] font-mono relative flex flex-col border border-gray-700 rounded-lg">
+                                <!-- Game Header -->
+                                <div class="bg-black/50 px-3 py-1 flex justify-between items-center text-green-500 text-[10px] border-b border-green-500/30">
+                                    <span>FPS: 60</span> <span>PING: 24ms</span>
+                                </div>
+                                <!-- Game Viewport -->
+                                <div class="flex-1 bg-gray-800 relative flex flex-col items-center justify-center p-4">
+                                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle, #22c55e 1px, transparent 1px); background-size: 20px 20px;"></div>
+                                    <!-- Chat Overlay -->
+                                    <div class="w-full bg-black/60 border border-green-500/30 rounded p-2 mb-4 backdrop-blur-sm max-w-xs self-start">
+                                        <div class="text-[9px] text-gray-400 mb-1">[Global] <span class="text-red-400">Troll_User99:</span> ${cleanText}</div>
+                                    </div>
+                                </div>
+                                <!-- HUD Bottom -->
+                                <div class="bg-gray-900 p-4 border-t border-green-500/30">
+                                    <div class="border border-green-500/20 rounded p-3 bg-black/40">
+                                        ${choicesWrapper} ${feedbackWrapper}
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+                    </div>`;
+                } else if (type === 'form') {
+                    // NEW: Secure Form Interface (Mobile)
+                    return `
+                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
+                        <div class="relative z-10 mx-auto bg-gray-800 sm:border-[8px] sm:border-gray-800 sm:rounded-[2rem] h-auto sm:h-[600px] w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
+                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
+                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans border-x border-slate-200 sm:border-0">
+                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-50 shrink-0"><span>9:41</span><i class="fas fa-battery-full"></i></div>
+                                <div class="flex-1 p-6 flex flex-col justify-center bg-gray-50 overflow-visible sm:overflow-y-auto pb-4 sm:pb-12">
+                                    <div class="mb-4 text-center">
+                                        <div class="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white mb-3 shadow-lg shadow-blue-200"><i data-lucide="${icon}" class="w-6 h-6"></i></div>
+                                        <h3 class="text-lg font-bold text-gray-800">Security Check</h3>
+                                        <p class="text-xs text-gray-500 mt-1 px-4">${cleanText}</p>
+                                    </div>
+                                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                        ${choicesWrapper}
+                                    </div>
+                                    ${feedbackWrapper}
+                                </div>
+                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // System (Fallback)
+                    return `
+                    <div class="relative w-full sm:py-10 sm:px-4 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-200 mb-2">
+                        <div class="hidden sm:block absolute inset-0 z-0" style="background: radial-gradient(circle at center, #f8fafc, #e2e8f0);"></div>
+                        <div class="relative z-10 bg-white/80 backdrop-blur-md rounded-xl overflow-hidden border border-white/50 shadow-sm sm:shadow-xl font-sans mb-6 max-w-sm mx-auto transform sm:scale-95 sm:hover:scale-100 transition-transform duration-300">
+                            <div class="absolute top-0 left-0 w-full h-1 bg-allgood-primary"></div>
+                            <div class="p-6">
+                                <div class="flex items-start space-x-3 mb-4">
+                                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm"><i data-lucide="${icon}" class="w-6 h-6 text-allgood-primary"></i></div>
+                                    <div><h4 class="font-bold text-gray-900 text-sm mb-1 uppercase tracking-wide">System Notification</h4><p class="text-sm text-gray-600 leading-snug">${cleanText}</p></div>
+                                </div>
+                                ${choicesWrapper} ${feedbackWrapper}
+                            </div>
+                        </div>
+                    </div>`;
+                }
+            }
+
             function renderScenarioPage(pageElement, scenarioIndex) {
                 const data = SCENARIO_DATA[scenarioIndex - 1];
-                const isAnswered = answeredScenarioScores[scenarioIndex];
+                // FIX: Check for undefined specifically, so 0 is treated as a valid answer
+                const isAnswered = answeredScenarioScores[scenarioIndex] !== undefined;
                 
+                // 1. DETERMINE INTERFACE TYPE
+                let uiType = 'system'; // Default
+                const icon = data.icon;
+                
+                // Mapped categories
+                if (['briefcase'].includes(icon)) uiType = 'email';
+                else if (['tv'].includes(icon)) uiType = 'video';
+                else if (['gamepad-2'].includes(icon)) uiType = 'game';
+                else if (['key', 'lock', 'user-lock', 'form-input', 'wallet', 'bug'].includes(icon)) uiType = 'form';
+                else if (['message-square', 'message-square-off', 'phone-off', 'split'].includes(icon)) uiType = 'chat';
+                else if (['users', 'users-x', 'user-plus', 'heart-off', 'camera-off', 'user-round-minus', 'user-round-x', 'thumbs-down', 'image-up', 'frown'].includes(icon)) uiType = 'social';
+                else if (['search', 'globe', 'search-check', 'book-open-check', 'image'].includes(icon)) uiType = 'browser';
+                
+                // 2. GENERATE CHOICES HTML (BEFORE Template)
                 let choicesHtml = data.choices.map((choice, index) => {
-                    let btnClass = 'choice-btn';
-                    let disabled = '';
+                    let btnClass = 'w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all shadow-sm mb-2 border';
+                    // Dynamic styling based on state
                     if (isAnswered) {
-                        if (choice.score === 3) btnClass += ' choice-correct';
-                        else if (choice.score === 1) btnClass += ' choice-less-effective';
-                        else btnClass += ' choice-least-effective';
-                        if (answeredScenarioScores[scenarioIndex] !== choice.score) {
-                            disabled = 'disabled'; btnClass += ' opacity-50';
+                         // Locked State Styles
+                        if (choice.score === 3) {
+                            btnClass += ' bg-emerald-50 border-emerald-200 text-emerald-800 ring-1 ring-emerald-300'; // Correct
+                        } else if (answeredScenarioScores[scenarioIndex] === choice.score) {
+                            // Selected but wrong/sub-optimal
+                             btnClass += choice.score === 1 
+                                ? ' bg-amber-50 border-amber-200 text-amber-800 ring-1 ring-amber-300' 
+                                : ' bg-rose-50 border-rose-200 text-rose-800 ring-1 ring-rose-300';
+                        } else {
+                            // Unselected
+                            btnClass += ' bg-gray-50 border-gray-100 text-gray-400 opacity-60';
                         }
+                    } else {
+                        // Active State Styles
+                        btnClass += ' bg-white border-gray-200 text-gray-700 hover:border-allgood-primary hover:bg-orange-50 hover:text-allgood-primary cursor-pointer active:scale-[0.98]';
                     }
-                    return `<button class="w-full text-left p-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabled}>${String.fromCharCode(65 + index)}. ${sanitizeText(choice.text)}</button>`;
+                    
+                    const disabledAttr = isAnswered ? 'disabled' : '';
+                    
+                    return `<button class="${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabledAttr}>
+                        <div class="flex items-start">
+                            <span class="font-bold mr-2 opacity-50 text-[10px] uppercase mt-0.5">${String.fromCharCode(65 + index)}</span>
+                            <span>${sanitizeText(choice.text)}</span>
+                        </div>
+                    </button>`;
                 }).join('');
 
+                // 3. GENERATE FEEDBACK HTML (BEFORE Template)
                 let feedbackHtml = '';
                 if (isAnswered) {
                     const chosen = data.choices.find(c => c.score === answeredScenarioScores[scenarioIndex]);
-                    let fbClass = chosen.score === 3 ? 'feedback-correct' : (chosen.score === 1 ? 'feedback-less' : 'feedback-least');
-                    feedbackHtml = `<div class="feedback-box p-4 rounded-lg shadow-inner mt-4 ${fbClass}"><p class="font-bold text-xs text-gray-500 mb-1">Score: ${chosen.score}/3</p><p class="text-sm text-gray-700 leading-relaxed">${sanitizeText(chosen.feedback)}</p></div>`;
+                    
+                    // Styled to look like a system notification inside the device
+                    let bgClass = chosen.score === 3 ? 'bg-emerald-100 border-emerald-200' : (chosen.score === 1 ? 'bg-amber-100 border-amber-200' : 'bg-rose-100 border-rose-200');
+                    let textClass = chosen.score === 3 ? 'text-emerald-800' : (chosen.score === 1 ? 'text-amber-800' : 'text-rose-800');
+                    let iconName = chosen.score === 3 ? 'check-circle' : 'alert-circle';
+                    
+                    feedbackHtml = `
+                    <div class="${bgClass} border rounded-lg p-3 flex items-start gap-3 shadow-sm">
+                         <i data-lucide="${iconName}" class="w-5 h-5 ${textClass} flex-shrink-0 mt-0.5"></i>
+                         <div>
+                             <p class="text-[10px] font-bold uppercase tracking-wider ${textClass} mb-1">
+                                ${chosen.effectiveness.replace('-', ' ')}
+                             </p>
+                             <p class="text-xs ${textClass} leading-relaxed">
+                                ${sanitizeText(chosen.feedback)}
+                             </p>
+                         </div>
+                    </div>`;
                 }
 
-                pageElement.innerHTML = `<section class="mb-4 border-b border-gray-200 pb-2"><h2 class="text-xl font-heading font-bold text-allgood-dark">Scenario ${scenarioIndex} of 30</h2></section><div class="bg-white p-6 rounded border border-gray-200 shadow-sm mb-6"><div class="flex items-start mb-4"><div class="w-12 h-12 rounded-full bg-allgood-secondary/10 flex items-center justify-center text-allgood-secondary mr-3 text-xl flex-shrink-0"><i data-lucide="${data.icon}" class="w-6 h-6"></i></div><div><h4 class="font-bold text-lg text-allgood-dark mb-1">${data.title}</h4><p class="text-sm text-gray-500">Select the <strong>MOST Effective</strong> response:</p></div></div><div class="space-y-3 mb-4">${choicesHtml}</div>${feedbackHtml}</div>`;
+                // 4. GENERATE VISUAL CONTAINER WITH INTEGRATED CONTENT
+                const visualHtml = getScenarioTemplate(uiType, data.title, icon, choicesHtml, feedbackHtml);
+
+                // Render with new structure (Removed external choice box)
+                pageElement.innerHTML = `
+                    <section class="mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark">Scenario ${scenarioIndex}</h2>
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Decide</span>
+                    </section>
+                    
+                    <!-- FULL INTEGRATED INTERFACE -->
+                    <div class="flex justify-center">
+                        ${visualHtml}
+                    </div>`;
             }
 
             window.selectScenarioChoice = function(sIdx, cIdx) {
                 const data = SCENARIO_DATA[sIdx - 1];
                 const chosen = data.choices[cIdx];
-                if (!answeredScenarioScores[sIdx]) {
+                
+                // FIX: Check undefined so we don't overwrite 0-point answers or allow double-scoring
+                if (answeredScenarioScores[sIdx] === undefined) {
                     totalChallengeScore += chosen.score;
                     answeredScenarioScores[sIdx] = chosen.score;
                     
@@ -790,6 +1264,12 @@
                         score: chosen.score,
                         effectiveness: chosen.effectiveness,
                         question: data.title
+                    });
+
+                    // NEW: Sync running total to DB immediately
+                    window.logFinalScoreToFirestore({ 
+                        finalScore: totalChallengeScore, 
+                        sessionId: window.sessionId 
                     });
                 }
                 window.showPage(currentPageIndex); // Re-render to show feedback inline
@@ -846,7 +1326,23 @@
                 const badgeBtn = document.getElementById('download-badge-btn');
                 const certReqText = document.getElementById('cert-req-text'); 
 
-                const currentScore = totalChallengeScore;
+                // FIX: Robust Score Calculation with Fallback
+                let currentScore = 0;
+                
+                // 1. Try to sum from the source of truth
+                try {
+                    const scores = Object.values(answeredScenarioScores);
+                    if (scores.length > 0) {
+                        currentScore = scores.reduce((acc, val) => acc + (Number(val) || 0), 0);
+                    }
+                } catch(e) { console.error("Score calc error", e); }
+
+                // 2. Safety Fallback: If calc is 0 but running total exists, use running total
+                if (currentScore === 0 && totalChallengeScore > 0) {
+                    console.warn("Using fallback totalChallengeScore");
+                    currentScore = totalChallengeScore;
+                }
+
                 const percentage = Math.round((currentScore / MAX_SCORE) * 100);
 
                 let rank = "";
@@ -889,7 +1385,17 @@
                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked';
                 }
                 
-                window.logFinalScoreToFirestore({ finalScore: currentScore, maxScore: MAX_SCORE, percentage: percentage, rank: rank, isCertified: isCertified, sessionId: window.sessionId });
+                // Send both signals: 'completed' (always true here) and 'isCertified' (based on score)
+                window.logFinalScoreToFirestore({ 
+                    finalScore: currentScore, 
+                    maxScore: MAX_SCORE, 
+                    percentage: percentage, 
+                    rank: rank, 
+                    completed: true, 
+                    isCertified: isCertified, 
+                    sessionId: window.sessionId 
+                });
+                
                 lucide.createIcons();
             }
 
@@ -921,8 +1427,7 @@
                     addLink(`${pageIndex}. ${shortTitle}`, pageIndex);
                 }
 
-                addLink("33. Final Score & Badge", 32, true, "text-allgood-secondary");
-                addLink("34. Credits", 33);
+                addLink("33. Score, Feedback & Badge", 32, true, "text-allgood-secondary");
             }
 
             // --- INIT PAGES ---
@@ -933,7 +1438,7 @@
 
             // --- NAV LISTENERS ---
             if(nextButton) nextButton.addEventListener('click', () => {
-                if (currentPageIndex < 33) window.showPage(currentPageIndex + 1);
+                if (currentPageIndex < (TOTAL_PAGES - 1)) window.showPage(currentPageIndex + 1);
                 else window.performHardReset();
             });
             if(backButton) backButton.addEventListener('click', () => { if(currentPageIndex > 0) window.showPage(currentPageIndex - 1); });
@@ -944,20 +1449,103 @@
             const homeButton = document.getElementById('home-button');
             let pressTimer = null;
             if(homeButton) {
+                // Shared Start Function for Long Press
                 const startLongPress = (e) => {
-                    e.preventDefault(); 
-                    pressTimer = setTimeout(() => { window.performHardReset(); pressTimer = null; }, 2000);
+                    // Start timer on press
+                    isLongPress = false; 
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true; // Flag as long press
+                        document.getElementById('system-menu-modal').classList.remove('hidden-modal');
+                        document.getElementById('system-menu-modal').classList.add('visible-modal');
+                        if(window.lucide) window.lucide.createIcons(); // Ensure icons render in modal
+                        if(window.sfx) window.sfx.nav();
+                        pressTimer = null; 
+                    }, 2000);
                 }
-                const cancelLongPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
-                const endLongPress = () => {
-                    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; if (currentPageIndex !== 0) { window.showPage(0); sfx.nav(); } }
+
+                const endPress = (e) => {
+                    if (pressTimer) { 
+                        clearTimeout(pressTimer); 
+                        pressTimer = null; 
+                    }
                 }
+
+                // Mouse Events
                 homeButton.addEventListener('mousedown', startLongPress);
-                homeButton.addEventListener('mouseleave', cancelLongPress);
-                homeButton.addEventListener('mouseup', endLongPress);
-                homeButton.addEventListener('touchstart', startLongPress);
-                homeButton.addEventListener('touchend', endLongPress);
+                homeButton.addEventListener('mouseup', endPress);
+                homeButton.addEventListener('mouseleave', endPress);
+
+                // Touch Events (Mobile)
+                homeButton.addEventListener('touchstart', (e) => {
+                    startLongPress();
+                }, { passive: true });
+                
+                homeButton.addEventListener('touchend', endPress);
+                homeButton.addEventListener('touchcancel', endPress);
+
+                // Prevent Context Menu on Long Press
+                homeButton.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+
+                // Click Handler - Only trigger if NOT a long press
+                homeButton.addEventListener('click', (e) => {
+                    if(isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isLongPress = false; // Reset flag
+                    } else {
+                        // Short tap behavior
+                        if (currentPageIndex !== 0) { 
+                            window.showPage(0); 
+                            sfx.nav(); 
+                        }
+                    }
+                });
             }
+
+            // --- SYSTEM MENU FUNCTIONS ---
+            window.closeSystemMenu = () => {
+                 document.getElementById('system-menu-modal').classList.add('hidden-modal');
+                 document.getElementById('system-menu-modal').classList.remove('visible-modal');
+            };
+
+            // NEW: Log Out Function (Replaces Reset Mission)
+            window.handleLogOut = async () => {
+                // 1. Sign out from Firebase
+                if (window.authSignOut) await window.authSignOut();
+                
+                // 2. Clear Local Storage Session Data
+                localStorage.removeItem('aa_username');
+                localStorage.removeItem('aa_email');
+                localStorage.removeItem('aa_uid');
+                localStorage.removeItem('aa_is_guest');
+                
+                // 3. Reset Game State
+                totalChallengeScore = 0;
+                answeredScenarioScores = {};
+                window.currentUser = null;
+                window.currentUserName = "Anonymous";
+                
+                // 4. Update UI
+                window.closeSystemMenu();
+                
+                // 5. Show Startup Screen with Effect
+                const startup = document.getElementById('startup-screen');
+                startup.style.display = 'flex';
+                // Small delay to ensure display:flex applies before opacity transition
+                setTimeout(() => startup.style.opacity = '1', 10);
+                
+                // 6. Go to Page 0 (hidden behind startup)
+                window.showPage(0);
+                sfx.powerOff();
+            };
+
+            window.handleSystemExit = () => {
+                window.location.href = "https://www.allgoodacademy.com";
+            };
 
             document.getElementById('blueprint-toggle').addEventListener('click', () => {
                 document.getElementById('screen').classList.toggle('blueprint-mode');
@@ -965,13 +1553,16 @@
                 sfx.tick();
             });
 
+            // UPDATED FULLSCREEN LOGIC (CSS Toggle Only)
             document.getElementById('fullscreen-toggle').addEventListener('click', () => {
                 const frame = document.querySelector('.tablet-frame');
-                frame.classList.toggle('focus-mode');
-                const isFocus = frame.classList.contains('focus-mode');
-                if (isFocus) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
-                else { if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }
-                document.getElementById('fullscreen-toggle').classList.toggle('text-green-300');
+                frame.classList.toggle('expanded-mode');
+                
+                // Toggle Icon Color
+                const btn = document.getElementById('fullscreen-toggle');
+                btn.classList.toggle('text-green-300');
+                btn.classList.toggle('text-gray-200');
+                
                 sfx.tick();
             });
 
