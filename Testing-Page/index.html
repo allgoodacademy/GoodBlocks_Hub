@@ -18,7 +18,7 @@
         
         // 1. CONFIGURATION
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "", // Injected by env
+            apiKey: "", 
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
             storageBucket: "allgood-academy.firebasestorage.app",
@@ -86,10 +86,22 @@
         // 6. LOGIN FUNCTIONS
         window.handleGuestLogin = async () => {
             const name = document.getElementById('user-name-input').value.trim() || "Learner";
+            const btn = document.getElementById('btn-guest-login');
+            const originalText = btn.innerText;
+            btn.innerText = "Connecting...";
+            btn.disabled = true;
+
             try {
                 const result = await signInAnonymously(auth);
                 await updateProfile(result.user, { displayName: name });
-            } catch (e) { alert("Login failed"); }
+                // Simple user container logic
+                const userRef = doc(db, 'artifacts', appId, 'users', result.user.uid);
+                await setDoc(userRef, { displayName: name, lastLogin: serverTimestamp() }, { merge: true });
+            } catch (e) { 
+                alert("Login failed"); 
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         };
 
         window.handleGoogleLogin = async () => {
@@ -400,7 +412,7 @@
                     </div>
                 </header>
 
-                <!-- MAIN SPLIT VIEW (New Wrapper) -->
+                <!-- MAIN SPLIT VIEW -->
                 <div class="flex-1 min-h-0 relative split-layout">
                     
                     <!-- LEFT COLUMN: MENTOR SIDEBAR -->
@@ -415,8 +427,6 @@
 
                     <!-- RIGHT COLUMN: CONTENT SCROLL AREA -->
                     <div class="content-column" id="content-column">
-                        
-                        <!-- PAGES (1-15) -->
                         
                         <!-- Page 1: Hook -->
                         <div class="page active" id="page-1">
@@ -654,8 +664,8 @@
                     </button>
                 </footer>
 
-                <!-- Login Modal -->
-                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition">
+                <!-- Login Modal (RESTORED EXACTLY) -->
+                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
                         <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
@@ -667,7 +677,7 @@
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
                                     <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
                                     <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
-                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the GoodBlock experience. All personal data is kept confidential and never sold.</p>
+                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. <strong>Performance data is logged in real-time</strong> to improve the GoodBlock experience. All personal data is <strong>kept confidential</strong> and <strong>never sold.</strong></p>
                                     <div class="border-t border-gray-700 my-1 pt-1"></div>
                                     <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
                                 </div>
@@ -683,33 +693,6 @@
                     </div>
                 </div>
 
-                <!-- 4. Menu Modal (Added for Menu Button) -->
-                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/60 flex justify-end modal-transition">
-                    <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
-                        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <span class="font-bold text-allgood-dark font-heading">Mission Log</span>
-                            <button id="close-menu" class="text-gray-500"><i data-lucide="x" class="w-6 h-6"></i></button>
-                        </div>
-                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body">
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold" onclick="window.goToPage(0)">1. Cover</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(1)">2. Mission Briefing</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(2)">3. The Engagement Multiplier</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(3)">4. Choose Your Code Path</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(4)">5. Drill: Spot the Bait</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(5)">6. The Trade-Off</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(6)">7. Drill: Subtle Triggers</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(7)">8. System Guardrails</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(8)">9. Build Your Filter</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(9)">10. The Cost of Scrolling</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(10)">11. The Engineer's Dilemma</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(11)">12. Final Exam</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(12)">13. Real World Spotting</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" onclick="window.goToPage(13)">14. Certification Check</button>
-                            <button class="menu-link w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 font-bold text-allgood-secondary" onclick="window.goToPage(14)">15. Pattern Recognized</button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 5. System Menu Modal -->
                 <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
@@ -720,7 +703,6 @@
                         <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
                         
                         <div class="space-y-3">
-                            <!-- UPDATED: Changed Reset to Log Out -->
                             <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
                                 <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
                             </button>
@@ -955,12 +937,24 @@
 
         window.handleLogOut = async () => {
             if (window.authSignOut) await window.authSignOut();
+            
+            // Clear Session Data (Aligned with DDC Example)
+            localStorage.removeItem('aa_username');
+            localStorage.removeItem('aa_email');
+            localStorage.removeItem('aa_uid');
+            localStorage.removeItem('aa_is_guest');
+
             window.currentUser = null;
             window.currentUserName = "Learner";
             window.closeSystemMenu();
+            
             const startup = document.getElementById('startup-screen');
             startup.style.display = 'flex';
+            startup.style.pointerEvents = 'auto'; // CRITICAL FIX: Re-enable clicking
+            
+            // Small delay to ensure display:flex applies before opacity transition
             setTimeout(() => startup.style.opacity = '1', 10);
+            
             currentPage = 0;
             window.updatePage();
             window.sfx.powerOff();
@@ -984,7 +978,7 @@
                 startup.addEventListener('click', () => {
                     window.sfx.powerOn();
                     startup.style.opacity = '0';
-                    startup.style.pointerEvents = 'none';
+                    startup.style.pointerEvents = 'none'; // Prevents double-clicking during fade
                     
                     setTimeout(() => {
                         if(window.currentUser) {
@@ -993,6 +987,9 @@
                             loginModal.classList.remove('hidden-modal');
                             loginModal.classList.add('visible-modal');
                         }
+                        // We do NOT hide display:none here immediately to allow smooth transition, 
+                        // but usually we would. For safety in this specific architecture:
+                        setTimeout(() => { startup.style.display = 'none'; }, 700);
                     }, 800);
                 });
             }
