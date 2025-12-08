@@ -98,7 +98,19 @@
         };
 
         window.handleGoogleLogin = async () => {
-            try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { alert("Google Login failed"); }
+            const provider = new GoogleAuthProvider();
+            try { 
+                await signInWithPopup(auth, provider); 
+            } catch (e) { 
+                console.error("Google Auth Error:", e);
+                if (e.code === 'auth/unauthorized-domain') {
+                    alert("Google Sign-In failed: The current domain is not authorized in Firebase Console. Please use Guest Login for testing.");
+                } else if (e.code === 'auth/popup-closed-by-user') {
+                    // User closed popup, do nothing
+                } else {
+                    alert("Google Sign-In failed. Please try Guest Login."); 
+                }
+            }
         };
 
         (async function initAuth() {
