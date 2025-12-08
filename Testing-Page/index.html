@@ -16,15 +16,8 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
-        // 1. CONFIGURATION
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "", 
-            authDomain: "allgood-academy.firebaseapp.com",
-            projectId: "allgood-academy",
-            storageBucket: "allgood-academy.firebasestorage.app",
-            messagingSenderId: "978829044870",
-            appId: "1:978829044870:web:6c780f64230a77ad0ab507"
-        };
+        // 1. CONFIGURATION (FIXED: Use dynamic config for Preview Environment)
+        const firebaseConfig = JSON.parse(__firebase_config);
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy'; 
         
@@ -935,26 +928,35 @@
              document.getElementById('system-menu-modal').classList.remove('visible-modal');
         };
 
+        // NEW: Log Out Function (Matched EXACTLY to index.html reference)
         window.handleLogOut = async () => {
+            // 1. Sign out from Firebase
             if (window.authSignOut) await window.authSignOut();
             
-            // Clear Session Data (Aligned with DDC Example)
+            // 2. Clear Local Storage Session Data
             localStorage.removeItem('aa_username');
             localStorage.removeItem('aa_email');
             localStorage.removeItem('aa_uid');
             localStorage.removeItem('aa_is_guest');
-
+            
+            // 3. Reset Game State (Critical for "Restart")
+            // Note: Since this is the Rage Revenue module, we reset its specific state if needed, 
+            // but for the chassis, we mostly care about user state.
             window.currentUser = null;
             window.currentUserName = "Learner";
+            
+            // 4. Update UI
             window.closeSystemMenu();
             
+            // 5. Show Startup Screen with Effect
             const startup = document.getElementById('startup-screen');
             startup.style.display = 'flex';
-            startup.style.pointerEvents = 'auto'; // CRITICAL FIX: Re-enable clicking
+            startup.style.pointerEvents = 'auto'; // Ensure clickable
             
             // Small delay to ensure display:flex applies before opacity transition
             setTimeout(() => startup.style.opacity = '1', 10);
             
+            // 6. Go to Page 0 (Cover)
             currentPage = 0;
             window.updatePage();
             window.sfx.powerOff();
