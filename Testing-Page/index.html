@@ -205,6 +205,7 @@
     </script>
     
     <style>
+        /* 🔒 FIXED CHASSIS: START (DO NOT EDIT) */
         /* ==========================================================================
            FIXED CHASSIS MANDATE - DO NOT EDIT BELOW THIS LINE
            ========================================================================== 
@@ -296,13 +297,14 @@
             border-radius: 0 !important; background: #F7F7F7 !important;
         }
         .tablet-frame.focus-mode::before { display: none; }
-
+        
         .navbar-content { flex: 0 0 60px; z-index: 50; }
         .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
         .page.active { display: block; }
         .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        /* 🔒 FIXED CHASSIS: END */
         
-        /* Interactive Elements */
+        /* Interactive Elements (Mutable) */
         .profile-card { transition: all 0.3s; cursor: pointer; border: 2px solid transparent; }
         .profile-card.selected { border-color: #D34716; background-color: #fff7ed; transform: translateY(-4px); }
         .flip-card { background-color: transparent; width: 100%; height: 150px; perspective: 1000px; cursor: pointer; }
@@ -319,6 +321,7 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
+                <!-- 🔒 FIXED INTERFACE: START -->
                 <!-- 1. STARTUP SCREEN -->
                 <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-allgood-accent">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
@@ -347,7 +350,7 @@
                             <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
-                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
+                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
                             <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         </div>
                     </div>
@@ -419,6 +422,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- 🔒 FIXED INTERFACE: END -->
 
                 <!-- 4. PAGES -->
                 <!-- Page 1: Cover -->
@@ -429,6 +433,8 @@
                         <div class="inline-block bg-allgood-secondary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">Module: Insert Topic Here</div>
                         <p class="text-lg text-gray-600 mb-8 max-w-md">This is the brief introduction to the lesson. Use this space for narrative context or high-stakes framing.</p>
                         <p class="text-sm text-allgood-primary font-bold mb-12 animate-pulse">Click Next to begin.</p>
+                        
+                        <!-- 🔒 FIXED INTERFACE: START (How To Use) -->
                         <div class="w-full max-w-lg text-left mx-auto">
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                 <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
@@ -440,11 +446,13 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
                                     <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
                                     <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
                         </div>
+                        <!-- 🔒 FIXED INTERFACE: END -->
+
                     </div>
                 </div>
 
@@ -530,11 +538,7 @@
                 <!-- Page 7: Credits -->
                 <div class="page" id="page-7">
                     <div class="flex flex-col items-center justify-start min-h-full py-10 text-center px-6">
-                        <div class="mb-8 transform scale-90 sm:scale-100 transition-transform" id="badge-container"></div>
-                        <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Congratulations!</h2>
-                        <a href="#" class="w-full max-w-xs bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform active:scale-95 flex items-center justify-center mb-12 group">
-                            <i data-lucide="download" class="w-5 h-5 mr-2 group-hover:animate-bounce"></i><span>Download Badge</span>
-                        </a>
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-8">Congratulations!</h2>
 
                         <!-- FEEDBACK SECTION -->
                         <div id="feedback-container" class="w-full max-w-md mx-auto bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-12 text-left relative">
@@ -555,6 +559,11 @@
                             <h3 class="font-bold text-green-800">Feedback Received.</h3>
                             <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
                         </div>
+
+                        <div class="mb-8 transform scale-90 sm:scale-100 transition-transform" id="badge-container"></div>
+                        <a href="#" class="w-full max-w-xs bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform active:scale-95 flex items-center justify-center mb-12 group">
+                            <i data-lucide="download" class="w-5 h-5 mr-2 group-hover:animate-bounce"></i><span>Download Badge</span>
+                        </a>
                     </div>
                 </div>
 
@@ -562,7 +571,11 @@
                 <footer class="footer-content flex items-center justify-between px-6">
                     <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
                     <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>Back</button>
-                    <div class="text-center hidden sm:block"><p class="text-gray-400 text-[10px] font-body"><span class="font-bold">GoodBlock&trade;</span> powered by <span class="font-bold">Allgood Academy</span></p></div>
+                    <div class="text-center hidden sm:block">
+                        <a href="https://www.allgoodacademy.com" target="_blank" class="text-gray-400 text-[10px] font-body hover:text-allgood-primary transition-colors no-underline">
+                            <span class="font-bold">GoodBlock&trade;</span> powered by <span class="font-bold">Allgood Academy</span>
+                        </a>
+                    </div>
                     <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span>Next</span><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
                 </footer>
             </div>
@@ -574,6 +587,7 @@
         const totalPages = 7;
         let currentPage = 0;
         
+        // 🔒 FIXED ENGINE: START
         // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
@@ -584,6 +598,7 @@
             nav: () => playTone(150,'sine',0.1), tick: () => playTone(1000,'sine',0.01), success: () => playTone(1200,'sine',0.2), error: () => playTone(100,'sawtooth',0.2)
         };
         window.sfx = sfx;
+        // 🔒 FIXED ENGINE: END
 
         // --- NAVIGATION ---
         const pages = document.querySelectorAll('.page');
@@ -630,6 +645,7 @@
             document.getElementById('badge-container').innerHTML = `<svg viewBox="0 0 400 400" width="200" height="200" xmlns="http://www.w3.org/2000/svg"><circle cx="200" cy="200" r="190" fill="#357889"/><text x="200" y="200" font-family="Verdana" font-weight="bold" font-size="24" fill="white" text-anchor="middle" dy=".3em">${name}</text></svg>`;
         }
 
+        // 🔒 FIXED ENGINE: START
         // --- SYSTEM FUNCTIONS ---
         window.closeSystemMenu = () => { document.getElementById('system-menu-modal').classList.add('hidden-modal'); document.getElementById('system-menu-modal').classList.remove('visible-modal'); }
         window.handleSystemExit = () => { window.location.href = "https://www.allgoodacademy.com"; }
@@ -645,6 +661,7 @@
              document.getElementById('login-modal').classList.remove('hidden-modal');
              document.getElementById('login-modal').classList.add('visible-modal');
         }
+        // 🔒 FIXED ENGINE: END
 
         // --- FEEDBACK LOGIC ---
         window.setRating = function(n) {
