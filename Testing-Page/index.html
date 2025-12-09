@@ -359,6 +359,128 @@
             }
         };
 
+        // --- MOVED PROFILE FUNCTIONS TO MODULE SCOPE TO FIX REFERENCE ERROR ---
+        
+        window.openProfileModal = () => {
+            // Close menu if open
+            const menu = document.getElementById('menu-modal');
+            if (menu) {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+
+            const modal = document.getElementById('profile-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            if(window.sfx) window.sfx.click();
+
+            // Populate Data
+            const user = auth.currentUser;
+            const storedName = localStorage.getItem('aa_username') || "Guest Agent";
+            const storedUID = localStorage.getItem('aa_uid') || "N/A";
+            const launches = localStorage.getItem('aa_launch_count') || "0";
+            
+            // Name
+            const nameDisplay = document.getElementById('profile-name-display');
+            const nameInput = document.getElementById('profile-name-input');
+            if(nameDisplay) nameDisplay.textContent = storedName;
+            if(nameInput) nameInput.value = storedName;
+            
+            // Stats
+            const statLaunches = document.getElementById('profile-stat-launches');
+            if(statLaunches) statLaunches.textContent = launches;
+            
+            // Badges & Rank Calculation
+            let badgeCount = 1; // Observer
+            if (user && !user.isAnonymous) badgeCount++;
+            if (parseInt(launches) > 0) badgeCount++;
+            if (localStorage.getItem('aa_ddc_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_jlc_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_identity_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_defense_complete') === 'true') badgeCount++;
+
+            const statBadges = document.getElementById('profile-stat-badges');
+            if(statBadges) statBadges.textContent = badgeCount;
+
+            // Rank Title Logic
+            let rankTitle = "OBSERVER";
+            if (badgeCount >= 2) rankTitle = "RECRUIT";
+            if (badgeCount >= 3) rankTitle = "FIELD AGENT";
+            if (badgeCount >= 5) rankTitle = "SPECIAL OPERATIVE";
+            if (badgeCount >= 7) rankTitle = "ELITE GUARDIAN";
+            
+            const rankDisplay = document.getElementById('profile-rank-display');
+            if(rankDisplay) rankDisplay.textContent = rankTitle;
+
+            // ID & Meta
+            const idDisplay = document.getElementById('profile-id-display');
+            if(idDisplay) idDisplay.textContent = storedUID.substring(0, 8).toUpperCase() + "...";
+            
+            const dateDisplay = document.getElementById('profile-join-date');
+            if (dateDisplay) {
+                if (user && user.metadata && user.metadata.creationTime) {
+                    const date = new Date(user.metadata.creationTime);
+                    dateDisplay.textContent = date.toLocaleDateString();
+                } else {
+                    dateDisplay.textContent = new Date().toLocaleDateString();
+                }
+            }
+        }
+
+        window.closeProfileModal = () => {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            // Reset Edit Mode
+            window.toggleProfileEdit(false);
+            if(window.sfx) window.sfx.click();
+        }
+
+        window.toggleProfileEdit = (isEditing) => {
+            const viewMode = document.getElementById('profile-view-name');
+            const editMode = document.getElementById('profile-edit-name');
+            
+            if (isEditing) {
+                viewMode.classList.add('hidden');
+                editMode.classList.remove('hidden');
+                const input = document.getElementById('profile-name-input');
+                if(input) input.focus();
+            } else {
+                viewMode.classList.remove('hidden');
+                editMode.classList.add('hidden');
+            }
+        }
+
+        window.saveProfileIdentity = async () => {
+            const input = document.getElementById('profile-name-input');
+            const newName = input.value.trim();
+            
+            if (!newName) return; 
+            
+            if(window.sfx) window.sfx.confirm();
+            
+            // 1. Update UI immediately
+            const nameDisplay = document.getElementById('profile-name-display');
+            if(nameDisplay) nameDisplay.textContent = newName;
+            localStorage.setItem('aa_username', newName);
+            window.updateUI(newName); 
+            
+            // 2. Update Firebase (NOW HAS ACCESS TO IMPORTS)
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    await updateProfile(user, { displayName: newName });
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
+                        displayName: newName
+                    }, { merge: true });
+                } catch (e) {
+                    console.error("Failed to save identity to cloud", e);
+                }
+            }
+            
+            window.toggleProfileEdit(false);
+        }
+
         window.initModuleElements = function() {
             window.allModuleElements = {};
             const cards = document.querySelectorAll('.mission-file');
@@ -2574,122 +2696,7 @@
             sfx.click();
         }
 
-        // --- NEW PROFILE MODULE FUNCTIONS ---
-        
-        window.openProfileModal = () => {
-            // Close menu if open
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-
-            const modal = document.getElementById('profile-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-
-            // Populate Data
-            const user = auth.currentUser;
-            const storedName = localStorage.getItem('aa_username') || "Guest Agent";
-            const storedUID = localStorage.getItem('aa_uid') || "N/A";
-            const launches = localStorage.getItem('aa_launch_count') || "0";
-            
-            // Name
-            document.getElementById('profile-name-display').textContent = storedName;
-            document.getElementById('profile-name-input').value = storedName;
-            
-            // Stats
-            document.getElementById('profile-stat-launches').textContent = launches;
-            
-            // Badges & Rank Calculation
-            // We reuse the updateBadges logic implicitly by checking unlocked counts
-            let badgeCount = 1; // Observer
-            if (!user.isAnonymous) badgeCount++;
-            if (parseInt(launches) > 0) badgeCount++;
-            if (localStorage.getItem('aa_ddc_complete') === 'true') badgeCount++;
-            if (localStorage.getItem('aa_jlc_complete') === 'true') badgeCount++;
-            if (localStorage.getItem('aa_identity_complete') === 'true') badgeCount++;
-            if (localStorage.getItem('aa_defense_complete') === 'true') badgeCount++;
-
-            document.getElementById('profile-stat-badges').textContent = badgeCount;
-
-            // Rank Title Logic
-            let rankTitle = "OBSERVER";
-            if (badgeCount >= 2) rankTitle = "RECRUIT";
-            if (badgeCount >= 3) rankTitle = "FIELD AGENT";
-            if (badgeCount >= 5) rankTitle = "SPECIAL OPERATIVE";
-            if (badgeCount >= 7) rankTitle = "ELITE GUARDIAN";
-            
-            document.getElementById('profile-rank-display').textContent = rankTitle;
-
-            // ID & Meta
-            document.getElementById('profile-id-display').textContent = storedUID.substring(0, 8).toUpperCase() + "...";
-            
-            if (user && user.metadata && user.metadata.creationTime) {
-                const date = new Date(user.metadata.creationTime);
-                document.getElementById('profile-join-date').textContent = date.toLocaleDateString();
-            } else {
-                document.getElementById('profile-join-date').textContent = new Date().toLocaleDateString();
-            }
-        }
-
-        window.closeProfileModal = () => {
-            const modal = document.getElementById('profile-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            // Reset Edit Mode
-            window.toggleProfileEdit(false);
-            sfx.click();
-        }
-
-        window.toggleProfileEdit = (isEditing) => {
-            const viewMode = document.getElementById('profile-view-name');
-            const editMode = document.getElementById('profile-edit-name');
-            
-            if (isEditing) {
-                viewMode.classList.add('hidden');
-                editMode.classList.remove('hidden');
-                document.getElementById('profile-name-input').focus();
-            } else {
-                viewMode.classList.remove('hidden');
-                editMode.classList.add('hidden');
-            }
-        }
-
-        window.saveProfileIdentity = async () => {
-            const input = document.getElementById('profile-name-input');
-            const newName = input.value.trim();
-            
-            if (!newName) return; // Prevent empty names
-            
-            sfx.confirm();
-            
-            // 1. Update UI immediately (Optimistic UI)
-            document.getElementById('profile-name-display').textContent = newName;
-            localStorage.setItem('aa_username', newName);
-            window.updateUI(newName); // Update dashboard header
-            
-            // 2. Update Firebase
-            const user = auth.currentUser;
-            if (user) {
-                try {
-                    // Update Auth Profile
-                    await updateProfile(user, { displayName: newName });
-                    
-                    // Update Firestore Document
-                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
-                        displayName: newName
-                    }, { merge: true });
-                    
-                } catch (e) {
-                    console.error("Failed to save identity to cloud", e);
-                    // We don't revert UI here to avoid jarring UX, but we log it.
-                }
-            }
-            
-            window.toggleProfileEdit(false);
-        }
+        /* REMOVED: Profile Functions from here to avoid ReferenceError */
 
     </script>
 </body>
