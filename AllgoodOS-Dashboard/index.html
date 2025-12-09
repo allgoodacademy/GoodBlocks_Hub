@@ -359,6 +359,128 @@
             }
         };
 
+        // --- MOVED PROFILE FUNCTIONS TO MODULE SCOPE TO FIX REFERENCE ERROR ---
+        
+        window.openProfileModal = () => {
+            // Close menu if open
+            const menu = document.getElementById('menu-modal');
+            if (menu) {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+
+            const modal = document.getElementById('profile-modal');
+            modal.classList.remove('hidden-modal');
+            modal.classList.add('visible-modal');
+            if(window.sfx) window.sfx.click();
+
+            // Populate Data
+            const user = auth.currentUser;
+            const storedName = localStorage.getItem('aa_username') || "Guest Agent";
+            const storedUID = localStorage.getItem('aa_uid') || "N/A";
+            const launches = localStorage.getItem('aa_launch_count') || "0";
+            
+            // Name
+            const nameDisplay = document.getElementById('profile-name-display');
+            const nameInput = document.getElementById('profile-name-input');
+            if(nameDisplay) nameDisplay.textContent = storedName;
+            if(nameInput) nameInput.value = storedName;
+            
+            // Stats
+            const statLaunches = document.getElementById('profile-stat-launches');
+            if(statLaunches) statLaunches.textContent = launches;
+            
+            // Badges & Rank Calculation
+            let badgeCount = 1; // Observer
+            if (user && !user.isAnonymous) badgeCount++;
+            if (parseInt(launches) > 0) badgeCount++;
+            if (localStorage.getItem('aa_ddc_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_jlc_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_identity_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_defense_complete') === 'true') badgeCount++;
+
+            const statBadges = document.getElementById('profile-stat-badges');
+            if(statBadges) statBadges.textContent = badgeCount;
+
+            // Rank Title Logic
+            let rankTitle = "OBSERVER";
+            if (badgeCount >= 2) rankTitle = "RECRUIT";
+            if (badgeCount >= 3) rankTitle = "FIELD AGENT";
+            if (badgeCount >= 5) rankTitle = "SPECIAL OPERATIVE";
+            if (badgeCount >= 7) rankTitle = "ELITE GUARDIAN";
+            
+            const rankDisplay = document.getElementById('profile-rank-display');
+            if(rankDisplay) rankDisplay.textContent = rankTitle;
+
+            // ID & Meta
+            const idDisplay = document.getElementById('profile-id-display');
+            if(idDisplay) idDisplay.textContent = storedUID.substring(0, 8).toUpperCase() + "...";
+            
+            const dateDisplay = document.getElementById('profile-join-date');
+            if (dateDisplay) {
+                if (user && user.metadata && user.metadata.creationTime) {
+                    const date = new Date(user.metadata.creationTime);
+                    dateDisplay.textContent = date.toLocaleDateString();
+                } else {
+                    dateDisplay.textContent = new Date().toLocaleDateString();
+                }
+            }
+        }
+
+        window.closeProfileModal = () => {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.add('hidden-modal');
+            modal.classList.remove('visible-modal');
+            // Reset Edit Mode
+            window.toggleProfileEdit(false);
+            if(window.sfx) window.sfx.click();
+        }
+
+        window.toggleProfileEdit = (isEditing) => {
+            const viewMode = document.getElementById('profile-view-name');
+            const editMode = document.getElementById('profile-edit-name');
+            
+            if (isEditing) {
+                viewMode.classList.add('hidden');
+                editMode.classList.remove('hidden');
+                const input = document.getElementById('profile-name-input');
+                if(input) input.focus();
+            } else {
+                viewMode.classList.remove('hidden');
+                editMode.classList.add('hidden');
+            }
+        }
+
+        window.saveProfileIdentity = async () => {
+            const input = document.getElementById('profile-name-input');
+            const newName = input.value.trim();
+            
+            if (!newName) return; 
+            
+            if(window.sfx) window.sfx.confirm();
+            
+            // 1. Update UI immediately
+            const nameDisplay = document.getElementById('profile-name-display');
+            if(nameDisplay) nameDisplay.textContent = newName;
+            localStorage.setItem('aa_username', newName);
+            window.updateUI(newName); 
+            
+            // 2. Update Firebase (NOW HAS ACCESS TO IMPORTS)
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    await updateProfile(user, { displayName: newName });
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
+                        displayName: newName
+                    }, { merge: true });
+                } catch (e) {
+                    console.error("Failed to save identity to cloud", e);
+                }
+            }
+            
+            window.toggleProfileEdit(false);
+        }
+
         window.initModuleElements = function() {
             window.allModuleElements = {};
             const cards = document.querySelectorAll('.mission-file');
@@ -1582,7 +1704,8 @@
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Dashboard Active', 'info')">
                                 <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Dashboard
                             </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="showStatusMessage('Profile Module: Coming Soon', 'info')">
+                            <!-- UPDATED: Connected to new Profile Modal -->
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openProfileModal()">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
                             <!-- ADMIN ENTRY -->
@@ -2252,6 +2375,89 @@
                 </div>
             </div>
 
+            <!-- NEW: PROFILE MODAL (Dossier + Identity Editor + Mission Log) -->
+            <div id="profile-modal" class="hidden-modal absolute inset-0 z-[260] bg-allgood-dark/90 flex items-center justify-center p-4 modal-transition backdrop-blur-sm" onclick="window.closeProfileModal()">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border-t-4 border-allgood-secondary relative flex flex-col md:flex-row" onclick="event.stopPropagation()">
+                    
+                    <!-- Close Button -->
+                    <button onclick="window.closeProfileModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 z-50 p-2"><i data-lucide="x" class="w-5 h-5"></i></button>
+
+                    <!-- Left: ID Card Visual -->
+                    <div class="w-full md:w-2/5 bg-slate-50 border-b md:border-b-0 md:border-r border-gray-200 p-6 flex flex-col items-center text-center">
+                        <div class="w-24 h-24 rounded-full bg-white border-4 border-white shadow-md mb-4 overflow-hidden relative group">
+                            <div class="absolute inset-0 bg-allgood-secondary/10 flex items-center justify-center">
+                                <i data-lucide="user" class="w-10 h-10 text-allgood-secondary"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- VIEW MODE: NAME -->
+                        <div id="profile-view-name" class="w-full">
+                            <h3 class="text-xl font-heading font-bold text-slate-800" id="profile-name-display">Agent Name</h3>
+                            <button onclick="window.toggleProfileEdit(true)" class="text-[10px] uppercase font-bold text-allgood-primary hover:text-allgood-hover underline decoration-dotted mt-1">Edit Identity</button>
+                        </div>
+
+                        <!-- EDIT MODE: NAME -->
+                        <div id="profile-edit-name" class="w-full hidden">
+                            <input type="text" id="profile-name-input" class="w-full text-center border border-allgood-secondary rounded p-1 text-sm font-bold mb-2 focus:outline-none focus:ring-2 focus:ring-allgood-secondary/50" placeholder="Enter Alias">
+                            <div class="flex gap-2 justify-center">
+                                <button onclick="window.saveProfileIdentity()" class="bg-allgood-secondary text-white px-3 py-1 rounded text-[10px] font-bold uppercase hover:bg-allgood-accent">Save</button>
+                                <button onclick="window.toggleProfileEdit(false)" class="bg-gray-200 text-gray-500 px-3 py-1 rounded text-[10px] font-bold uppercase hover:bg-gray-300">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 w-full">
+                            <div class="bg-white border border-gray-200 rounded p-3 shadow-sm">
+                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Clearance Rank</p>
+                                <p class="text-sm font-bold text-allgood-secondary" id="profile-rank-display">FIELD AGENT</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Mission Log & Stats -->
+                    <div class="w-full md:w-3/5 p-6 bg-white">
+                        <div class="mb-6">
+                            <h3 class="text-lg font-heading font-bold text-slate-700 uppercase tracking-tight flex items-center gap-2">
+                                <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i> Service Record
+                            </h3>
+                            <div class="h-px w-full bg-gray-100 mt-2"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="p-3 bg-slate-50 rounded border border-slate-100">
+                                <span class="block text-2xl font-bold text-slate-700" id="profile-stat-launches">0</span>
+                                <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Missions Launched</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded border border-slate-100">
+                                <span class="block text-2xl font-bold text-slate-700" id="profile-stat-badges">0</span>
+                                <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Badges Earned</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-xs border-b border-gray-50 pb-2">
+                                <span class="text-slate-500 font-bold uppercase">Agent ID</span>
+                                <span class="font-mono text-slate-400 select-all" id="profile-id-display">UNKNOWN</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs border-b border-gray-50 pb-2">
+                                <span class="text-slate-500 font-bold uppercase">Account Status</span>
+                                <span class="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full uppercase text-[10px]">Active</span>
+                            </div>
+                             <div class="flex justify-between items-center text-xs pb-2">
+                                <span class="text-slate-500 font-bold uppercase">Join Date</span>
+                                <span class="font-mono text-slate-400" id="profile-join-date">--/--/----</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 pt-4 border-t border-gray-100 text-center md:text-right">
+                             <button onclick="window.closeProfileModal()" class="text-xs font-bold text-slate-400 hover:text-allgood-primary transition-colors uppercase tracking-wide">
+                                Close Dossier
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
             <!-- MESSAGE MODAL -->
             <div id="message-modal" class="hidden-modal absolute inset-0 z-[250] bg-allgood-dark/90 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="closeMessageModal()">
                 <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
@@ -2489,6 +2695,9 @@
             modal.classList.remove('visible-modal');
             sfx.click();
         }
+
+        /* REMOVED: Profile Functions from here to avoid ReferenceError */
+
     </script>
 </body>
 </html>
