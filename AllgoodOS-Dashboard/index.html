@@ -593,6 +593,11 @@
                             completedModules.add("The AI Co-Pilot");
                         }
                         
+                        // FIX: Normalization for "Conflict Resolution"
+                        if (gameName === "Conflict Resolution Challenge") {
+                            completedModules.add("Conflict Resolution");
+                        }
+                        
                         // 3a. Identity Guardian Asset Logic
                         if (gameName === "Your Digital Identity" && data.badgeSVG) {
                             window.userEarnedBadges['identity'] = data.badgeSVG;
