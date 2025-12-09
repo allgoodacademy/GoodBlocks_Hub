@@ -3,117 +3,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Master Your Story Challenge</title>
+    <title>Allgood Academy: Master Template</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
-    <!-- FIREBASE AND AUTHENTICATION SETUP -->
+    
+    <!-- FIREBASE SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-        
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // 1. CONFIGURATION (Environment or Fallback)
+        // Using environment variables for the sandbox, or falling back to safe defaults if downloaded
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko", authDomain: "allgood-academy.firebaseapp.com", projectId: "allgood-academy" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
-        
+
+        // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Expose for Global Access
+        window.auth = auth;
+        window.db = db;
         window.authSignOut = () => signOut(auth);
+
+        // 3. GLOBAL STATE
         window.currentUser = null;
-        window.currentUserName = "Anonymous";
+        window.currentUserName = "Learner";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        console.log("[System] Session ID generated:", window.sessionId);
 
-        window.updateUserDisplay = (name) => {
-            const el = document.getElementById('header-welcome-text');
-            if (el) el.textContent = `Welcome: ${name}`;
-        };
-
+        // 4. AUTH HANDLER
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                console.log("[Auth] User detected:", user.uid);
                 window.currentUser = user;
-                let finalName = user.displayName || localStorage.getItem('aa_username') || "Learner";
-                if (finalName === "Learner") {
-                    try { const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid)); if (userDoc.exists()) finalName = userDoc.data().displayName || finalName; } catch(e) {}
-                }
-                window.currentUserName = finalName;
-                window.updateUserDisplay(finalName);
                 
+                // Retrieve Name (Local or Auth)
+                let finalName = user.displayName || localStorage.getItem('aa_username') || "Learner";
+                
+                // If generic, try fetching from DB
+                if (finalName === "Learner" || finalName === "Agent") {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+                        if (userDoc.exists() && userDoc.data().displayName) {
+                            finalName = userDoc.data().displayName;
+                        }
+                    } catch(e) { console.log("Profile fetch skipped", e); }
+                }
+
+                window.currentUserName = finalName;
+                document.getElementById('header-welcome-text').textContent = `Welcome: ${finalName}`;
+                
+                // Auto-Hide Login if user is present (e.g. refresh)
                 const loginModal = document.getElementById('login-modal');
                 if (loginModal && !loginModal.classList.contains('hidden-modal')) {
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
-                    if (window.logFinalScoreToFirestore) {
-                        window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
-                    }
+                    // Log session start
+                    window.logFinalScoreToFirestore({ rank: "Session Resumed", sessionId: window.sessionId });
                 }
             } else {
+                console.log("[Auth] No user signed in.");
                 window.currentUser = null;
-                window.updateUserDisplay("Learner");
             }
         });
 
-        async function ensureUserContainer(user, name, email, isGuest) {
+        // 5. IDENTITY ENGINE
+        window.ensureUserContainer = async (user, name, email) => {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-             try { await setDoc(userRef, { displayName: name, email: email || (isGuest ? null : user.email || null), isGuest: isGuest, lastLogin: serverTimestamp(), lastActiveModule: "Master Your Story" }, { merge: true }); } catch (e) { console.error(e); }
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || null,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: document.title
+                 }, { merge: true });
+                 console.log("[Identity] User container verified.");
+             } catch (e) { console.error("[Identity] Error:", e); }
         }
 
-        window.logScenarioAttempt = async (data) => {
+        // 6. REPORTING ENGINE
+        window.logFinalScoreToFirestore = async (data) => {
             const user = auth.currentUser;
             if (!user) return;
-            const attemptRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'scenario_attempts', `scenario_${data.scenarioIndex}`);
-            try { await setDoc(attemptRef, { ...data, timestamp: serverTimestamp() }); } catch (e) {}
-        };
 
-        window.logFinalScoreToFirestore = async (scoreData) => {
-            const user = auth.currentUser;
-            if (!user) return;
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            try { await setDoc(sessionRef, { gameName: "Master Your Story", ...scoreData, lastUpdated: serverTimestamp(), user: { uid: user.uid, displayName: window.currentUserName } }, { merge: true }); } catch (e) {}
+            try {
+                await setDoc(sessionRef, {
+                    gameName: document.title,
+                    ...data,
+                    lastUpdated: serverTimestamp(),
+                    user: { uid: user.uid, displayName: window.currentUserName }
+                }, { merge: true });
+                console.log(`[DB] Session Data Logged.`);
+            } catch (e) { console.error("[DB] Write Failed", e); }
         }
 
+        // 7. LOGIN LOGIC
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input').value.trim();
             const emailInput = document.getElementById('user-email-input').value.trim();
             const btn = document.getElementById('btn-guest-login');
-            const ot = btn.innerText; btn.innerText = "Connecting..."; btn.disabled = true;
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Connecting...";
+            btn.disabled = true;
+
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); else if (!auth.currentUser) await signInAnonymously(auth);
+                // Check for custom token
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
+
                 const user = auth.currentUser;
                 const displayName = nameInput || "Learner";
-                await updateProfile(user, { displayName: displayName });
-                await ensureUserContainer(user, displayName, emailInput, true);
-                window.currentUserName = displayName;
-                window.updateUserDisplay(displayName);
-                window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
-                document.getElementById('login-modal').classList.add('hidden-modal');
-                document.getElementById('login-modal').classList.remove('visible-modal');
-                window.showPage(0);
-                if(window.sfx) sfx.nav();
-            } catch (error) { alert("Connection failed."); } finally { btn.innerText = ot; btn.disabled = false; }
+                
+                if (user) {
+                    await updateProfile(user, { displayName: displayName });
+                    await window.ensureUserContainer(user, displayName, emailInput);
+                    
+                    window.currentUserName = displayName;
+                    localStorage.setItem('aa_username', displayName);
+                    
+                    // Log Start
+                    window.logFinalScoreToFirestore({ rank: "Session Started", sessionId: window.sessionId });
+                    
+                    // UI Transition
+                    document.getElementById('header-welcome-text').textContent = `Welcome: ${displayName}`;
+                    document.getElementById('login-modal').classList.add('hidden-modal');
+                    document.getElementById('login-modal').classList.remove('visible-modal');
+                    
+                    if(window.showPage) window.showPage(0);
+                    if(window.sfx) window.sfx.nav();
+                }
+            } catch (error) {
+                console.error("Login Failed", error);
+                alert("Connection failed. Please try again.");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         };
 
         window.handleGoogleLogin = async () => {
             const provider = new GoogleAuthProvider();
+            const btnContainer = document.getElementById('google-icon-container');
+            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
+
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 const finalName = user.displayName || "Learner";
-                await ensureUserContainer(user, finalName, user.email, false);
+                
+                await window.ensureUserContainer(user, finalName, user.email);
+                
                 window.currentUserName = finalName;
-                window.updateUserDisplay(finalName);
+                localStorage.setItem('aa_username', finalName);
+                
+                // UI Transition
+                document.getElementById('header-welcome-text').textContent = `Welcome: ${finalName}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
                 document.getElementById('login-modal').classList.remove('visible-modal');
-                window.showPage(0);
-                if(window.sfx) sfx.nav();
-            } catch (error) { alert("Google Sign-In failed."); }
+                
+                if(window.showPage) window.showPage(0);
+                if(window.sfx) window.sfx.nav();
+                
+            } catch (error) {
+                console.error("Google Sign-In Error", error);
+                alert("Google Sign-In failed. Please try again.");
+            } finally {
+                 if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
+            }
         };
-        
-        window.auth = auth; window.db = db;
     </script>
     
+    <!-- Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
@@ -124,695 +193,551 @@
                         'allgood-dark': '#4C4C4C',
                         'allgood-light': '#F7F7F7',
                         'allgood-hover': '#EB8D69',
-                        'inner-story-bg': '#FEF7F5',
+                        'allgood-accent': '#2D6473',
                     },
                     fontFamily: {
                         'heading': ['Georgia', 'serif'],
                         'body': ['Verdana', 'sans-serif'],
-                        'mono': ['Courier New', 'monospace'],
-                        'typewriter': ['Courier New', 'Courier', 'monospace'],
                     },
                 },
             },
         }
     </script>
-
+    
     <style>
-        body { 
-            font-family: Verdana, sans-serif; 
-            background-color: #1a1a1a; 
-            min-height: 100vh; 
+        /* 🔒 FIXED CHASSIS: START (DO NOT EDIT) */
+        /* ==========================================================================
+           FIXED CHASSIS MANDATE - DO NOT EDIT BELOW THIS LINE
+           ========================================================================== 
+        */
+        body {
+            font-family: Verdana, sans-serif;
+            background-color: #1a1a1a;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-attachment: fixed;
+            min-height: 100vh;
             margin: 0; padding: 0;
+            /* Global Native App Lock (Mobile) */
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        input, textarea { -webkit-user-select: text; user-select: text; }
-        h1, h2, h3, h4 { font-family: Georgia, serif; }
 
-        /* TABLET FRAME */
+        /* Re-enable selection for inputs */
+        input, textarea { -webkit-user-select: text; user-select: text; }
+
+        h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
+
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); transform: scale(1); }
+            50% { text-shadow: 0 0 30px rgba(211, 71, 22, 0.9), 0 0 15px rgba(211, 71, 22, 0.6); transform: scale(1.02); }
+        }
+        .animate-pulse-glow { animation: pulse-glow 2.5s infinite ease-in-out; will-change: transform, text-shadow; }
+
+        /* --- TABLET FRAME --- */
         .tablet-frame {
             height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
             background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
-            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative;
+            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative; margin: 20px auto;
             box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 30px 60px -12px rgba(0,0,0,0.8);
             transition: width 0.3s, height 0.3s;
         }
         .tablet-frame::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border-radius: 6px; background: #111; z-index: 0; }
-        .screen-container { width: 100%; height: 100%; background-color: #F7F7F7; position: relative; z-index: 1; overflow: hidden; display: flex; flex-direction: column; border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
 
-        .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
-        .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
-        .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        .screen-container {
+            width: 100%; height: 100%; background-color: #F7F7F7; position: relative; z-index: 1;
+            overflow: hidden; display: flex; flex-direction: column; border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
 
+        /* --- SCROLLBARS --- */
         .page::-webkit-scrollbar { width: 14px; }
         .page::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
         .page::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 7px; border: 3px solid #e5e5e5; }
 
+        /* --- MODALS --- */
+        .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
+        .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
+        .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        
         #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
         #flex-progress-fill { height: 100%; background-color: #D34716; width: 0%; transition: width 0.3s ease; }
 
-        /* UI ELEMENTS */
-        .choice-btn { background-color: #FDF6E3; border: 1px solid #D6D3D1; transition: all 0.2s ease; font-family: 'Courier New', monospace; box-shadow: 2px 2px 0px rgba(0,0,0,0.1); }
-        .choice-btn:hover:not(:disabled) { border-color: #D34716; background-color: #FFF; transform: translateY(-1px); box-shadow: 3px 3px 0px rgba(0,0,0,0.15); }
-        .choice-correct { background-color: #D1FAE5 !important; border-color: #10B981 !important; font-weight: bold; }
-        .choice-less-effective { background-color: #FFFBEB !important; border-color: #FBBF24 !important; font-weight: 600; }
-        .choice-least-effective { background-color: #FEE2E2 !important; border-color: #F87171 !important; font-weight: 500; opacity: 0.7; }
-        
-        /* DETECTIVE BOARD STYLES */
-        .corkboard-bg {
-            background-color: #e8dcc5;
-            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23d4c5a9' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E");
-        }
-        
-        .evidence-photo {
-            background-color: white;
-            padding: 12px 12px 40px 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transform: rotate(-2deg);
-            position: relative;
-            max-width: 340px;
-            width: 100%;
-            z-index: 10;
-            margin-right: 20px; /* Space between photo and note on desktop */
-        }
-        .evidence-photo::before {
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 20px;
-            background: radial-gradient(circle at 30% 30%, #ff6b6b, #c0392b);
-            border-radius: 50%;
-            box-shadow: 1px 2px 4px rgba(0,0,0,0.3);
-            z-index: 10;
-        }
-        .evidence-photo-content {
-            background: #f8f8f8;
-            border: 1px solid #eee;
-            padding: 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.95rem;
-            color: #333;
-            min-height: 140px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        .sticky-note-clue {
-            background-color: #fef08a; /* Yellow */
-            color: #422006;
-            padding: 20px;
-            width: 260px;
-            box-shadow: 4px 4px 8px rgba(0,0,0,0.15);
-            font-family: 'Courier New', monospace; /* Legible Typewriter */
-            font-weight: bold;
-            font-size: 1rem;
-            line-height: 1.4;
-            transform: rotate(2deg);
-            z-index: 20;
-            border-bottom-right-radius: 30px 10px;
-            border: 1px solid #eab308;
-            position: relative; /* Relative for flex flow on desktop */
-        }
-        
-        .red-string {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            width: 100px;
-            height: 3px;
-            background-color: #ef4444;
-            transform-origin: left center;
-            transform: rotate(0deg);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            z-index: 15;
-            display: none; /* Hidden by default, shown via JS or specific media query if strictly positioned */
-        }
-        /* Desktop visual string simulation */
-        @media (min-width: 768px) {
-            .red-string-connector {
-                width: 60px;
-                height: 4px;
-                background-color: #ef4444;
-                position: relative;
-                top: 50px;
-                transform: rotate(15deg);
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                z-index: 5;
-                flex-shrink: 0;
-                margin: 0 -10px;
-            }
-        }
-
-        .navbar-content { flex: 0 0 60px; z-index: 50; }
-        .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
-        .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
-        .page.active { display: block; }
-
+        /* --- BLUEPRINT MODE --- */
         .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
         .blueprint-mode .page { background-color: #0f172a !important; }
         .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
         .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
-        .blueprint-mode .choice-btn { background-color: #1e293b !important; border-color: #334155 !important; }
-
-        .tablet-frame.expanded-mode { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; aspect-ratio: unset !important; margin: 0 !important; padding: 0 !important; border: none !important; border-radius: 0 !important; z-index: 9999 !important; background: #F7F7F7 !important; box-shadow: none !important; }
-        .tablet-frame.expanded-mode::before { display: none !important; }
-        .tablet-frame.expanded-mode .screen-container { border-radius: 0 !important; }
-
+        
+        /* --- MOBILE OVERRIDES (DDC STANDARD) --- */
         @media (max-width: 768px) {
             html, body { position: fixed; width: 100%; height: 100dvh; overflow: hidden; margin: 0; padding: 0; background-color: #F7F7F7; }
             main { padding: 0 !important; height: 100dvh !important; width: 100% !important; display: block; position: fixed; top: 0; left: 0; }
-            .tablet-frame { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; background: #F7F7F7 !important; aspect-ratio: unset !important; transform: none !important; }
+            .tablet-frame {
+                position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
+                width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;
+                margin: 0 !important; padding: 0 !important; border: none !important; border-radius: 0 !important;
+                box-shadow: none !important; background: #F7F7F7 !important; aspect-ratio: unset !important;
+            }
             .tablet-frame::before { display: none !important; }
-            .screen-container { width: 100%; height: 100%; border-radius: 0 !important; box-shadow: none !important; display: flex; flex-direction: column; background: #F7F7F7; overflow: hidden; position: relative; }
-            header.navbar-content { padding-top: max(env(safe-area-inset-top), 12px); min-height: 60px; padding-bottom: 12px; z-index: 50; background-color: #357889; }
-            footer.footer-content { position: absolute; bottom: 0; left: 0; width: 100%; padding-bottom: max(env(safe-area-inset-bottom), 20px); padding-top: 12px; min-height: 80px; z-index: 100; background-color: white; border-top: 1px solid #e5e7eb; }
-            .page { padding-bottom: 120px !important; }
+            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
             
-            /* Mobile adjustment */
-            .evidence-photo { margin-right: 0; margin-bottom: 15px; }
-            .sticky-note-clue { width: 90%; max-width: 100%; margin-bottom: 20px; }
-            .red-string-connector { display: none; } /* Hide string on mobile stack */
+            header.navbar-content { padding-top: max(env(safe-area-inset-top), 12px); height: auto; min-height: 60px; padding-bottom: 12px; }
+            footer.footer-content {
+                position: absolute; bottom: 0; left: 0; width: 100%;
+                padding-bottom: max(env(safe-area-inset-bottom), 20px); padding-top: 12px; height: auto; min-height: 80px;
+                z-index: 100; background-color: white; border-top: 1px solid #e5e7eb;
+            }
+            .page { padding-bottom: 120px !important; } /* Clear footer */
         }
+
+        /* --- FOCUS/EXPANDED MODE --- */
+        .tablet-frame.focus-mode { 
+            position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important;
+            max-width: none !important; max-height: none !important; aspect-ratio: unset !important;
+            margin: 0 !important; padding: 0 !important; z-index: 99999 !important;
+            border-radius: 0 !important; background: #F7F7F7 !important;
+        }
+        .tablet-frame.focus-mode::before { display: none; }
+        
+        .navbar-content { flex: 0 0 60px; z-index: 50; }
+        .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
+        .page.active { display: block; }
+        .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+        /* 🔒 FIXED CHASSIS: END */
+        
+        /* Interactive Elements (Mutable) */
+        .profile-card { transition: all 0.3s; cursor: pointer; border: 2px solid transparent; }
+        .profile-card.selected { border-color: #D34716; background-color: #fff7ed; transform: translateY(-4px); }
+        .flip-card { background-color: transparent; width: 100%; height: 150px; perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .flip-card-front { background-color: white; border: 1px solid #e5e7eb; }
+        .flip-card-back { background-color: #357889; color: white; transform: rotateY(180deg); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
 
-    <main class="flex-grow flex items-center justify-center py-0 md:py-8 h-[100dvh] w-full">
+    <main class="flex-grow flex items-center justify-center py-8">
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
+                <!-- 🔒 FIXED INTERFACE: START -->
                 <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-allgood-accent">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
                             <div class="relative">
                                 <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Allgood Academy</h2>
-                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md">Master Your Story</h1>
-                                <p class="mt-2 text-white/80 relative z-10 font-body text-sm font-semibold">Conflict Resolution Challenge</p>
+                                <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Title of...</h2>
+                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md animate-pulse-glow">GoodBlock</h1>
                             </div>
                             <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2. LOGIN MODAL -->
-                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
-                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
-                            <button class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
-                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-body border border-gray-700 pointer-events-none">
-                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
-                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged to improve the experience.</p>
-                                </div>
-                            </button>
-                        </div>
-                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary outline-none transition-all font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary outline-none transition-all font-body">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] font-body uppercase">Start Challenge</button>
-                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
-                        <button onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 bg-white flex items-center justify-center mx-auto">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 3. HEADER -->
+                <!-- 2. HEADER -->
                 <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
                     <div class="w-full px-4 flex items-center justify-between h-full pt-[env(safe-area-inset-top)]">
                         <div class="flex items-center overflow-hidden">
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Learner</div>
                             <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 18</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 7</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Reset"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
+                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home"><i data-lucide="home" class="w-6 h-6"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
-                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="moon" class="w-5 h-5"></i></button>
+                            <!-- UPDATED: Visible only on MD+ screens (768px) to match Frame visibility -->
+                            <button id="fullscreen-toggle" class="hidden md:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-7 h-7"></i></button>
                         </div>
                     </div>
                 </header>
 
-                <!-- 4. MODALS (Scenario Feedback & Menu) -->
-                <div id="scenario-modal" class="hidden-modal absolute inset-0 z-[260] bg-allgood-dark/90 flex items-center justify-center p-4 modal-transition" onclick="window.closeScenarioModal(false)">
-                    <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center relative border-t-4 border-allgood-secondary" onclick="event.stopPropagation()">
-                        <div id="scenario-icon" class="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 text-3xl transition-colors"></div>
-                        <h3 id="scenario-title" class="text-xl font-heading font-bold text-allgood-dark mb-2"></h3>
-                        <div id="scenario-feedback" class="text-sm text-gray-600 font-body mb-6 leading-relaxed text-left"></div>
-                        <button id="scenario-modal-next-btn" class="bg-allgood-dark text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-wider hover:bg-allgood-primary transition-colors shadow-md">Next Scenario</button>
+                <!-- 3. MODALS -->
+                <!-- Login Modal -->
+                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
+                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
+                        
+                        <!-- Tooltip Container -->
+                        <div class="flex items-center justify-center gap-2 mb-6 relative">
+                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
+                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
+                                <i data-lucide="help-circle" class="w-4 h-4 mr-1"></i>
+                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
+                                <!-- Hover Content -->
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
+                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
+                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the GoodBlock experience. All personal data is kept confidential and never sold.</p>
+                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
+                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
+                                </div>
+                            </button>
+                        </div>
+                        
+                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start GoodBlock</button>
+                        
+                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
+                        
+                        <!-- Google Button -->
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        </button>
                     </div>
                 </div>
 
+                <!-- Nav Menu -->
                 <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/60 flex justify-end modal-transition">
                     <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
                         <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <span class="font-bold text-allgood-dark font-heading">Table of Contents</span>
-                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                            <span class="font-bold text-allgood-dark font-heading">Project Phases</span>
+                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
                         <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
                     </div>
                 </div>
 
-                <!-- 5. System Menu Modal -->
+                <!-- System Menu (NEW) -->
                 <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
                         <div class="mb-4"><i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i></div>
                         <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
                         <div class="space-y-3">
-                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out</button>
-                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center"><i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard</button>
+                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
+                            </button>
+                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
                             <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Cancel</button>
                         </div>
                     </div>
                 </div>
+                <!-- 🔒 FIXED INTERFACE: END -->
 
-                <!-- PAGES -->
+                <!-- 4. PAGES -->
                 <!-- Page 1: Cover -->
                 <div class="page active" id="page-1">
-                    <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-12">
+                    <div class="flex flex-col items-center justify-start min-h-full py-10 text-center px-6">
                         <div class="mb-6"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h1 class="text-3xl sm:text-4xl font-heading font-bold text-allgood-dark mb-8 leading-tight tracking-tight">Master Your Story<br><span class="text-allgood-primary">Challenge</span></h1>
+                        <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-4 leading-tight">Insert Main Title<br><span class="text-allgood-primary">Here</span></h1>
+                        <div class="inline-block bg-allgood-secondary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">Module: Insert Topic Here</div>
+                        <p class="text-lg text-gray-600 mb-8 max-w-md">This is the brief introduction to the lesson. Use this space for narrative context or high-stakes framing.</p>
+                        <p class="text-sm text-allgood-primary font-bold mb-12 animate-pulse">Click Next to begin.</p>
+                        
+                        <!-- 🔒 FIXED INTERFACE: START (How To Use) -->
                         <div class="w-full max-w-lg text-left mx-auto">
-                            <!-- RESTORED ACCORDION -->
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                 <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
-                                <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                <i data-lucide="chevron-down" class="accordion-icon w-5 h-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary"></i>
                             </button>
+                            <!-- UPDATED ACCORDION CONTENT -->
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
                                 <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary shrink-0"><i data-lucide="home" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600 shrink-0"><i data-lucide="moon" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                    <!-- UPDATED: Hidden on Mobile to match button visibility -->
+                                    <div class="hidden md:flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600 shrink-0"><i data-lucide="maximize" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark shrink-0"><i data-lucide="menu" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
-                            
-                            <div class="bg-white border border-gray-200 p-6 rounded-lg shadow-md mt-6">
-                                <h3 class="font-bold text-allgood-dark text-lg mb-2"><i class="fas fa-list-check mr-2 text-allgood-primary"></i>Mission Rules</h3>
-                                <ul class="text-sm text-gray-600 space-y-2 list-disc list-inside">
-                                    <li><strong>15 Scenarios:</strong> Real-world conflict situations.</li>
-                                    <li><strong>Challenge the Story:</strong> Identify the negative "Inner Story".</li>
-                                    <li><strong>Scoring:</strong> Most Effective (3pts), Less Effective (1pt), Least Effective (0pts).</li>
-                                    <li><strong>Goal:</strong> Score <strong>40+</strong> to earn the Story Architect badge.</li>
-                                </ul>
+                        </div>
+                        <!-- 🔒 FIXED INTERFACE: END -->
+
+                    </div>
+                </div>
+
+                <!-- Page 2: Scenario Setup -->
+                <div class="page" id="page-2">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Scenario Setup: Insert Subtitle</h2></section>
+                    <p class="mb-6 text-sm text-gray-600">This page sets the high-stakes narrative.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front"><i data-lucide="brain" class="w-8 h-8 text-allgood-secondary mb-2"></i><h3 class="font-bold text-sm uppercase tracking-wide">Pillar One</h3></div>
+                                <div class="flip-card-back bg-allgood-secondary text-white"><h3 class="font-bold text-sm mb-2">Key Concept</h3><p class="text-xs">Detail the core concept.</p></div>
+                            </div>
+                        </div>
+                        <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front"><i data-lucide="handshake" class="w-8 h-8 text-allgood-primary mb-2"></i><h3 class="font-bold text-sm uppercase tracking-wide">Pillar Two</h3></div>
+                                <div class="flip-card-back bg-allgood-primary text-white"><h3 class="font-bold text-sm mb-2">Key Skill</h3><p class="text-xs">Detail the skill required.</p></div>
+                            </div>
+                        </div>
+                        <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front"><i data-lucide="gantt-chart" class="w-8 h-8 text-green-600 mb-2"></i><h3 class="font-bold text-sm uppercase tracking-wide">Pillar Three</h3></div>
+                                <div class="flip-card-back bg-green-600 text-white"><h3 class="font-bold text-sm mb-2">The Action</h3><p class="text-xs">Define the ultimate outcome.</p></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Page 2: Setup -->
-                <div class="page" id="page-2">
-                    <section class="mb-6 border-b border-gray-200 pb-4 text-center"><h2 class="text-2xl font-heading font-bold text-allgood-secondary">Meet David</h2></section>
-                    <div class="flex flex-col items-center justify-center mb-8">
-                        <div class="w-32 h-32 rounded-full border-4 border-allgood-primary shadow-lg overflow-hidden mb-4 bg-gray-200 flex items-center justify-center"><i class="fas fa-user text-5xl text-gray-400"></i></div>
-                        <p class="text-center text-gray-600 max-w-md">David is a student at South High School. Throughout his day, he faces social friction, group project chaos, and authority figures.</p>
-                        <p class="text-center font-bold text-allgood-dark mt-4 max-w-md">Your job is to navigate David through the day by choosing actions that serve his long-term goals.</p>
+                <!-- Page 3: Decision Point -->
+                <div class="page" id="page-3">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Decision: Insert Topic</h2></section>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="profile-card bg-white p-4 rounded shadow-sm border border-gray-200 flex items-center justify-between" onclick="selectStrategy('Option A')">
+                            <div><h3 class="font-bold text-allgood-secondary">Option A (Low Risk)</h3><p class="text-xs text-gray-500">Description of the conservative choice.</p></div><i data-lucide="circle-dot" class="w-6 h-6 text-gray-400"></i>
+                        </div>
+                        <div class="profile-card bg-white p-4 rounded shadow-sm border border-gray-200 flex items-center justify-between" onclick="selectStrategy('Option B')">
+                            <div><h3 class="font-bold text-allgood-secondary">Option B (Balanced)</h3><p class="text-xs text-gray-500">Description of the realistic choice.</p></div><i data-lucide="circle-dot" class="w-6 h-6 text-gray-400"></i>
+                        </div>
+                        <div class="profile-card bg-white p-4 rounded shadow-sm border border-gray-200 flex items-center justify-between" onclick="selectStrategy('Option C')">
+                            <div><h3 class="font-bold text-allgood-secondary">Option C (High Reward)</h3><p class="text-xs text-gray-500">Description of the aggressive choice.</p></div><i data-lucide="circle-dot" class="w-6 h-6 text-gray-400"></i>
+                        </div>
+                    </div>
+                    <p id="strategy-feedback" class="text-center text-sm font-bold text-allgood-primary mt-6 h-6">Choose an option above.</p>
+                </div>
+
+                <!-- Page 4: Interactive Challenge -->
+                <div class="page" id="page-4">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Challenge: Data Entry</h2></section>
+                    <div class="bg-blue-50 p-4 rounded border-l-4 border-allgood-secondary mb-6 shadow-sm">
+                        <p class="text-sm text-gray-700"><strong>Context:</strong> Calculate the key metric.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Input Value 1</label><input type="number" id="input-a" class="w-full p-3 border border-gray-300 rounded focus:border-allgood-primary outline-none" placeholder="Enter value"></div>
+                        <div><label class="block text-xs font-bold text-gray-600 mb-1">Input Value 2</label><input type="number" id="input-b" class="w-full p-3 border border-gray-300 rounded focus:border-allgood-primary outline-none" placeholder="Enter value"></div>
+                        <button onclick="runCalculation()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow mt-4">Run Calculation</button>
+                    </div>
+                    <div id="calc-result" class="mt-6 p-4 bg-gray-100 rounded border border-gray-200 hidden">
+                        <div id="result-display" class="text-xl font-bold text-allgood-dark"></div><p id="result-message" class="text-sm mt-2"></p>
                     </div>
                 </div>
 
-                <!-- Dynamic Scenarios (3-17) -->
-                <div class="page" id="page-3" data-scenario-index="1"></div>
-                <div class="page" id="page-4" data-scenario-index="2"></div>
-                <div class="page" id="page-5" data-scenario-index="3"></div>
-                <div class="page" id="page-6" data-scenario-index="4"></div>
-                <div class="page" id="page-7" data-scenario-index="5"></div>
-                <div class="page" id="page-8" data-scenario-index="6"></div>
-                <div class="page" id="page-9" data-scenario-index="7"></div>
-                <div class="page" id="page-10" data-scenario-index="8"></div>
-                <div class="page" id="page-11" data-scenario-index="9"></div>
-                <div class="page" id="page-12" data-scenario-index="10"></div>
-                <div class="page" id="page-13" data-scenario-index="11"></div>
-                <div class="page" id="page-14" data-scenario-index="12"></div>
-                <div class="page" id="page-15" data-scenario-index="13"></div>
-                <div class="page" id="page-16" data-scenario-index="14"></div>
-                <div class="page" id="page-17" data-scenario-index="15"></div>
-
-                <!-- Page 18: Conclusion -->
-                <div class="page" id="page-18">
-                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Mastery Achieved</h2></section>
-                    <div id="final-score-content" class="text-center py-8">
-                        <div class="w-full max-w-sm mx-auto bg-gray-50 p-6 rounded-lg shadow-inner border border-gray-200 mb-8">
-                            <p class="text-sm font-semibold text-gray-500 mb-1">Final Score</p>
-                            <p id="final-score-value" class="text-5xl font-extrabold text-allgood-dark font-heading">0 / 45</p>
-                        </div>
-                        <h3 id="final-rank-heading" class="text-xl font-heading font-bold text-allgood-dark mb-2">The Learner</h3>
-                        <p id="final-rank-message" class="text-sm text-gray-600 max-w-md mx-auto mb-8">Message placeholder.</p>
-                        
-                        <div id="badge-area" class="hidden w-full max-w-sm mx-auto">
-                            <button onclick="window.open('https://forms.gle/Bg8rDnjHY3QPZi8r9', '_blank')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-md transition-all transform hover:scale-105 flex items-center justify-center mb-4">
-                                <i class="fas fa-medal mr-2"></i> Claim Your Certificate
-                            </button>
-                        </div>
-                        <button onclick="window.performHardReset()" class="text-allgood-secondary font-bold text-sm hover:underline mt-4">Retake Challenge</button>
+                <!-- Page 5: Outcome -->
+                <div class="page" id="page-5">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Outcome</h2></section>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border text-center w-full max-w-lg mx-auto">
+                        <i data-lucide="clipboard-check" class="w-16 h-16 text-green-500 mx-auto mb-4"></i>
+                        <h3 class="text-xl font-heading font-bold text-allgood-dark mb-2">Analysis Complete</h3>
+                        <p class="text-sm text-gray-600 mb-4">This page confirms the result.</p>
                     </div>
                 </div>
 
-                <!-- FOOTER -->
-                <footer class="footer-content flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 bg-white">
+                <!-- Page 6: Final Review -->
+                <div class="page" id="page-6">
+                    <section class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Final Review</h2></section>
+                    <div class="space-y-4 max-w-md mx-auto">
+                        <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="checkAnswer(this, true)"><span class="font-bold text-gray-800">Question 1 (Correct)</span><i data-lucide="square" class="w-5 h-5 text-gray-400"></i></div>
+                        <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="checkAnswer(this, false)"><span class="font-bold text-gray-800">Question 2 (Incorrect)</span><i data-lucide="square" class="w-5 h-5 text-gray-400"></i></div>
+                    </div>
+                    <p id="review-feedback" class="text-center text-sm font-bold text-allgood-primary mt-6 h-6"></p>
+                </div>
+
+                <!-- Page 7: Credits -->
+                <div class="page" id="page-7">
+                    <div class="flex flex-col items-center justify-start min-h-full py-10 text-center px-6">
+                        <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-8">Congratulations!</h2>
+
+                        <!-- FEEDBACK SECTION -->
+                        <div id="feedback-container" class="w-full max-w-md mx-auto bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-12 text-left relative">
+                            <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this GoodBlock</h3>
+                            <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                <button onclick="window.setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="window.setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="window.setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="window.setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <button onclick="window.setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                            </div>
+                            <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools. What worked? What didn't?</label>
+                            <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                            <button onclick="window.submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
+                        </div>
+                        <div id="feedback-success" class="hidden w-full max-w-md mx-auto bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-12 text-center">
+                            <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
+                            <h3 class="font-bold text-green-800">Feedback Received.</h3>
+                            <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
+                        </div>
+
+                        <div class="mb-8 transform scale-90 sm:scale-100 transition-transform" id="badge-container"></div>
+                        <a href="#" class="w-full max-w-xs bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform active:scale-95 flex items-center justify-center mb-12 group">
+                            <i data-lucide="download" class="w-5 h-5 mr-2 group-hover:animate-bounce"></i><span>Download Badge</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 5. FOOTER -->
+                <footer class="footer-content flex items-center justify-between px-6">
                     <div id="flex-progress-bar"><div id="flex-progress-fill"></div></div>
-                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-4 sm:w-4 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg><span class="hidden sm:inline">Back</span></button>
-                    <p class="text-gray-400 text-[10px] hidden sm:block font-body">&copy; <a href="https://www.allgoodacademy.com" target="_blank" class="hover:text-allgood-primary transition-colors font-bold no-underline">Allgood Academy</a></p>
-                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-4 sm:px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span class="hidden sm:inline">Next</span><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-4 sm:w-4 ml-0 sm:ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body"><i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i>Back</button>
+                    <div class="text-center hidden sm:block">
+                        <a href="https://www.allgoodacademy.com" target="_blank" class="text-gray-400 text-[10px] font-body hover:text-allgood-primary transition-colors no-underline">
+                            <span class="font-bold">GoodBlock&trade;</span> powered by <span class="font-bold">Allgood Academy</span>
+                        </a>
+                    </div>
+                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed font-body"><span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i></button>
                 </footer>
-
             </div>
         </div>
     </main>
 
+    <!-- MAIN LOGIC -->
     <script>
+        const totalPages = 7;
+        let currentPage = 0;
+        
+        // 🔒 FIXED ENGINE: START
         // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume().catch(e => console.error(e)); }
-        function playTone(f,t,d,v=0.1) { initAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=t; o.frequency.setValueAtTime(f,audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0,audioCtx.currentTime); g.gain.linearRampToValueAtTime(v,audioCtx.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+d); }
+        function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playTone(f,t,d,v=0.1) { try { initAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=t; o.frequency.setValueAtTime(f,audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0,audioCtx.currentTime); g.gain.linearRampToValueAtTime(v,audioCtx.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+d); } catch(e){} }
         const sfx = {
-            powerOn: () => { initAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='triangle'; o.frequency.setValueAtTime(110,audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(220,audioCtx.currentTime+0.4); g.gain.setValueAtTime(0,audioCtx.currentTime); g.gain.linearRampToValueAtTime(0.4,audioCtx.currentTime+0.1); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+0.4); },
-            powerOff: () => playTone(80, 'triangle', 0.2, 0.5), nav: () => playTone(150, 'sine', 0.1, 0.1), tick: () => playTone(1000, 'sine', 0.01, 0.01)
+            powerOn: () => { try { initAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='triangle'; o.frequency.setValueAtTime(110,audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(220,audioCtx.currentTime+0.4); g.gain.setValueAtTime(0,audioCtx.currentTime); g.gain.linearRampToValueAtTime(0.4,audioCtx.currentTime+0.1); g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.4); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+0.4); } catch(e){} },
+            nav: () => playTone(150,'sine',0.1), tick: () => playTone(1000,'sine',0.01), success: () => playTone(1200,'sine',0.2), error: () => playTone(100,'sawtooth',0.2)
         };
-        window.sfx = sfx; window.initAudio = initAudio;
+        window.sfx = sfx;
+        // 🔒 FIXED ENGINE: END
 
-        // --- GLOBAL STATE ---
-        let currentPageIndex = 0; 
-        const TOTAL_PAGES = 18; 
-        const TOTAL_SCENARIOS = 15;
-        const MAX_SCORE = 45; 
-        const BADGE_THRESHOLD = 40;
-        let totalChallengeScore = 0;
-        let answeredScenarioScores = {};
+        // --- NAVIGATION ---
+        const pages = document.querySelectorAll('.page');
+        const progressBar = document.getElementById('flex-progress-fill');
+        const nextBtn = document.getElementById('next-button');
+        const backBtn = document.getElementById('back-button');
+        
+        window.showPage = function(idx) {
+            if (idx < 0 || idx >= totalPages) return;
+            pages.forEach(p => p.classList.remove('active'));
+            pages[idx].classList.add('active');
+            currentPage = idx;
+            progressBar.style.width = `${((idx + 1) / totalPages) * 100}%`;
+            document.getElementById('header-page-indicator').textContent = `${idx + 1} / ${totalPages}`;
+            if (idx === totalPages - 1) generateBadge();
+            backBtn.disabled = idx === 0;
+            backBtn.classList.toggle('opacity-0', idx === 0);
+            nextBtn.style.display = (idx === totalPages - 1) ? 'none' : 'flex';
+            sfx.nav();
+        }
 
-        // --- SCENARIO DATA ---
-        const SCENARIO_DATA = [
-            { type: 'detective', icon: 'message-square', context: "David watches Alice take the stage. She's acting like the brilliant idea he gave her is all hers.", innerStory: "She's a total snake who planned this. I can't believe she just stole my work!", question: "What is the best way to check assumptions?", choices: [ { text: "Fire off an urgent email demanding credit immediately.", score: 0, effectiveness: "Least Effective", feedback: "Destroys trust. Anger took over." }, { text: "Say nothing and avoid Alice.", score: 1, effectiveness: "Less Effective", feedback: "Assumes powerlessness." }, { text: "Send Alice a private message asking to clarify the slide idea.", score: 3, effectiveness: "Most Effective", feedback: "Separates feelings from facts and seeks clarity safely." } ] },
-            { type: 'detective', icon: 'users', context: "David's advisor cuts him off: 'I don't trust this idea; go back to the basic plan.'", innerStory: "They don't respect me. My hard work was a waste.", question: "What is the most purposeful action?", choices: [ { text: "Ask privately what specific facts caused the lack of trust.", score: 3, effectiveness: "Most Effective", feedback: "Moves from powerlessness to action." }, { text: "Argue fiercely right there in the office.", score: 0, effectiveness: "Least Effective", feedback: "Winning the battle destroys mutual respect." }, { text: "Quietly scrap the proposal and complain to friends.", score: 1, effectiveness: "Less Effective", feedback: "Self-sabotage driven by fear." } ] },
-            { type: 'detective', icon: 'home', context: "David overhears Alex joke: 'Look, David's washing his one dish for the week.'", innerStory: "They think I'm lazy. Why even try?", question: "What is the best response?", choices: [ { text: "Address his own miss first, then ask Alex to be direct.", score: 3, effectiveness: "Most Effective", feedback: "Owns his part and sets a boundary." }, { text: "Shout back: 'Stop being passive-aggressive!'", score: 1, effectiveness: "Less Effective", feedback: "Moves to aggression." }, { text: "Make sarcastic jokes about Alex's mess.", score: 0, effectiveness: "Least Effective", feedback: "Escalates conflict." } ] },
-            { type: 'detective', icon: 'message-square-off', context: "In the Project Discord, a teammate posts an offensive meme.", innerStory: "They are trying to blow up the group on purpose. Toxic.", question: "How should David handle this?", choices: [ { text: "Message privately: 'What was the idea behind that post?'", score: 3, effectiveness: "Most Effective", feedback: "Seek clarity respectfully before judging." }, { text: "Try to have them removed immediately.", score: 0, effectiveness: "Least Effective", feedback: "Assigning bad motive shuts down dialogue." }, { text: "Leave the chat until someone else deals with it.", score: 1, effectiveness: "Less Effective", feedback: "Passing responsibility avoids the crucial conversation." } ] },
-            { type: 'detective', icon: 'briefcase', context: "Supervisor only talks about closet organization, skipping David's huge presentation.", innerStory: "I'm a victim. They have no idea what I actually do!", question: "What is the best way to get clarity?", choices: [ { text: "Ask: 'What steps did I miss to make that task a weakness?'", score: 3, effectiveness: "Most Effective", feedback: "Shifts from blame to influence." }, { text: "Overhaul work process blindly.", score: 1, effectiveness: "Less Effective", feedback: "Compliance without clarity isn't helpful." }, { text: "Spend the meeting proving the supervisor wrong.", score: 0, effectiveness: "Least Effective", feedback: "Force-feeding a perspective damages understanding." } ] },
-            { type: 'detective', icon: 'alert-triangle', context: "Final project deadline passes because the main server crashed.", innerStory: "I am a victim of a broken system. I have to accept failure.", question: "What is the purposeful action?", choices: [ { text: "Email the leader detailing steps to prevent future crashes.", score: 3, effectiveness: "Most Effective", feedback: "Controls the controllables." }, { text: "Refuse to do tasks relying on the system.", score: 1, effectiveness: "Less Effective", feedback: "Sets a boundary but takes no responsibility." }, { text: "Apologize profusely to gain sympathy.", score: 0, effectiveness: "Least Effective", feedback: "Avoids the root cause for safety." } ] },
-            { type: 'detective', icon: 'users', context: "Ben cuts David off with 'That's not right.'", innerStory: "Ben is selfish and controlling.", question: "How should David intervene?", choices: [ { text: "Pull Ben aside: 'Can we agree to let each other finish?'", score: 3, effectiveness: "Most Effective", feedback: "Addresses behavior privately." }, { text: "Accept that he's just loud and stay quiet.", score: 1, effectiveness: "Less Effective", feedback: "Fails to use assertive communication." }, { text: "Shout: 'I'm speaking! Stop!'", score: 0, effectiveness: "Least Effective", feedback: "Reactionary behavior destroys safety." } ] },
-            { type: 'detective', icon: 'message-square', context: "Sam hasn't come out all weekend. Responds to texts with 'K.'", innerStory: "I failed to connect. I should leave him alone.", question: "What checks the assumption best?", choices: [ { text: "Knock gently: 'You seem quiet. Just checking in.'", score: 3, effectiveness: "Most Effective", feedback: "Actively explores the path." }, { text: "Stop initiating conversations.", score: 1, effectiveness: "Less Effective", feedback: "Accepts a dysfunctional equilibrium." }, { text: "Demand to know why he's ignoring David.", score: 0, effectiveness: "Least Effective", feedback: "Confirms fear that talking is unsafe." } ] },
-            { type: 'detective', icon: 'home', context: "Roommate bought a 60-inch TV, breaking agreement.", innerStory: "Disrespectful sabotage.", question: "What is the first step?", choices: [ { text: "Ask: 'Can you explain what happened to the deposit money?'", score: 3, effectiveness: "Most Effective", feedback: "Investigates neutral cause before judging." }, { text: "Accept it and work extra hours.", score: 1, effectiveness: "Less Effective", feedback: "Enables the pattern." }, { text: "Threaten to pull funds and call landlord.", score: 0, effectiveness: "Least Effective", feedback: "Prioritizes punishment over planning." } ] },
-            { type: 'detective', icon: 'frown', context: "Acquaintance comments: 'Must be nice to have free time.'", innerStory: "Jealous petty cruelty.", question: "How to respond purposefully?", choices: [ { text: "Reply: 'Thanks! Took 60 hours, but worth it. Let's talk applying!'", score: 3, effectiveness: "Most Effective", feedback: "Focuses on facts and productivity." }, { text: "DM list of sacrifices to prove suffering.", score: 1, effectiveness: "Less Effective", feedback: "Seeking validation is unproductive." }, { text: "Publicly reply: 'You know nothing about hard work.'", score: 0, effectiveness: "Least Effective", feedback: "Revenge escalates conflict." } ] },
-            { type: 'detective', icon: 'credit-card', context: "David forgot to cancel trial. Charged $59.", innerStory: "I've been scammed! Powerless.", question: "What is the actor mindset?", choices: [ { text: "Email customer service politely asking for refund.", score: 3, effectiveness: "Most Effective", feedback: "Uses communication skills to influence." }, { text: "Pay it, but research how to ruin reputation.", score: 1, effectiveness: "Less Effective", feedback: "Misses window for dialogue." }, { text: "Yell to friends and throw bill away.", score: 0, effectiveness: "Least Effective", feedback: "Sacrifices emotional health for nothing." } ] },
-            { type: 'detective', icon: 'users', context: "Maya never takes notes. Asks for due dates again.", innerStory: "Lazy. She expects me to do it.", question: "How to address this?", choices: [ { text: "DM Maya: 'Can we find an easy way for both of us to track items?'", score: 3, effectiveness: "Most Effective", feedback: "Focuses on solution, not motive." }, { text: "Take all notes himself.", score: 1, effectiveness: "Less Effective", feedback: "Enables poor behavior." }, { text: "Email team implementing mandatory templates.", score: 0, effectiveness: "Least Effective", feedback: "Punishing the group breeds resentment." } ] },
-            { type: 'detective', icon: 'image-off', context: "David sees friends eating pizza without him.", innerStory: "They are actively excluding me.", question: "What is the safest action?", choices: [ { text: "Say casually: 'Pizza looked great! Give me a heads up next time.'", score: 3, effectiveness: "Most Effective", feedback: "Sets boundary with curiosity." }, { text: "Post cryptic sad status.", score: 1, effectiveness: "Less Effective", feedback: "Seeks sympathy rather than clarity." }, { text: "Confront one person: 'Why did you exclude me?'", score: 0, effectiveness: "Least Effective", feedback: "Demanding answer destroys safety." } ] },
-            { type: 'detective', icon: 'message-circle', context: "Student comments David only leads Food Drive for resume.", innerStory: "Sabotage! I have to fight back.", question: "How to handle public criticism?", choices: [ { text: "Reply with facts: 'Thanks. We are collecting until 5 PM.'", score: 3, effectiveness: "Most Effective", feedback: "Focuses on the goal, not ego." }, { text: "Reply with long defense of motives.", score: 1, effectiveness: "Less Effective", feedback: "Distracts from purpose." }, { text: "Report user for harassment.", score: 0, effectiveness: "Least Effective", feedback: "Suppressing dissent is anti-dialogue." } ] },
-            { type: 'detective', icon: 'users', context: "Treasurer stares at budget, says 'Talk next week,' and leaves.", innerStory: "Rude manipulation.", question: "What checks the story?", choices: [ { text: "Email: 'What facts made you hesitate?'", score: 3, effectiveness: "Most Effective", feedback: "Turns manipulation into hesitation to invite dialogue." }, { text: "Send lower offer to shock them.", score: 0, effectiveness: "Least Effective", feedback: "Treats them as adversary." }, { text: "Escalate to president.", score: 1, effectiveness: "Less Effective", feedback: "Assumes worst outcome without checking." } ] }
-        ];
+        nextBtn.addEventListener('click', () => showPage(currentPage + 1));
+        backBtn.addEventListener('click', () => showPage(currentPage - 1));
+        document.getElementById('home-button').addEventListener('click', () => showPage(0));
 
-        // --- APP LOGIC ---
+        // --- INTERACTIVE ELEMENTS ---
+        window.selectStrategy = (c) => { document.querySelectorAll('.profile-card').forEach(x => x.classList.remove('selected')); event.currentTarget.classList.add('selected'); document.getElementById('strategy-feedback').textContent=`Selected: ${c}`; sfx.tick(); }
+        window.runCalculation = () => { document.getElementById('calc-result').classList.remove('hidden'); document.getElementById('result-display').textContent="Success"; sfx.success(); }
+        window.checkAnswer = (el, ok) => { 
+            const i = el.querySelector('i');
+            document.querySelectorAll('#page-6 i').forEach(x => { x.setAttribute('data-lucide','square'); x.classList.remove('text-green-500','text-red-500'); x.classList.add('text-gray-400'); });
+            i.setAttribute('data-lucide', ok ? 'check-square' : 'x-square');
+            i.classList.remove('text-gray-400');
+            i.classList.add(ok ? 'text-green-500' : 'text-red-500');
+            document.getElementById('review-feedback').textContent = ok ? "Correct!" : "Incorrect.";
+            if(ok) sfx.success(); else sfx.error();
+            lucide.createIcons();
+        }
+
+        // --- BADGE GEN ---
+        function generateBadge() {
+            const name = (window.currentUserName || "Learner").toUpperCase();
+            document.querySelector('#page-7 h2').textContent = `Congratulations, ${name}!`;
+            document.getElementById('badge-container').innerHTML = `<svg viewBox="0 0 400 400" width="200" height="200" xmlns="http://www.w3.org/2000/svg"><circle cx="200" cy="200" r="190" fill="#357889"/><text x="200" y="200" font-family="Verdana" font-weight="bold" font-size="24" fill="white" text-anchor="middle" dy=".3em">${name}</text></svg>`;
+        }
+
+        // 🔒 FIXED ENGINE: START
+        // --- SYSTEM FUNCTIONS ---
+        window.closeSystemMenu = () => { document.getElementById('system-menu-modal').classList.add('hidden-modal'); document.getElementById('system-menu-modal').classList.remove('visible-modal'); }
+        window.handleSystemExit = () => { window.location.href = "https://www.allgoodacademy.com"; }
+        window.handleLogOut = async () => {
+             if (window.authSignOut) await window.authSignOut();
+             localStorage.clear();
+             window.currentUserName = "Learner";
+             window.closeSystemMenu();
+             document.getElementById('startup-screen').style.display = 'flex';
+             setTimeout(() => document.getElementById('startup-screen').style.opacity = '1', 10);
+             window.showPage(0);
+             // Re-show login modal logic will happen via onAuthStateChanged or manual trigger
+             document.getElementById('login-modal').classList.remove('hidden-modal');
+             document.getElementById('login-modal').classList.add('visible-modal');
+        }
+        // 🔒 FIXED ENGINE: END
+
+        // --- FEEDBACK LOGIC ---
+        window.setRating = function(n) {
+            for (let i = 1; i <= 5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
+                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
+            }
+            sfx.tick();
+        }
+        window.submitFeedback = function() {
+            const feedbackText = document.getElementById('feedback-text').value;
+            window.logFinalScoreToFirestore({ feedback: feedbackText, rank: "Feedback", sessionId: window.sessionId });
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('feedback-success').classList.remove('hidden');
+            sfx.nav(); 
+        }
+
+        // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
-            const pages = document.querySelectorAll('.page');
-            const nextButton = document.getElementById('next-button');
-            const backButton = document.getElementById('back-button');
-            const progressBar = document.getElementById('flex-progress-fill');
-            const startupScreen = document.getElementById('startup-screen');
-            const loginModal = document.getElementById('login-modal');
-
-            // --- MENU LOGIC ---
-            function updateTOC() {
-                const tocList = document.getElementById('toc-list');
-                tocList.innerHTML = '';
-                const addLink = (text, idx, bold=false) => {
-                    const btn = document.createElement('button');
-                    btn.className = `w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded ${bold ? 'font-bold' : ''}`;
-                    btn.textContent = text;
-                    btn.onclick = () => { window.showPage(idx); window.closeMenuModal(); };
-                    tocList.appendChild(btn);
-                }
-                addLink("1. Cover Page", 0, true);
-                addLink("2. Meet David", 1, true);
-                const div = document.createElement('div');
-                div.className = "px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2";
-                div.textContent = "Scenarios";
-                tocList.appendChild(div);
-                SCENARIO_DATA.forEach((s, i) => addLink(`${i+1}. ${s.context.substring(0, 30)}...`, i+2));
-                addLink("18. Conclusion", 17, true);
-            }
-
-            // Navigation
-            window.showPage = function(index) {
-                if (index < 0 || index >= TOTAL_PAGES) return;
-                if (index === 17 && Object.keys(answeredScenarioScores).length < TOTAL_SCENARIOS) {
-                    window.showScenarioOutcome('challenge-incomplete'); return;
-                }
-                if(window.sfx) window.sfx.nav();
-                pages.forEach(p => p.classList.remove('active'));
-                pages[index].classList.add('active');
-                currentPageIndex = index;
-                pages[index].scrollTop = 0;
-                backButton.disabled = (index === 0);
-                backButton.classList.toggle('opacity-0', index === 0);
-                
-                const nextSpan = nextButton.querySelector('span');
-                const startSpan = nextButton.querySelector('.hidden.sm\\:inline');
-                let btnText = 'Next';
-                if (index === 0) btnText = 'Start Challenge';
-                else if (index === 17) { btnText = 'Reset'; window.updateFinalScorePage(); }
-                else if (index >= 2) { btnText = Object.keys(answeredScenarioScores).length === 15 ? 'View Score' : 'Next'; }
-                if(startSpan) startSpan.textContent = btnText;
-                
-                progressBar.style.width = `${((index + 1) / TOTAL_PAGES) * 100}%`;
-                document.getElementById('header-page-indicator').textContent = `${index + 1} / ${TOTAL_PAGES}`;
-            }
-
-            // Scenario Renderer - The Engine
-            function getScenarioTemplate(type, context, innerStory, choicesHtml, feedbackHtml) {
-                
-                // Common Choices/Feedback Wrapper
-                const interactionWrapper = `
-                    <div class="mt-4 pt-4 border-t border-gray-300">
-                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">Case Files (Select One):</p>
-                        <div class="space-y-2">${choicesHtml}</div>
-                        ${feedbackHtml ? `<div class="mt-3 animate-fade-in">${feedbackHtml}</div>` : ''}
-                    </div>`;
-
-                // The "Detective Board" Template
-                return `
-                <div class="relative w-full max-w-2xl mx-auto corkboard-bg p-4 sm:p-8 rounded-lg shadow-inner border-[12px] border-[#8d6e63] min-h-[600px] flex flex-col font-mono">
-                    
-                    <!-- Board Title -->
-                    <div class="bg-white/80 backdrop-blur-sm px-4 py-2 mb-6 border-b border-gray-300 transform -rotate-1 self-center shadow-sm">
-                        <span class="text-xs font-bold text-red-700 uppercase tracking-widest">Case Evidence #${currentPageIndex - 1}</span>
-                    </div>
-
-                    <div class="flex-1 relative flex flex-col sm:flex-row items-start sm:items-center">
-                        <!-- Evidence Photo (The Context) -->
-                        <div class="evidence-photo transform -rotate-2 hover:rotate-0 transition-transform duration-300 cursor-pointer z-10 relative">
-                            <div class="evidence-photo-content">
-                                "${context}"
-                            </div>
-                            <div class="absolute bottom-2 right-2 text-[10px] text-gray-400 font-sans">EVIDENCE A</div>
-                        </div>
-
-                        <!-- Red String Connector (Desktop Only) -->
-                        <div class="red-string-connector hidden sm:block"></div>
-
-                        <!-- Sticky Note (The Inner Story/Assumption) -->
-                        <div class="sticky-note-clue">
-                            "${innerStory}"
-                        </div>
-                    </div>
-
-                    <!-- Interaction Area (Manila Folder Style) -->
-                    <div class="bg-[#f0e6d2] p-6 -mx-2 -mb-2 mt-8 rounded-t-lg shadow-lg border-t border-[#dccfb9] relative z-30">
-                        <div class="absolute -top-3 left-0 w-24 h-4 bg-[#f0e6d2] rounded-t-lg border-t border-l border-r border-[#dccfb9]"></div>
-                        ${interactionWrapper}
-                    </div>
-                </div>`;
-            }
-
-            function renderScenarioPage(pageElement, scenarioIndex) {
-                const data = SCENARIO_DATA[scenarioIndex - 1];
-                const isAnswered = answeredScenarioScores[scenarioIndex] !== undefined;
-                
-                let choicesHtml = data.choices.map((choice, index) => {
-                    let btnClass = 'w-full text-left p-3 rounded-md text-xs font-medium transition-all shadow-sm border choice-btn';
-                    if (isAnswered) {
-                        if (choice.score === 3) btnClass += ' choice-correct';
-                        else if (answeredScenarioScores[scenarioIndex] === choice.score) btnClass += choice.score === 1 ? ' choice-less-effective' : ' choice-least-effective';
-                        else btnClass += ' opacity-50 bg-gray-50';
-                    }
-                    const disabledAttr = isAnswered ? 'disabled' : '';
-                    return `<button class="${btnClass}" onclick="window.selectScenarioChoice(${scenarioIndex}, ${index})" ${disabledAttr}>
-                        <span class="font-bold mr-2 text-allgood-primary">FILE ${String.fromCharCode(65 + index)}:</span>${choice.text}
-                    </button>`;
-                }).join('');
-
-                let feedbackHtml = '';
-                if (isAnswered) {
-                    const chosen = data.choices.find(c => c.score === answeredScenarioScores[scenarioIndex]);
-                    let bgClass = chosen.score === 3 ? 'bg-emerald-50 border-emerald-100' : (chosen.score === 1 ? 'bg-amber-50 border-amber-100' : 'bg-rose-50 border-rose-100');
-                    let textClass = chosen.score === 3 ? 'text-emerald-800' : (chosen.score === 1 ? 'text-amber-800' : 'text-rose-800');
-                    feedbackHtml = `
-                    <div class="${bgClass} border rounded p-3 text-xs ${textClass}">
-                        <strong class="block mb-1 uppercase tracking-wide text-[10px]">${chosen.effectiveness}</strong>
-                        ${chosen.feedback}
-                    </div>`;
-                }
-
-                // Render specific visual template
-                const visualHtml = getScenarioTemplate(data.type || 'detective', data.context, data.innerStory, choicesHtml, feedbackHtml);
-
-                pageElement.innerHTML = `
-                    <div class="h-full flex flex-col justify-center">
-                        <div class="flex-1 overflow-y-auto px-2 sm:px-4 pb-20 pt-4">
-                            ${visualHtml}
-                        </div>
-                    </div>`;
-            }
-
-            window.selectScenarioChoice = function(sIdx, cIdx) {
-                const data = SCENARIO_DATA[sIdx - 1];
-                const chosen = data.choices[cIdx];
-                if (answeredScenarioScores[sIdx] === undefined) {
-                    totalChallengeScore += chosen.score;
-                    answeredScenarioScores[sIdx] = chosen.score;
-                    window.logScenarioAttempt({ scenarioIndex: sIdx, score: chosen.score, effectiveness: chosen.effectiveness });
-                    window.logFinalScoreToFirestore({ finalScore: totalChallengeScore, sessionId: window.sessionId });
-                }
-                window.showPage(currentPageIndex);
-                let iconClass = chosen.score === 3 ? 'text-green-600 bg-green-100' : (chosen.score === 1 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100');
-                let iconInner = chosen.score === 3 ? '<i class="fas fa-check-circle"></i>' : (chosen.score === 1 ? '<i class="fas fa-exclamation-circle"></i>' : '<i class="fas fa-times-circle"></i>');
-                window.showScenarioOutcome(chosen.effectiveness, chosen.feedback, iconClass, iconInner);
-            }
-
-            window.showScenarioOutcome = (title, text, iconClass, iconInner) => {
-                if (title === 'challenge-incomplete') {
-                    document.getElementById('scenario-title').textContent = "Incomplete";
-                    document.getElementById('scenario-feedback').textContent = "Please answer all questions.";
-                    document.getElementById('scenario-icon').className = "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 text-3xl bg-red-100 text-red-600";
-                    document.getElementById('scenario-icon').innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
-                    document.getElementById('scenario-modal-next-btn').onclick = () => window.closeScenarioModal(false);
-                } else {
-                    document.getElementById('scenario-title').textContent = title;
-                    document.getElementById('scenario-feedback').textContent = text;
-                    document.getElementById('scenario-icon').className = `mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 text-3xl ${iconClass}`;
-                    document.getElementById('scenario-icon').innerHTML = iconInner;
-                    document.getElementById('scenario-modal-next-btn').onclick = () => window.closeScenarioModal(true);
-                }
-                document.getElementById('scenario-modal').classList.remove('hidden-modal');
-                document.getElementById('scenario-modal').classList.add('visible-modal');
-                if(window.sfx) sfx.tick();
-            }
-
-            window.closeScenarioModal = (advance) => {
-                document.getElementById('scenario-modal').classList.remove('visible-modal');
-                document.getElementById('scenario-modal').classList.add('hidden-modal');
-                if (advance && currentPageIndex < 17) window.showPage(currentPageIndex + 1);
-            }
-
-            window.updateFinalScorePage = function() {
-                const scoreValue = document.getElementById('final-score-value');
-                const rankHeading = document.getElementById('final-rank-heading');
-                const rankMessage = document.getElementById('final-rank-message');
-                const badgeArea = document.getElementById('badge-area');
-                
-                let rank = "The Learner";
-                let message = "Focus on identifying negative assumptions.";
-                
-                if (totalChallengeScore >= 40) {
-                    rank = "Story Architect";
-                    message = "Mastery Achieved! You prioritize pragmatic action and mutual respect.";
-                    badgeArea.classList.remove('hidden');
-                } else if (totalChallengeScore >= 30) {
-                    rank = "Mindset Master";
-                    message = "Strong work. You consistently focus on influence and mutual purpose.";
-                    badgeArea.classList.add('hidden');
-                } else if (totalChallengeScore >= 15) {
-                    rank = "Practicing Citizen";
-                    message = "Good progress. Move from avoiding issues to purposeful action.";
-                    badgeArea.classList.add('hidden');
-                } else {
-                    badgeArea.classList.add('hidden');
-                }
-
-                scoreValue.textContent = `${totalChallengeScore} / ${MAX_SCORE}`;
-                rankHeading.textContent = rank;
-                rankMessage.textContent = message;
-                window.logFinalScoreToFirestore({ finalScore: totalChallengeScore, rank: rank, completed: true, sessionId: window.sessionId });
-            }
-
-            window.performHardReset = () => {
-                totalChallengeScore = 0;
-                answeredScenarioScores = {};
-                pages.forEach(p => { const idx = parseInt(p.getAttribute('data-scenario-index')); if(idx) renderScenarioPage(p, idx); });
-                startupScreen.style.display = 'flex';
-                setTimeout(() => startup.style.opacity = '1', 10);
-                window.showPage(0);
-                sfx.powerOff();
-            }
-
-            // Init
-            pages.forEach(p => { const idx = parseInt(p.getAttribute('data-scenario-index')); if(idx) renderScenarioPage(p, idx); });
-            updateTOC();
+            lucide.createIcons();
             
-            // Listeners
-            if(nextButton) nextButton.addEventListener('click', () => { if (currentPageIndex < (TOTAL_PAGES - 1)) window.showPage(currentPageIndex + 1); else window.performHardReset(); });
-            if(backButton) backButton.addEventListener('click', () => { if(currentPageIndex > 0) window.showPage(currentPageIndex - 1); });
-            
-            // Startup
-            if (startupScreen) {
-                const warmUp = () => { if(window.initAudio) window.initAudio(); };
-                startupScreen.addEventListener('mousedown', warmUp, { once: true });
-                startupScreen.addEventListener('click', () => {
-                    if(window.sfx) window.sfx.powerOn();
-                    if (window.currentUser) {
-                        window.logFinalScoreToFirestore({ finalScore: 0, rank: "Session Started", sessionId: window.sessionId });
-                        window.showPage(0);
-                        startupScreen.style.opacity = '0';
-                        setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
-                    } else {
-                        loginModal.classList.remove('hidden-modal');
-                        loginModal.classList.add('visible-modal');
-                        startupScreen.style.opacity = '0';
-                        setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
-                    }
-                });
-            }
-            
-            // Accordion Logic
-            document.querySelectorAll('.accordion-toggle').forEach(acc => {
-                acc.addEventListener('click', function() {
-                    const content = this.nextElementSibling;
-                    const icon = this.querySelector('.accordion-icon');
-                    content.classList.toggle('hidden');
-                    if(icon) icon.classList.toggle('rotate-180');
-                    if(window.sfx) window.sfx.tick();
-                });
+            // Startup Click
+            document.getElementById('startup-screen').addEventListener('click', function() {
+                sfx.powerOn();
+                this.style.opacity = '0';
+                setTimeout(() => { this.style.display = 'none'; }, 700);
             });
 
-            // System Menu
-            window.openMenuModal = () => { document.getElementById('menu-modal').classList.remove('hidden-modal'); document.getElementById('menu-modal').classList.add('visible-modal'); };
-            window.closeMenuModal = () => { document.getElementById('menu-modal').classList.remove('visible-modal'); document.getElementById('menu-modal').classList.add('hidden-modal'); };
-            window.closeSystemMenu = () => { document.getElementById('system-menu-modal').classList.add('hidden-modal'); document.getElementById('system-menu-modal').classList.remove('visible-modal'); };
-            window.handleLogOut = async () => { if (window.authSignOut) await window.authSignOut(); window.performHardReset(); window.closeSystemMenu(); };
-            window.handleSystemExit = () => { window.location.href = "https://www.allgoodacademy.com"; };
-            
-            document.getElementById('menu-toggle').addEventListener('click', window.openMenuModal);
-            document.getElementById('close-menu').addEventListener('click', window.closeMenuModal);
-            
+            // UI Toggles
+            document.body.addEventListener('click', (e) => {
+                // Accordion
+                const acc = e.target.closest('.accordion-toggle');
+                if(acc) {
+                    const c = acc.nextElementSibling;
+                    const i = acc.querySelector('.accordion-icon');
+                    const open = !c.classList.contains('hidden');
+                    document.querySelectorAll('.accordion-content').forEach(x=>x.classList.add('hidden'));
+                    if(!open) { c.classList.remove('hidden'); if(i) i.classList.add('rotate-180'); sfx.tick(); }
+                }
+                // Blueprint
+                if(e.target.closest('#blueprint-toggle')) {
+                    document.getElementById('screen').classList.toggle('blueprint-mode');
+                    e.target.closest('#blueprint-toggle').classList.toggle('text-cyan-300');
+                    sfx.tick();
+                }
+            });
+
+            // Fullscreen
+            document.getElementById('fullscreen-toggle').addEventListener('click', function() {
+                const f = document.querySelector('.tablet-frame');
+                f.classList.toggle('focus-mode');
+                this.classList.toggle('text-green-300');
+                sfx.tick();
+            });
+
+            // Menu
+            document.getElementById('menu-toggle').addEventListener('click', () => {
+                const m = document.getElementById('menu-modal');
+                m.classList.remove('hidden-modal'); m.classList.add('visible-modal');
+                const t = document.getElementById('toc-list'); t.innerHTML = '';
+                ["Cover", "Setup", "Decision", "Challenge", "Outcome", "Review", "Credits"].forEach((x,i) => {
+                    t.innerHTML += `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded" onclick="showPage(${i});document.getElementById('menu-modal').classList.add('hidden-modal');document.getElementById('menu-modal').classList.remove('visible-modal');">${i+1}. ${x}</button>`;
+                });
+            });
+            document.getElementById('close-menu').addEventListener('click', () => { document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal'); });
+
             // Home Long Press
             const hBtn = document.getElementById('home-button');
             let pressTimer;
             const startPress = () => { pressTimer = setTimeout(() => { 
                 document.getElementById('system-menu-modal').classList.remove('hidden-modal'); 
                 document.getElementById('system-menu-modal').classList.add('visible-modal'); 
-                if(window.sfx) window.sfx.nav(); 
+                sfx.nav(); 
             }, 2000); };
             const endPress = () => clearTimeout(pressTimer);
             
@@ -821,17 +746,6 @@
             hBtn.addEventListener('mouseup', endPress);
             hBtn.addEventListener('mouseleave', endPress);
             hBtn.addEventListener('touchend', endPress);
-            hBtn.addEventListener('click', () => { if(currentPageIndex !== 0) window.showPage(0); });
-
-            document.getElementById('fullscreen-toggle').addEventListener('click', () => { document.querySelector('.tablet-frame').classList.toggle('expanded-mode'); document.getElementById('fullscreen-toggle').classList.toggle('text-green-300'); });
-            
-            document.getElementById('blueprint-toggle').addEventListener('click', () => {
-                document.getElementById('screen').classList.toggle('blueprint-mode');
-                document.getElementById('blueprint-toggle').classList.toggle('text-cyan-300');
-                if(window.sfx) window.sfx.tick();
-            });
-
-            window.showPage(0);
         });
     </script>
 </body>
