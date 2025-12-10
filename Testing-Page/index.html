@@ -175,6 +175,12 @@
 
             // Option 1: Instant Execution
             sfx.confirm();
+
+            // ADDED: Track module launch in GA4
+            if (typeof gtag === 'function') {
+                gtag('event', 'launch_module', { 'module_name': courseName });
+            }
+
             window.open(finalUrl, '_blank');
             
             if (auth.currentUser) {
