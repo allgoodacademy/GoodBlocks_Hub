@@ -14,7 +14,7 @@
     <!-- FIREBASE AND AUTHENTICATION SETUP -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         // 1. CONFIGURATION
@@ -149,25 +149,30 @@
         };
 
         // NEW: Completion Signal for Dashboard
-        window.logModuleCompletion = async () => {
+        window.logModuleCompletion = async (badgeSVG = null) => {
             const user = auth.currentUser;
             if (!user) return;
             
             console.log("[DB] Writing DAD Completion Status...");
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             
+            const completionData = {
+                gameName: "Digital Asset Defense",
+                completed: true,
+                finalScore: 100,
+                rank: "Key Holder",
+                lastUpdated: serverTimestamp(),
+                user: {
+                    uid: user.uid,
+                    displayName: window.currentUserName
+                }
+            };
+
+            // IF SVG provided, save it to the document
+            if (badgeSVG) completionData.badgeSVG = badgeSVG;
+
             try {
-                await setDoc(sessionRef, {
-                    gameName: "Digital Asset Defense",
-                    completed: true,
-                    finalScore: 100,
-                    rank: "Key Holder",
-                    lastUpdated: serverTimestamp(),
-                    user: {
-                        uid: user.uid,
-                        displayName: window.currentUserName
-                    }
-                }, { merge: true });
+                await setDoc(sessionRef, completionData, { merge: true });
                 console.log("[DB] Completion Status Write Success.");
             } catch (e) { console.error("[DB] Completion Status Write FAILED:", e); }
         };
@@ -264,6 +269,7 @@
         // Expose for Debugging
         window.auth = auth;
         window.db = db;
+        window.authSignOut = () => signOut(auth);
     </script>
 
     <!-- Tailwind Config -->
@@ -503,21 +509,21 @@
 
                 <!-- 2. Header -->
                 <header class="bg-allgood-secondary shadow-md navbar-content flex items-center">
-                    <div class="w-full px-4 flex items-center justify-between h-full">
+                    <div class="w-full px-4 flex items-center justify-between h-full pt-[env(safe-area-inset-top)]">
                         <div class="flex items-center overflow-hidden">
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Digital Asset Defense</div>
-                            <div class="flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
+                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
                                 <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 25</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
-                            <!-- Controls -->
-                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
+                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home"><i data-lucide="home" class="w-6 h-6"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
-                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="moon" class="w-5 h-5"></i></button>
+                            <!-- UPDATED: Visible only on MD+ screens (768px) to match Frame visibility -->
+                            <button id="fullscreen-toggle" class="hidden md:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-7 h-7"></i></button>
                         </div>
                     </div>
                 </header>
@@ -574,7 +580,7 @@
                     <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
                         <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                             <span class="font-bold text-allgood-dark font-heading">Table of Contents</span>
-                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
                         <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body">
                             <button class="menu-link w-full text-left px-4 py-1.5 hover:bg-gray-100 text-gray-600 font-bold" data-page="0">1. Cover Page</button>
@@ -616,6 +622,24 @@
                     </div>
                 </div>
 
+                <!-- System Menu (NEW) -->
+                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
+                        <div class="mb-4"><i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i></div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
+                        <div class="space-y-3">
+                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
+                            </button>
+                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
+                            <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- --- PAGES START --- -->
 
                 <!-- Page 1: Cover -->
@@ -631,10 +655,10 @@
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
                                 <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to hard reset & sign out.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><i data-lucide="home" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> for system menu.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><i data-lucide="moon" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><i data-lucide="maximize" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><i data-lucide="menu" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
                         </div>
@@ -1415,12 +1439,14 @@
         window.downloadBadge = function() {
             if (!examPassed) { sfx.error(); return; }
             
-            // FIRE THE SIGNAL
-            window.logModuleCompletion();
-            
-            window.SessionManager.log("Badge Downloaded", "Certification Earned");
             const nameText = (window.currentUserName && window.currentUserName !== "Anonymous") ? window.currentUserName.toUpperCase() : "TRAVELER";
             const badgeSVG = `<svg width="600" height="350" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#2d2d2d;stop-opacity:1" /><stop offset="50%" style="stop-color:#1a1a1a;stop-opacity:1" /><stop offset="100%" style="stop-color:#000000;stop-opacity:1" /></linearGradient></defs><rect x="10" y="10" width="580" height="330" rx="20" fill="url(#metalGrad)" stroke="#444" stroke-width="2"/><rect x="50" y="50" width="500" height="180" rx="8" fill="#0f172a" stroke="#334155" stroke-width="2"/><text x="70" y="90" font-family="Courier New, monospace" font-size="14" fill="#D34716" font-weight="bold">PROTOCOL: VERIFIED</text><text x="70" y="140" font-family="Verdana, sans-serif" font-size="24" fill="white" font-weight="bold">${nameText}</text><text x="70" y="170" font-family="Verdana, sans-serif" font-size="14" fill="#94a3b8">DIGITAL ASSET DEFENSE</text><text x="70" y="210" font-family="Courier New, monospace" font-size="10" fill="#357889">0x7f8...a9b2 [PRAGMATIC ACTION BADGE SECURED]</text><circle cx="500" cy="140" r="30" fill="none" stroke="#D34716" stroke-width="3" opacity="0.5"/><path d="M 500 120 L 500 160 M 480 140 L 520 140" stroke="#D34716" stroke-width="2" opacity="0.5"/><rect x="50" y="260" width="120" height="60" rx="30" fill="#333" /><circle cx="80" cy="290" r="10" fill="#111" stroke="#555" stroke-width="2"/><circle cx="140" cy="290" r="10" fill="#111" stroke="#555" stroke-width="2"/><text x="420" y="300" font-family="Georgia, serif" font-size="16" fill="#666" text-anchor="end">ALLGOOD ACADEMY</text><rect x="440" y="285" width="110" height="20" rx="4" fill="#D34716"/><text x="495" y="300" font-family="Verdana, sans-serif" font-size="10" fill="white" text-anchor="middle" font-weight="bold">KEY HOLDER</text></svg>`;
+
+            // FIRE THE SIGNAL (Now passing the SVG)
+            window.logModuleCompletion(badgeSVG);
+            
+            window.SessionManager.log("Badge Downloaded", "Certification Earned");
+            
             const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a'); link.href = url; link.download = `Allgood-Badge-${nameText}.svg`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
@@ -1526,24 +1552,55 @@
             nextButton.addEventListener('click', () => { if (currentPageIndex < totalPages - 1) { window.showPage(currentPageIndex + 1); } });
             backButton.addEventListener('click', () => { if (currentPageIndex > 0) { window.showPage(currentPageIndex - 1); } });
 
-            // Home Reset Logic
+            // --- SYSTEM FUNCTIONS (UPDATED) ---
+            window.closeSystemMenu = () => { document.getElementById('system-menu-modal').classList.add('hidden-modal'); document.getElementById('system-menu-modal').classList.remove('visible-modal'); }
+            window.handleSystemExit = () => { window.location.href = "https://www.allgoodacademy.com"; }
+            window.handleLogOut = async () => {
+                 if (window.authSignOut) await window.authSignOut();
+                 localStorage.clear();
+                 window.currentUserName = "Anonymous";
+                 window.currentUserEmail = "";
+                 
+                 // Reset inputs if they exist
+                 const nameInput = document.getElementById('user-name-input');
+                 if(nameInput) nameInput.value = "";
+                 const emailInput = document.getElementById('user-email-input');
+                 if(emailInput) emailInput.value = "";
+                 
+                 window.closeSystemMenu();
+                 document.getElementById('startup-screen').style.display = 'flex';
+                 setTimeout(() => document.getElementById('startup-screen').style.opacity = '1', 10);
+                 window.showPage(0);
+                 
+                 // Show login modal
+                 document.getElementById('login-modal').classList.remove('hidden-modal');
+                 document.getElementById('login-modal').classList.add('visible-modal');
+                 
+                 sfx.powerOff();
+            }
+
+            // Home Long Press
             const homeBtn = document.getElementById('home-button');
             let pressTimer;
-            const performReset = () => {
-                sfx.powerOff();
-                window.currentUserName = "Anonymous"; window.currentUserEmail = "";
-                document.getElementById('user-name-input').value = ""; document.getElementById('user-email-input').value = "";
-                document.getElementById('header-welcome-text').textContent = "Digital Asset Defense";
-                const startup = document.getElementById('startup-screen'); startup.style.display = 'flex'; void startup.offsetWidth; startup.style.opacity = '1';
-                document.getElementById('login-modal').classList.remove('hidden-modal'); document.getElementById('login-modal').classList.add('visible-modal');
-                window.showPage(0);
-            };
+            const startPress = () => { pressTimer = setTimeout(() => { 
+                document.getElementById('system-menu-modal').classList.remove('hidden-modal'); 
+                document.getElementById('system-menu-modal').classList.add('visible-modal'); 
+                sfx.nav(); 
+            }, 2000); };
+            const endPress = () => clearTimeout(pressTimer);
             
-            homeBtn.addEventListener('mousedown', () => { pressTimer = setTimeout(performReset, 2000); });
-            homeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pressTimer = setTimeout(performReset, 2000); });
-            homeBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
-            homeBtn.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-            homeBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
+            homeBtn.addEventListener('mousedown', () => {
+                // Short click logic handled by standard listener, long press logic here
+                startPress();
+            });
+            homeBtn.addEventListener('touchstart', (e) => { 
+                // Don't prevent default immediately or clicks might fail
+                startPress(); 
+            }, {passive: true});
+            
+            homeBtn.addEventListener('mouseup', endPress);
+            homeBtn.addEventListener('mouseleave', endPress);
+            homeBtn.addEventListener('touchend', endPress);
 
             window.showPage(0);
             
