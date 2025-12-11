@@ -74,8 +74,6 @@
             try {
                 // 1. Fetch Users (The Roster)
                 const usersRef = collection(db, 'artifacts', appId, 'users');
-                // Note: In a real large-scale app, we wouldn't fetch ALL users at once without pagination.
-                // For this Director view, we'll fetch to calculate aggregate stats.
                 const querySnapshot = await getDocs(usersRef);
                 
                 let totalAgents = 0;
@@ -138,31 +136,31 @@
 
             agents.forEach(agent => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-100 hover:bg-slate-50 transition-colors group";
+                tr.className = "border-b border-gray-700 hover:bg-slate-800 transition-colors group";
                 
                 const initials = agent.name.substring(0,2).toUpperCase();
                 const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
-                const statusColor = agent.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500';
+                const statusColor = agent.status === 'Active' ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-slate-700 text-slate-400 border-slate-600';
 
                 tr.innerHTML = `
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-100 text-orange-600' : 'bg-allgood-secondary text-white'} flex items-center justify-center font-bold text-xs shadow-sm">
+                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-900 text-orange-300' : 'bg-allgood-secondary/20 text-allgood-secondary'} flex items-center justify-center font-bold text-xs shadow-sm border border-white/10">
                                 ${initials}
                             </div>
                             <div>
-                                <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors">${agent.name}</p>
-                                <p class="text-[9px] text-slate-400 font-mono">${agent.email}</p>
+                                <p class="text-xs font-bold text-slate-200 group-hover:text-allgood-secondary transition-colors">${agent.name}</p>
+                                <p class="text-[9px] text-slate-500 font-mono">${agent.email}</p>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-4">
-                        <span class="${statusColor} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-white shadow-sm">
+                        <span class="${statusColor} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border shadow-sm">
                             ${agent.status}
                         </span>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
                             ${agent.isGuest ? '<i data-lucide="ghost" class="w-3 h-3"></i> Guest' : '<i data-lucide="shield-check" class="w-3 h-3 text-allgood-primary"></i> SSO'}
                         </div>
                     </td>
@@ -185,10 +183,10 @@
             modal.classList.remove('translate-y-[-150%]', 'opacity-0');
             
             if(type === 'error') {
-                modal.className = "fixed top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform";
+                modal.className = "absolute top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-red-400";
                 icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>';
             } else {
-                modal.className = "fixed top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform";
+                modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-emerald-400";
                 icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
             }
             lucide.createIcons();
@@ -199,14 +197,16 @@
         }
 
         function shakeScreen() {
-            document.body.classList.add('animate-shake');
-            setTimeout(() => document.body.classList.remove('animate-shake'), 500);
+            document.querySelector('.tablet-frame').classList.add('animate-shake');
+            setTimeout(() => document.querySelector('.tablet-frame').classList.remove('animate-shake'), 500);
         }
 
         // --- INIT ---
         window.initApp = () => {
-            document.getElementById('startup-screen').classList.add('opacity-0', 'pointer-events-none');
+            const startup = document.getElementById('startup-screen');
+            startup.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => {
+                 startup.style.display = 'none';
                  // Check if already signed in
                  onAuthStateChanged(auth, (user) => {
                      if (user && ALLOWED_AGENTS.includes(user.email)) {
@@ -252,21 +252,78 @@
     </script>
 
     <style>
+        /* --- CHASSIS STYLES (MATCHING INDEX.HTML) --- */
         body {
             font-family: Verdana, sans-serif;
-            background-color: #0f172a; /* Darker than main app for "Insider" feel */
+            background-color: #1a1a1a;
+            /* Industrial grid pattern */
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .tablet-frame {
+            height: 80vh;
+            width: auto;
+            aspect-ratio: 16/10;
+            max-width: 1100px;
+            max-height: 95vh;
+            /* Brushed Aluminum & Depth Gradients */
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
+                radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
+                linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
+            border-radius: 12px;
+            padding: 12px; 
+            box-shadow: 
+                inset 1px 1px 2px rgba(255,255,255, 0.6), 
+                inset -1px -1px 2px rgba(0,0,0, 0.8), 
+                0 30px 60px -12px rgba(0, 0, 0, 0.8), 
+                0 0 0 1px #111;
+            border: 1px solid #333;
+            position: relative;
+            margin: 20px auto;
+        }
+
+        .tablet-frame::before {
+            content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border-radius: 6px; background: #111; z-index: 0;
+        }
+
+        .screen-container {
+            width: 100%; height: 100%;
+            /* INSIDER THEME: Darker Executive Look */
+            background-color: #0f172a; 
             background-image: 
                 linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 30px 30px;
-            min-height: 100vh;
+            position: relative; z-index: 1; overflow: hidden;
+            border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
         }
 
-        .hidden-modal { display: none; }
-        
-        .updated-pulse {
-            animation: text-flash 1s ease-out;
+        @media (max-width: 640px) {
+            body { padding: 0; align-items: flex-start; background: #0f172a; }
+            .tablet-frame {
+                width: 100vw !important; height: 100vh !important;
+                max-width: none !important; max-height: none !important;
+                border-radius: 0 !important; border: none !important;
+                padding: 0 !important; margin: 0 !important;
+                aspect-ratio: auto !important;
+            }
+            .tablet-frame::before { display: none; }
+            .screen-container { border-radius: 0 !important; }
         }
+
+        /* --- INTERNAL UI STYLES --- */
+        .hidden-modal { display: none; }
+        .updated-pulse { animation: text-flash 1s ease-out; }
         
         @keyframes text-flash {
             0% { color: #D34716; transform: scale(1.1); }
@@ -282,129 +339,140 @@
 </head>
 <body class="text-slate-200">
 
-    <!-- 1. STARTUP SCREEN -->
-    <div id="startup-screen" onclick="window.initApp()" class="fixed inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
-        <div class="text-center group">
-            <div class="mb-6 relative">
-                <div class="absolute inset-0 bg-allgood-secondary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <i data-lucide="shield-alert" class="w-20 h-20 text-slate-500 mx-auto group-hover:text-allgood-secondary transition-colors duration-500"></i>
+    <main class="w-full">
+        <div class="tablet-frame">
+            <div class="screen-container">
+
+                <!-- 1. STARTUP SCREEN -->
+                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                    <div class="text-center group">
+                        <div class="mb-6 relative">
+                            <div class="absolute inset-0 bg-allgood-secondary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <i data-lucide="shield-alert" class="w-20 h-20 text-slate-500 mx-auto group-hover:text-allgood-secondary transition-colors duration-500"></i>
+                        </div>
+                        <h2 class="text-sm md:text-base font-heading text-slate-500 mb-2 uppercase tracking-[0.2em]">Restricted Access Area</h2>
+                        <h1 class="text-3xl md:text-5xl font-heading font-bold text-white tracking-tighter uppercase mb-8">
+                            Welcome to <span class="text-allgood-secondary">Your Academy</span>
+                        </h1>
+                        <p class="text-[10px] text-allgood-primary font-mono uppercase tracking-widest animate-pulse border border-allgood-primary/30 inline-block px-4 py-2 rounded">
+                            Touch ID / Click to Authenticate
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2. LOGIN MODAL -->
+                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary">
+                        <div class="mb-6">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200">
+                                <i data-lucide="lock" class="w-8 h-8 text-slate-400"></i>
+                            </div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
+                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
+                                This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
+                            </p>
+                        </div>
+                        
+                        <button onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
+                            <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                            <span>Verify Credentials</span>
+                        </button>
+                        
+                        <div class="mt-6 pt-6 border-t border-gray-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Authorized IDs Only</p>
+                            <div class="flex justify-center gap-2 mt-2 opacity-50">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. DASHBOARD VIEW -->
+                <div id="dashboard-view" class="hidden flex-col h-full overflow-hidden p-6 max-w-7xl mx-auto w-full">
+                    
+                    <!-- Header -->
+                    <header class="flex-shrink-0 flex items-center justify-between mb-8 pb-4 border-b border-slate-700">
+                        <div>
+                            <h1 class="text-3xl font-heading font-bold text-white uppercase tracking-tight">Insider <span class="text-allgood-secondary">Dashboard</span></h1>
+                            <p class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-widest">Ecosystem Surveillance & Analytics</p>
+                        </div>
+                        <button onclick="window.handleLogout()" class="flex items-center gap-2 text-slate-400 hover:text-allgood-primary transition-colors text-xs font-bold uppercase tracking-wide">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Secure Logout
+                        </button>
+                    </header>
+
+                    <!-- Scrollable Content Area -->
+                    <div class="flex-grow overflow-y-auto pr-2 pb-6 custom-scrollbar">
+                        <!-- Stats Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                            <!-- Metric 1 -->
+                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
+                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="users" class="w-24 h-24 text-white"></i>
+                                </div>
+                                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Agents</p>
+                                <h3 id="stat-total-agents" class="text-4xl font-heading font-bold text-white">--</h3>
+                            </div>
+
+                            <!-- Metric 2 -->
+                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
+                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="activity" class="w-24 h-24 text-emerald-400"></i>
+                                </div>
+                                <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Active (24h)</p>
+                                <h3 id="stat-active-24h" class="text-4xl font-heading font-bold text-white">--</h3>
+                            </div>
+
+                            <!-- Metric 3 -->
+                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
+                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="ghost" class="w-24 h-24 text-orange-400"></i>
+                                </div>
+                                <p class="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">Guest Logins</p>
+                                <h3 id="stat-guests" class="text-4xl font-heading font-bold text-white">--</h3>
+                            </div>
+                        </div>
+
+                        <!-- Roster Table -->
+                        <div class="bg-slate-900 rounded-xl shadow-xl overflow-hidden border border-slate-700">
+                            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800 flex justify-between items-center">
+                                <h3 class="font-bold text-slate-200 uppercase text-sm tracking-wide flex items-center gap-2">
+                                    <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> Agent Roster
+                                </h3>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Updating Live Feed...</span>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-slate-800 border-b border-slate-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Agent Identity</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Last Signal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="roster-body" class="divide-y divide-slate-800">
+                                        <!-- Dynamic Rows Injected Here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Status Toast -->
+                <div id="status-toast" class="absolute top-4 right-4 z-[9999] opacity-0 translate-y-[-150%] transition-all duration-300 pointer-events-none">
+                    <div id="status-icon"></div>
+                    <span id="status-text" class="text-sm font-bold"></span>
+                </div>
+
             </div>
-            <h2 class="text-sm md:text-base font-heading text-slate-500 mb-2 uppercase tracking-[0.2em]">Restricted Access Area</h2>
-            <h1 class="text-3xl md:text-5xl font-heading font-bold text-white tracking-tighter uppercase mb-8">
-                Welcome to <span class="text-allgood-secondary">Your Academy</span>
-            </h1>
-            <p class="text-[10px] text-allgood-primary font-mono uppercase tracking-widest animate-pulse border border-allgood-primary/30 inline-block px-4 py-2 rounded">
-                Touch ID / Click to Authenticate
-            </p>
         </div>
-    </div>
-
-    <!-- 2. LOGIN MODAL -->
-    <div id="login-modal" class="hidden-modal fixed inset-0 z-[4000] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary">
-            <div class="mb-6">
-                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200">
-                    <i data-lucide="lock" class="w-8 h-8 text-slate-400"></i>
-                </div>
-                <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
-                <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
-                    This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
-                </p>
-            </div>
-            
-            <button onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
-                <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                <span>Verify Credentials</span>
-            </button>
-            
-            <div class="mt-6 pt-6 border-t border-gray-100">
-                <p class="text-[10px] text-slate-400 uppercase font-bold">Authorized IDs Only</p>
-                <div class="flex justify-center gap-2 mt-2 opacity-50">
-                    <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                    <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                    <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. DASHBOARD VIEW -->
-    <div id="dashboard-view" class="hidden container mx-auto p-6 max-w-7xl">
-        
-        <!-- Header -->
-        <header class="flex items-center justify-between mb-10 pb-6 border-b border-slate-700">
-            <div>
-                <h1 class="text-3xl font-heading font-bold text-white uppercase tracking-tight">Insider <span class="text-allgood-secondary">Dashboard</span></h1>
-                <p class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-widest">Ecosystem Surveillance & Analytics</p>
-            </div>
-            <button onclick="window.handleLogout()" class="flex items-center gap-2 text-slate-400 hover:text-allgood-primary transition-colors text-xs font-bold uppercase tracking-wide">
-                <i data-lucide="log-out" class="w-4 h-4"></i> Secure Logout
-            </button>
-        </header>
-
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <!-- Metric 1 -->
-            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="users" class="w-24 h-24 text-white"></i>
-                </div>
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Agents</p>
-                <h3 id="stat-total-agents" class="text-4xl font-heading font-bold text-white">--</h3>
-            </div>
-
-            <!-- Metric 2 -->
-            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="activity" class="w-24 h-24 text-emerald-400"></i>
-                </div>
-                <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Active (24h)</p>
-                <h3 id="stat-active-24h" class="text-4xl font-heading font-bold text-white">--</h3>
-            </div>
-
-            <!-- Metric 3 -->
-            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="ghost" class="w-24 h-24 text-orange-400"></i>
-                </div>
-                <p class="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">Guest Logins</p>
-                <h3 id="stat-guests" class="text-4xl font-heading font-bold text-white">--</h3>
-            </div>
-        </div>
-
-        <!-- Roster Table -->
-        <div class="bg-white rounded-xl shadow-xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100 bg-slate-50 flex justify-between items-center">
-                <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
-                    <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> Agent Roster
-                </h3>
-                <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Updating Live Feed...</span>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-50 border-b border-gray-200">
-                        <tr>
-                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Agent Identity</th>
-                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Last Signal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="roster-body" class="bg-white divide-y divide-gray-50">
-                        <!-- Dynamic Rows Injected Here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Status Toast -->
-    <div id="status-toast" class="fixed top-4 right-4 z-[9999] opacity-0 translate-y-[-150%] transition-all duration-300 pointer-events-none">
-        <div id="status-icon"></div>
-        <span id="status-text" class="text-sm font-bold"></span>
-    </div>
+    </main>
 
 </body>
 </html>
