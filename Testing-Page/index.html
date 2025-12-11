@@ -566,19 +566,22 @@
         <div class="tablet-frame">
             <div class="screen-container">
 
-                <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900 text-white">
-                    <div class="text-center group">
-                        <div class="mb-6 relative">
-                            <div class="absolute inset-0 bg-allgood-secondary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <i data-lucide="shield-alert" class="w-20 h-20 text-slate-500 mx-auto group-hover:text-allgood-secondary transition-colors duration-500"></i>
+                <!-- 1. STARTUP SCREEN (CORRECTED: Dark Mode, Clean Text) -->
+                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                    <div class="text-center group relative">
+                        <!-- Glow Effect -->
+                        <div class="absolute inset-0 bg-allgood-primary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        
+                        <div class="mb-6 relative z-10">
+                            <i data-lucide="shield" class="w-24 h-24 text-allgood-primary mx-auto drop-shadow-sm group-hover:scale-105 transition-transform duration-500"></i>
                         </div>
-                        <h2 class="text-sm md:text-base font-heading text-slate-500 mb-2 uppercase tracking-[0.2em]">Restricted Access Area</h2>
-                        <h1 class="text-3xl md:text-5xl font-heading font-bold text-white tracking-tighter uppercase mb-8">
-                            Welcome to <span class="text-allgood-secondary">Your Academy</span>
+                        
+                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-tighter uppercase">
+                            <span class="text-allgood-primary">Welcome to Your</span> <span class="text-white">Academy</span>
                         </h1>
-                        <p class="text-[10px] text-allgood-primary font-mono uppercase tracking-widest animate-pulse border border-allgood-primary/30 inline-block px-4 py-2 rounded">
-                            Touch ID / Click to Authenticate
+                        
+                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">
+                            Click to Power Up
                         </p>
                     </div>
                 </div>
