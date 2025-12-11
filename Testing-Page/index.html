@@ -13,7 +13,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
@@ -29,12 +29,14 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // GLOBAL DATA STORE (For Client-Side Filtering)
+        // GLOBAL DATA STORE
         window.insiderData = {
             allAgents: [],
             activeAgents: [],
             guestAgents: [],
-            intel: [] // Store for messages
+            intel: [],
+            currentFilter: 'all',
+            searchQuery: ''
         };
 
         // --- AUTHENTICATION LOGIC ---
@@ -59,6 +61,7 @@
                 let isAuthorized = false;
                 if (userSnap.exists() && userSnap.data().isInsider === true) isAuthorized = true;
                 
+                // Safety Override for Owner
                 if (!isAuthorized && SUPER_ADMINS.includes(user.email)) {
                     await setDoc(userRef, { 
                         displayName: user.displayName || 'Director',
@@ -78,6 +81,7 @@
                 } else {
                     await signOut(auth);
                     showStatus("ACCESS DENIED: Insufficient Clearance.", "error");
+                    shakeScreen();
                     if(btn) {
                         btn.disabled = false;
                         btn.innerHTML = `<span>Verify Credentials</span>`;
@@ -85,7 +89,7 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                showStatus("Authentication Failed: " + error.message, "error");
+                showStatus("Authentication Failed.", "error");
                 if(btn) {
                     btn.disabled = false;
                     btn.innerHTML = `<span>Verify Credentials</span>`;
@@ -128,7 +132,7 @@
                         name: data.displayName || 'Unknown Agent',
                         email: data.email || 'N/A',
                         isGuest: data.isGuest || false,
-                        joined: data.joined ? data.joined.toDate() : (data.lastLogin ? data.lastLogin.toDate() : new Date()), // Fallback for sort
+                        joined: data.joined ? data.joined.toDate() : (data.lastLogin ? data.lastLogin.toDate() : new Date()), 
                         lastLogin: lastLoginDate,
                         isActive24h: lastLoginDate && lastLoginDate > oneDayAgo
                     };
@@ -138,21 +142,18 @@
                     if(agent.isGuest) window.insiderData.guestAgents.push(agent);
                 });
 
-                // Update Widget Counts
                 updateStat('stat-total-agents', window.insiderData.allAgents.length);
                 updateStat('stat-active-24h', window.insiderData.activeAgents.length);
                 updateStat('stat-guests', window.insiderData.guestAgents.length);
+                updateStat('stat-intel', '-'); // Placeholder
 
-                // Initialize Intelligence Count (Zero until fetched)
-                updateStat('stat-intel', '-');
-
-                // Default View: Show Active
-                renderListView('active');
                 if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
+                
+                // Set default view to home (widgets)
+                window.switchView('home');
 
             } catch (e) {
                 console.warn("Full Roster Access Denied.", e);
-                // Fallback for permissions error...
                 if(statsContainer) statsContainer.innerHTML = 'CONNECTION ERROR';
                 showStatus("Database Connection Restricted.", "error"); 
             }
@@ -163,14 +164,13 @@
             const statsContainer = document.getElementById('stats-loading');
             if(statsContainer) statsContainer.innerHTML = 'Decrypting Comms...';
             
-            window.insiderData.intel = []; // Clear cache
+            window.insiderData.intel = []; 
             
             try {
-                // Aggregation Strategy: Iterate known agents to fetch their inbox
-                // Note: Ideally use collectionGroup in future for scalability
+                // Fetch inboxes for all agents
                 const promises = window.insiderData.allAgents.map(async (agent) => {
                     const inboxRef = collection(db, 'artifacts', appId, 'users', agent.id, 'feedback_inbox');
-                    const q = query(inboxRef, orderBy('timestamp', 'desc'), limit(5)); // Grab top 5 per user
+                    const q = query(inboxRef, orderBy('timestamp', 'desc'), limit(5)); 
                     const snap = await getDocs(q);
                     
                     snap.forEach(doc => {
@@ -183,19 +183,16 @@
                             message: d.message,
                             timestamp: d.timestamp ? d.timestamp.toDate() : new Date(),
                             courseName: d.courseName || null,
-                            rating: d.rating || null, // Expecting 1-5 number
+                            rating: d.rating || null,
                             type: (d.courseName || d.rating) ? 'review' : 'dm'
                         });
                     });
                 });
 
                 await Promise.all(promises);
-                
-                // Sort aggregated messages by time desc
                 window.insiderData.intel.sort((a,b) => b.timestamp - a.timestamp);
                 
                 updateStat('stat-intel', window.insiderData.intel.length);
-                
                 if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
                 window.switchView('intel');
 
@@ -205,34 +202,65 @@
             }
         };
 
-        // --- VIEW CONTROLLER ---
+        // --- VIEW CONTROLLER (SPA LOGIC) ---
         window.switchView = (viewName, filterType = null, agentId = null) => {
-            // Hide all main containers
-            document.getElementById('view-list').classList.add('hidden');
-            document.getElementById('view-dossier').classList.add('hidden');
-            document.getElementById('view-intel').classList.add('hidden');
+            const widgetGrid = document.getElementById('widget-grid');
+            const viewList = document.getElementById('view-list');
+            const viewDossier = document.getElementById('view-dossier');
+            const viewIntel = document.getElementById('view-intel');
+            const backBtn = document.getElementById('nav-back-btn');
             
-            if (viewName === 'list') {
-                document.getElementById('view-list').classList.remove('hidden');
-                renderListView(filterType);
-            } else if (viewName === 'dossier') {
-                document.getElementById('view-dossier').classList.remove('hidden');
+            // 1. Reset all views
+            viewList.classList.add('hidden');
+            viewDossier.classList.add('hidden');
+            viewIntel.classList.add('hidden');
+            
+            // 2. Handle State
+            if (viewName === 'home') {
+                widgetGrid.classList.remove('hidden');
+                backBtn.classList.add('invisible');
+            } 
+            else if (viewName === 'list') {
+                widgetGrid.classList.add('hidden'); // Collapse widgets
+                backBtn.classList.remove('invisible');
+                viewList.classList.remove('hidden');
+                
+                if (filterType) window.insiderData.currentFilter = filterType;
+                renderListView();
+            } 
+            else if (viewName === 'dossier') {
+                widgetGrid.classList.add('hidden');
+                backBtn.classList.remove('invisible');
+                viewDossier.classList.remove('hidden');
                 loadAgentDossier(agentId);
-            } else if (viewName === 'intel') {
-                document.getElementById('view-intel').classList.remove('hidden');
+            } 
+            else if (viewName === 'intel') {
+                widgetGrid.classList.add('hidden');
+                backBtn.classList.remove('invisible');
+                viewIntel.classList.remove('hidden');
                 renderIntelView();
             }
             lucide.createIcons();
         }
 
-        // --- LIST VIEW RENDERER ---
-        function renderListView(filterType) {
+        // --- SEARCH LOGIC ---
+        window.filterRoster = () => {
+            const searchInput = document.getElementById('agent-search');
+            window.insiderData.searchQuery = searchInput.value.toLowerCase().trim();
+            renderListView();
+        };
+
+        // --- RENDERERS ---
+        function renderListView() {
             const tbody = document.getElementById('roster-body');
             const listTitle = document.getElementById('list-view-title');
             tbody.innerHTML = '';
 
+            const filterType = window.insiderData.currentFilter;
+            const searchQ = window.insiderData.searchQuery;
             let dataSet = [];
             
+            // Filter by Type
             if (filterType === 'all_sso') {
                 dataSet = window.insiderData.allAgents.filter(a => !a.isGuest);
                 listTitle.textContent = "Registered Agents (SSO)";
@@ -247,11 +275,18 @@
                 listTitle.textContent = "Full Roster";
             }
 
-            // Sort by Last Login Descending
+            // Filter by Search
+            if (searchQ) {
+                dataSet = dataSet.filter(agent => 
+                    agent.name.toLowerCase().includes(searchQ) || 
+                    agent.email.toLowerCase().includes(searchQ)
+                );
+            }
+
             dataSet.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
 
             if (dataSet.length === 0) {
-                 tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-xs italic">No records found for this category.</td></tr>`;
+                 tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-xs italic">No matching records found.</td></tr>`;
                  return;
             }
 
@@ -264,7 +299,6 @@
                 const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
                 const createdStr = agent.joined ? agent.joined.toLocaleDateString() : 'Unknown';
                 
-                // Status Badge Logic
                 let statusBadge = `<span class="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Idle</span>`;
                 if(agent.isActive24h) statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200 shadow-sm animate-pulse">Active</span>`;
 
@@ -283,31 +317,20 @@
                     <td class="px-6 py-4">${statusBadge}</td>
                     <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">${createdStr}</td>
                     <td class="px-6 py-4 text-[10px] text-slate-500 font-mono text-right">${dateStr}</td>
-                    <td class="px-6 py-4 text-right">
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 inline-block group-hover:text-allgood-secondary transition-colors"></i>
-                    </td>
+                    <td class="px-6 py-4 text-right"><i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-allgood-secondary"></i></td>
                 `;
                 tbody.appendChild(tr);
             });
             lucide.createIcons();
         }
 
-        // --- INTEL VIEW RENDERER (MESSAGES) ---
         function renderIntelView() {
             const container = document.getElementById('intel-content');
             container.innerHTML = '';
-
             const msgs = window.insiderData.intel;
 
             if (msgs.length === 0) {
-                container.innerHTML = `
-                    <div class="p-10 text-center flex flex-col items-center justify-center h-full">
-                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                            <i data-lucide="inbox" class="w-8 h-8 text-slate-300"></i>
-                        </div>
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No Intelligence Reports</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="p-10 text-center flex flex-col items-center justify-center h-full"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><i data-lucide="inbox" class="w-8 h-8 text-slate-300"></i></div><p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No Intelligence Reports</p></div>`;
                 lucide.createIcons();
                 return;
             }
@@ -315,8 +338,6 @@
             msgs.forEach(msg => {
                 const dateStr = msg.timestamp.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
                 const initials = msg.agentName.substring(0,2).toUpperCase();
-                
-                // Star Rating Generator
                 let starsHtml = '';
                 if (msg.rating) {
                     for(let i=1; i<=5; i++) {
@@ -324,43 +345,27 @@
                         else starsHtml += `<i data-lucide="star" class="w-3 h-3 text-gray-200"></i>`;
                     }
                 }
-
-                // Type Badge
                 let typeBadge = '';
-                if (msg.type === 'review') {
-                    typeBadge = `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-indigo-200">Module Feedback</span>`;
-                } else {
-                    typeBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-blue-200">Direct Message</span>`;
-                }
+                if (msg.type === 'review') typeBadge = `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-indigo-200">Module Feedback</span>`;
+                else typeBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-blue-200">Direct Message</span>`;
 
                 const card = document.createElement('div');
                 card.className = "p-4 border-b border-gray-100 hover:bg-slate-50 transition-colors cursor-pointer group";
-                // Clicking message goes to agent dossier
                 card.onclick = () => window.switchView('dossier', null, msg.agentId);
 
                 card.innerHTML = `
                     <div class="flex items-start gap-4">
-                        <div class="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
-                            ${initials}
-                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">${initials}</div>
                         <div class="flex-grow min-w-0">
                             <div class="flex flex-wrap items-center gap-2 mb-1">
                                 <h4 class="text-sm font-bold text-slate-800 group-hover:text-allgood-secondary transition-colors">${msg.agentName}</h4>
                                 ${typeBadge}
                                 <span class="text-[10px] text-slate-400 font-mono ml-auto">${dateStr}</span>
                             </div>
-                            
                             ${msg.courseName ? `<p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> ${msg.courseName}</p>` : ''}
                             ${starsHtml ? `<div class="flex gap-0.5 mb-2">${starsHtml}</div>` : ''}
-                            
-                            <p class="text-sm text-slate-600 leading-relaxed font-mono bg-white/50 p-2 rounded border border-gray-50 border-l-2 border-l-allgood-secondary/30">
-                                "${msg.message}"
-                            </p>
-                            
-                            <div class="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Reply via Email:</span>
-                                <a href="mailto:${msg.agentEmail}" onclick="event.stopPropagation()" class="text-[10px] text-allgood-secondary hover:underline">${msg.agentEmail}</a>
-                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed font-mono bg-white/50 p-2 rounded border border-gray-50 border-l-2 border-l-allgood-secondary/30">"${msg.message}"</p>
+                            <div class="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Reply via Email:</span><a href="mailto:${msg.agentEmail}" onclick="event.stopPropagation()" class="text-[10px] text-allgood-secondary hover:underline">${msg.agentEmail}</a></div>
                         </div>
                     </div>
                 `;
@@ -369,154 +374,71 @@
             lucide.createIcons();
         }
 
-        // --- DOSSIER ENGINE (DEEP DRILL DOWN) ---
         async function loadAgentDossier(agentId) {
-            // 1. Reset UI
             const container = document.getElementById('dossier-content');
             container.innerHTML = `<div class="p-10 text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-allgood-secondary mb-2"></i><p class="text-xs font-bold text-slate-400 uppercase">Decrypting Agent File...</p></div>`;
             lucide.createIcons();
 
-            // 2. Find Agent Basic Data
             const agent = window.insiderData.allAgents.find(a => a.id === agentId);
             if(!agent) { container.innerHTML = "Agent Not Found."; return; }
 
-            // 3. Fetch Deep Data (Launches & Scores)
             try {
-                // Fetch Launches
                 const launchesRef = collection(db, 'artifacts', appId, 'users', agentId, 'launches');
                 const launchesSnap = await getDocs(query(launchesRef, orderBy('timestamp', 'desc'), limit(50)));
-                
-                // Fetch Scores/Badges
                 const scoresRef = collection(db, 'artifacts', appId, 'users', agentId, 'game_scores');
                 const scoresSnap = await getDocs(scoresRef);
                 
                 const launches = [];
                 launchesSnap.forEach(doc => launches.push(doc.data()));
-
                 const badges = [];
-                scoresSnap.forEach(doc => {
-                    const data = doc.data();
-                    if(data.completed || data.badgeSVG) badges.push(data);
-                });
+                scoresSnap.forEach(doc => { const d = doc.data(); if(d.completed || d.badgeSVG) badges.push(d); });
 
-                // 4. Render Dossier UI
                 const initials = agent.name.substring(0,2).toUpperCase();
-                
-                // Render Launches HTML
                 let launchesHtml = '';
-                if(launches.length === 0) {
-                    launchesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No mission history recorded.</div>`;
-                } else {
+                if(launches.length === 0) launchesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No mission history recorded.</div>`;
+                else {
                     launches.forEach(l => {
                          const date = l.timestamp ? l.timestamp.toDate().toLocaleString() : 'Unknown';
-                         launchesHtml += `
-                            <div class="flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors">
-                                <div class="mt-0.5"><i data-lucide="rocket" class="w-3 h-3 text-slate-400"></i></div>
-                                <div>
-                                    <p class="text-xs font-bold text-slate-700">${l.courseName || 'Unknown Module'}</p>
-                                    <p class="text-[9px] text-slate-400 font-mono">${date}</p>
-                                </div>
-                            </div>
-                         `;
+                         launchesHtml += `<div class="flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors"><div class="mt-0.5"><i data-lucide="rocket" class="w-3 h-3 text-slate-400"></i></div><div><p class="text-xs font-bold text-slate-700">${l.courseName || 'Unknown Module'}</p><p class="text-[9px] text-slate-400 font-mono">${date}</p></div></div>`;
                     });
                 }
-
-                // Render Badges HTML
                 let badgesHtml = '';
-                if(badges.length === 0) {
-                    badgesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No certifications earned.</div>`;
-                } else {
+                if(badges.length === 0) badgesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No certifications earned.</div>`;
+                else {
                     badges.forEach(b => {
-                        badgesHtml += `
-                            <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded shadow-sm">
-                                <i data-lucide="award" class="w-4 h-4 text-emerald-600"></i>
-                                <div>
-                                    <p class="text-[10px] font-bold text-emerald-800 uppercase">${b.gameName || 'Certification'}</p>
-                                </div>
-                            </div>
-                        `;
+                        badgesHtml += `<div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded shadow-sm"><i data-lucide="award" class="w-4 h-4 text-emerald-600"></i><div><p class="text-[10px] font-bold text-emerald-800 uppercase">${b.gameName || 'Certification'}</p></div></div>`;
                     });
                 }
 
                 container.innerHTML = `
-                    <!-- Header -->
-                    <div class="p-6 border-b border-gray-200 bg-slate-50 flex items-center gap-4">
-                        <div class="w-16 h-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-md text-xl font-bold text-slate-600">
-                            ${initials}
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-heading font-bold text-slate-800">${agent.name}</h2>
-                            <div class="flex items-center gap-3 text-xs text-slate-500 font-mono">
-                                <span>${agent.email}</span>
-                                <span class="text-gray-300">|</span>
-                                <span>ID: ${agent.id.substring(0,8)}...</span>
-                            </div>
-                        </div>
-                        <div class="ml-auto text-right">
-                             <div class="inline-block px-3 py-1 rounded bg-white border border-gray-200 shadow-sm text-xs font-bold uppercase text-slate-500">
-                                ${agent.isGuest ? 'Guest' : 'Verified Agent'}
-                             </div>
-                        </div>
+                    <div class="p-6 border-b border-gray-200 bg-slate-50 flex items-center gap-4 shrink-0">
+                        <div class="w-16 h-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-md text-xl font-bold text-slate-600">${initials}</div>
+                        <div><h2 class="text-2xl font-heading font-bold text-slate-800">${agent.name}</h2><div class="flex items-center gap-3 text-xs text-slate-500 font-mono"><span>${agent.email}</span><span class="text-gray-300">|</span><span>ID: ${agent.id.substring(0,8)}...</span></div></div>
+                        <div class="ml-auto text-right"><div class="inline-block px-3 py-1 rounded bg-white border border-gray-200 shadow-sm text-xs font-bold uppercase text-slate-500">${agent.isGuest ? 'Guest' : 'Verified Agent'}</div></div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 h-full">
-                        <!-- LEFT COL: ACTIVITY -->
-                        <div class="border-r border-gray-200 bg-white h-full overflow-hidden flex flex-col">
-                            <div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2">
-                                <i data-lucide="history" class="w-3 h-3"></i> Recent Activity Log
-                            </div>
-                            <div class="overflow-y-auto flex-grow custom-scrollbar p-2 h-[400px]">
-                                ${launchesHtml}
-                            </div>
-                        </div>
-
-                        <!-- RIGHT COL: ACHIEVEMENTS -->
-                        <div class="bg-slate-50/50 h-full overflow-hidden flex flex-col">
-                            <div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2">
-                                <i data-lucide="medal" class="w-3 h-3"></i> Earned Certifications
-                            </div>
-                            <div class="p-4 grid grid-cols-1 gap-2 overflow-y-auto h-[400px]">
-                                ${badgesHtml}
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 flex-grow overflow-hidden">
+                        <div class="border-r border-gray-200 bg-white h-full flex flex-col"><div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2"><i data-lucide="history" class="w-3 h-3"></i> Recent Activity Log</div><div class="overflow-y-auto flex-grow custom-scrollbar p-2">${launchesHtml}</div></div>
+                        <div class="bg-slate-50/50 h-full flex flex-col"><div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2"><i data-lucide="medal" class="w-3 h-3"></i> Earned Certifications</div><div class="p-4 grid grid-cols-1 gap-2 overflow-y-auto flex-grow custom-scrollbar">${badgesHtml}</div></div>
                     </div>
                 `;
-
-            } catch(e) {
-                console.error("Dossier Load Error", e);
-                container.innerHTML = `<div class="p-10 text-center text-red-500">Error retrieving classified files.</div>`;
-            }
+            } catch(e) { console.error("Dossier Error", e); container.innerHTML = "Error loading dossier."; }
             lucide.createIcons();
         }
 
-        // --- UTILS ---
         function updateStat(id, value) {
             const el = document.getElementById(id);
-            if(el) {
-                el.innerText = value;
-                el.parentElement.classList.add('updated-pulse');
-            }
+            if(el) { el.innerText = value; el.parentElement.classList.add('updated-pulse'); }
         }
-
         function showStatus(msg, type) {
             const modal = document.getElementById('status-toast');
             const txt = document.getElementById('status-text');
             const icon = document.getElementById('status-icon');
-            
-            txt.textContent = msg;
-            modal.classList.remove('translate-y-[-150%]', 'opacity-0');
-            
-            if(type === 'error') {
-                modal.className = "absolute top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-red-400";
-                icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>';
-            } else {
-                modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-emerald-400";
-                icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
-            }
-            lucide.createIcons();
-            setTimeout(() => { modal.classList.add('translate-y-[-150%]', 'opacity-0'); }, 3000);
+            txt.textContent = msg; modal.classList.remove('translate-y-[-150%]', 'opacity-0');
+            if(type === 'error') { modal.className = "absolute top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-red-400"; icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>'; }
+            else { modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-emerald-400"; icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>'; }
+            lucide.createIcons(); setTimeout(() => { modal.classList.add('translate-y-[-150%]', 'opacity-0'); }, 3000);
         }
-
+        function shakeScreen() { document.querySelector('.tablet-frame').classList.add('animate-shake'); setTimeout(() => document.querySelector('.tablet-frame').classList.remove('animate-shake'), 500); }
         window.initApp = () => {
             const startup = document.getElementById('startup-screen');
             startup.classList.add('opacity-0', 'pointer-events-none');
@@ -528,22 +450,13 @@
                          try {
                              const userSnap = await getDoc(userRef);
                              if (userSnap.exists() && userSnap.data().isInsider === true) {
-                                 const modal = document.getElementById('login-modal');
-                                 modal.classList.add('hidden-modal');
-                                 modal.style.display = 'none'; 
+                                 document.getElementById('login-modal').classList.add('hidden-modal');
                                  loadDashboardData();
                              } else {
                                  document.getElementById('login-modal').classList.remove('hidden-modal');
-                                 document.getElementById('login-modal').style.display = 'flex';
                              }
-                         } catch(e) {
-                             document.getElementById('login-modal').classList.remove('hidden-modal');
-                             document.getElementById('login-modal').style.display = 'flex';
-                         }
-                     } else {
-                         document.getElementById('login-modal').classList.remove('hidden-modal');
-                         document.getElementById('login-modal').style.display = 'flex';
-                     }
+                         } catch(e) { document.getElementById('login-modal').classList.remove('hidden-modal'); }
+                     } else { document.getElementById('login-modal').classList.remove('hidden-modal'); }
                  });
             }, 500);
         }
@@ -562,6 +475,9 @@
                         'heading': ['Georgia', 'serif'],
                         'body': ['Verdana', 'sans-serif'],
                     },
+                    animation: {
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                    }
                 },
                 keyframes: {
                     shake: {
@@ -589,6 +505,7 @@
             display: flex; align-items: center; justify-content: center;
         }
 
+        /* --- THE TABLET CHASSIS --- */
         .tablet-frame {
             height: 80vh;
             width: auto;
@@ -640,10 +557,11 @@
         .hidden-modal { display: none !important; }
         .updated-pulse { animation: text-flash 1s ease-out; }
         @keyframes text-flash { 0% { color: #D34716; transform: scale(1.1); } 100% { color: inherit; transform: scale(1); } }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="text-slate-700">
@@ -663,7 +581,9 @@
                         <h1 class="text-3xl md:text-5xl font-heading font-bold text-white tracking-tighter uppercase mb-8">
                             Welcome to <span class="text-allgood-secondary">Your Academy</span>
                         </h1>
-                        <p class="text-[10px] text-allgood-primary font-mono uppercase tracking-widest animate-pulse border border-allgood-primary/30 inline-block px-4 py-2 rounded">Touch ID / Click to Authenticate</p>
+                        <p class="text-[10px] text-allgood-primary font-mono uppercase tracking-widest animate-pulse border border-allgood-primary/30 inline-block px-4 py-2 rounded">
+                            Touch ID / Click to Authenticate
+                        </p>
                     </div>
                 </div>
 
@@ -675,8 +595,11 @@
                                 <i data-lucide="lock" class="w-8 h-8 text-slate-400"></i>
                             </div>
                             <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
-                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">This terminal is restricted to Allgood Academy administrative personnel only.</p>
+                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
+                                This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
+                            </p>
                         </div>
+                        
                         <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
                             <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                             <span>Verify Credentials</span>
@@ -685,16 +608,23 @@
                 </div>
 
                 <!-- 3. DASHBOARD VIEW -->
-                <div id="dashboard-view" class="hidden flex-col h-full overflow-hidden p-6 max-w-7xl mx-auto w-full">
+                <div id="dashboard-view" class="hidden flex flex-col h-full overflow-hidden p-6 max-w-7xl mx-auto w-full">
                     
                     <!-- Header -->
-                    <header class="flex-shrink-0 flex items-center justify-between mb-8 pb-4 border-b border-slate-300">
-                        <div>
-                            <div class="flex items-center gap-3">
-                                <h1 class="text-2xl font-heading font-bold text-allgood-dark uppercase">Insider Command</h1>
-                                <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-emerald-200">Live</span>
+                    <header class="flex-shrink-0 flex items-center justify-between mb-4 pb-4 border-b border-slate-300">
+                        <div class="flex items-center gap-4">
+                            <!-- BACK BUTTON (Initially Hidden) -->
+                            <button id="nav-back-btn" onclick="window.switchView('home')" class="invisible p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-allgood-primary transition-all">
+                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            </button>
+                            
+                            <div>
+                                <div class="flex items-center gap-3">
+                                    <h1 class="text-2xl font-heading font-bold text-allgood-dark uppercase">Insider Command</h1>
+                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-emerald-200">Live</span>
+                                </div>
+                                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Ecosystem Surveillance Hub</p>
                             </div>
-                            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Ecosystem Surveillance Hub</p>
                         </div>
                         <button onclick="window.handleLogout()" class="text-slate-500 hover:text-allgood-primary px-4 py-2 text-xs font-bold uppercase transition-all flex items-center gap-2">
                             <i data-lucide="log-out" class="w-4 h-4"></i> Secure Logout
@@ -702,10 +632,10 @@
                     </header>
 
                     <!-- Scrollable Content Area -->
-                    <div class="flex-grow overflow-y-auto pr-2 pb-6 custom-scrollbar">
+                    <div class="flex-grow flex flex-col overflow-hidden relative">
                         
-                        <!-- VIEW 1: STATS GRID (NOW CLICKABLE) -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <!-- VIEW 1: STATS GRID (WIDGETS) -->
+                        <div id="widget-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 overflow-y-auto pr-2 pb-6 custom-scrollbar shrink-0">
                             <!-- Clickable Card 1: All SSO -->
                             <div onclick="window.switchView('list', 'all_sso')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer">
                                 <div>
@@ -748,27 +678,37 @@
                             </div>
                         </div>
 
-                        <!-- VIEW 2: DYNAMIC LIST CONTAINER -->
-                        <div id="view-list" class="bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden min-h-[400px]">
-                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
-                                <h3 id="list-view-title" class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
-                                    Agent Roster
-                                </h3>
+                        <!-- VIEW 2: DYNAMIC LIST CONTAINER (FULL HEIGHT) -->
+                        <div id="view-list" class="hidden bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden flex flex-col flex-grow">
+                            <!-- Toolbar with Search -->
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
+                                <div class="flex items-center gap-4 flex-grow">
+                                    <h3 id="list-view-title" class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2 whitespace-nowrap">
+                                        Agent Roster
+                                    </h3>
+                                    <!-- Search Bar -->
+                                    <div class="relative w-full max-w-sm">
+                                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                        <input type="text" id="agent-search" onkeyup="window.filterRoster()" placeholder="Search agents by name or email..." 
+                                               class="w-full pl-9 pr-4 py-2 bg-white/80 border border-gray-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-allgood-secondary focus:border-transparent placeholder-slate-400 shadow-inner">
+                                    </div>
+                                </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Updating Live Feed...</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Live</span>
                                     <button onclick="window.loadDashboardData()" title="Refresh" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                                 </div>
                             </div>
                             
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left">
-                                    <thead class="bg-slate-50/50 border-b border-gray-100">
+                            <!-- Scrollable Table Body -->
+                            <div class="overflow-y-auto custom-scrollbar flex-grow bg-white/40">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-50/90 border-b border-gray-100 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
                                         <tr>
-                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-1/3">Identity</th>
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created</th>
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Last Signal</th>
-                                            <th class="px-6 py-3"></th>
+                                            <th class="px-6 py-3 w-10"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="roster-body" class="divide-y divide-gray-100">
@@ -779,26 +719,20 @@
                         </div>
 
                         <!-- VIEW 3: AGENT DOSSIER (Hidden by default) -->
-                        <div id="view-dossier" class="hidden bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-white/60 overflow-hidden min-h-[400px]">
-                            <div class="border-b border-gray-200 bg-slate-100/50 p-2">
-                                <button onclick="window.switchView('list', 'active')" class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase hover:text-allgood-primary px-3 py-2 transition-colors">
-                                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Roster
-                                </button>
-                            </div>
-                            <div id="dossier-content" class="h-full">
-                                <!-- Dynamic Dossier Injected Here -->
-                            </div>
+                        <div id="view-dossier" class="hidden bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-white/60 overflow-hidden flex flex-col flex-grow">
+                            <!-- Header is injected dynamically -->
+                            <div id="dossier-content" class="h-full flex flex-col"></div>
                         </div>
 
                         <!-- VIEW 4: INTEL / MESSAGES (NEW) -->
-                        <div id="view-intel" class="hidden bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden min-h-[400px]">
-                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
+                        <div id="view-intel" class="hidden bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden flex flex-col flex-grow">
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
                                 <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
                                     <i data-lucide="inbox" class="w-4 h-4 text-purple-600"></i> Field Intelligence & Comms
                                 </h3>
                                 <button onclick="window.loadIntel()" title="Refresh Intel" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                             </div>
-                            <div id="intel-content" class="overflow-y-auto max-h-[500px]">
+                            <div id="intel-content" class="overflow-y-auto custom-scrollbar flex-grow">
                                 <!-- Dynamic Messages Injected Here -->
                             </div>
                         </div>
