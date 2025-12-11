@@ -35,7 +35,6 @@
             const btn = document.getElementById('btn-verify');
             
             try {
-                // Visual Feedback
                 if(btn) {
                     btn.disabled = true;
                     btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Checking Clearance...`;
@@ -45,25 +44,24 @@
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // 1. CHECK DATABASE FOR INSIDER FLAG
+                // CHECK DATABASE FOR INSIDER FLAG
                 const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists() && userSnap.data().isInsider === true) {
-                    // ACCESS GRANTED
                     showStatus("Identity Verified. Welcome, Director.", "success");
-                    document.getElementById('login-modal').classList.add('hidden-modal');
+                    // Force hide using multiple methods to ensure it works
+                    const modal = document.getElementById('login-modal');
+                    modal.classList.add('hidden-modal');
+                    modal.style.display = 'none'; 
                     loadDashboardData();
                 } else {
-                    // ACCESS DENIED
                     await signOut(auth);
                     showStatus("ACCESS DENIED: Insufficient Clearance.", "error");
                     shakeScreen();
-                    
                     if(btn) {
                         btn.disabled = false;
                         btn.innerHTML = `<span>Verify Credentials</span>`;
-                        // Reset button text
                     }
                 }
             } catch (error) {
@@ -81,7 +79,7 @@
             location.reload();
         };
 
-        // --- DATA VISUALIZATION ENGINE (REAL DATA ONLY) ---
+        // --- DATA VISUALIZATION ENGINE ---
         async function loadDashboardData() {
             document.getElementById('dashboard-view').classList.remove('hidden');
             
@@ -89,8 +87,7 @@
             if(statsContainer) statsContainer.innerHTML = 'Connecting to Live Database...';
 
             try {
-                // 1. ATTEMPT FULL ROSTER FETCH
-                // This requires database permission to list ALL users
+                // ATTEMPT FULL ROSTER FETCH
                 const usersRef = collection(db, 'artifacts', appId, 'users');
                 const querySnapshot = await getDocs(usersRef);
                 
@@ -123,21 +120,17 @@
                     });
                 });
 
-                // Update Widgets
                 updateStat('stat-total-agents', totalAgents);
                 updateStat('stat-active-24h', activeLast24h);
                 updateStat('stat-guests', guests);
 
-                // Populate Table
                 renderRoster(rosterData);
-                
                 if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
 
             } catch (e) {
-                console.warn("Full Roster Access Denied. Switching to Individual View.", e);
+                console.warn("Full Roster Access Denied.", e);
                 
-                // 2. FALLBACK: SINGLE AGENT VIEW (You)
-                // If permissions block "list all", show "self" to prove it's real data.
+                // FALLBACK: SINGLE AGENT VIEW (You)
                 if (auth.currentUser) {
                     try {
                         const myDoc = await getDoc(doc(db, 'artifacts', appId, 'users', auth.currentUser.uid));
@@ -151,32 +144,24 @@
                                 lastLogin: data.lastLogin ? data.lastLogin.toDate() : new Date(),
                                 status: 'Active'
                             }];
-                            
-                            // Update Widgets (Restricted View)
                             updateStat('stat-total-agents', 1);
                             updateStat('stat-active-24h', 1);
                             updateStat('stat-guests', data.isGuest ? 1 : 0);
-                            
                             renderRoster(rosterData);
-                            
                             if(statsContainer) {
                                 statsContainer.innerHTML = 'RESTRICTED VIEW: SELF';
-                                statsContainer.className = "text-[10px] text-amber-400 font-bold uppercase tracking-widest";
+                                statsContainer.className = "text-[10px] text-amber-600 font-bold uppercase tracking-widest";
                             }
                             showStatus("Database Limit: Viewing self only.", "info");
-                            return; // Exit success
+                            return; 
                         }
-                    } catch (innerErr) {
-                         console.error("Even self-fetch failed", innerErr);
-                    }
+                    } catch (innerErr) { console.error(innerErr); }
                 }
 
-                // 3. TOTAL FAILURE (If even self-fetch fails)
                 if(statsContainer) {
                     statsContainer.innerHTML = 'CONNECTION ERROR';
-                    statsContainer.className = "text-[10px] text-red-400 font-bold uppercase tracking-widest";
+                    statsContainer.className = "text-[10px] text-red-500 font-bold uppercase tracking-widest";
                 }
-                
                 const tbody = document.getElementById('roster-body');
                 if (tbody) {
                     tbody.innerHTML = `
@@ -185,14 +170,11 @@
                                 <div class="flex flex-col items-center justify-center text-slate-500">
                                     <i data-lucide="shield-alert" class="w-8 h-8 mb-2 text-red-500"></i>
                                     <p class="font-bold text-xs uppercase">Restricted Database Access</p>
-                                    <p class="text-[10px] mt-1 max-w-xs">Your account has Insider access, but database rules are blocking the retrieval of the agent roster.</p>
                                 </div>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                     lucide.createIcons();
                 }
-                
                 showStatus("Database Connection Restricted.", "error"); 
             }
         }
@@ -211,39 +193,34 @@
             
             if (agents.length === 0) {
                  tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-xs italic">
-                            No field agents found in the system.
-                        </td>
-                    </tr>`;
+                    <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500 text-xs italic">No field agents found.</td></tr>`;
                  return;
             }
             
-            // Sort by Last Login (Desc)
             agents.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
 
             agents.forEach(agent => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-700 hover:bg-slate-800 transition-colors group";
+                tr.className = "border-b border-gray-100 hover:bg-white hover:shadow-sm transition-all group cursor-pointer border-transparent hover:border-gray-100";
                 
                 const initials = agent.name.substring(0,2).toUpperCase();
                 const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
-                const statusColor = agent.status === 'Active' ? 'bg-emerald-900 text-emerald-300 border-emerald-700' : 'bg-slate-700 text-slate-400 border-slate-600';
+                const statusColor = agent.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500';
 
                 tr.innerHTML = `
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-900 text-orange-300' : 'bg-allgood-secondary/20 text-allgood-secondary'} flex items-center justify-center font-bold text-xs shadow-sm border border-white/10">
+                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-100 text-orange-600' : 'bg-allgood-secondary text-white'} flex items-center justify-center font-bold text-xs shadow-sm">
                                 ${initials}
                             </div>
                             <div>
-                                <p class="text-xs font-bold text-slate-200 group-hover:text-allgood-secondary transition-colors">${agent.name}</p>
-                                <p class="text-[9px] text-slate-500 font-mono">${agent.email}</p>
+                                <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors">${agent.name}</p>
+                                <p class="text-[9px] text-slate-400 font-mono">${agent.email}</p>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-4">
-                        <span class="${statusColor} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border shadow-sm">
+                        <span class="${statusColor} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-white shadow-sm">
                             ${agent.status}
                         </span>
                     </td>
@@ -261,7 +238,6 @@
             lucide.createIcons();
         }
 
-        // --- UX UTILS ---
         function showStatus(msg, type) {
             const modal = document.getElementById('status-toast');
             const txt = document.getElementById('status-text');
@@ -289,41 +265,38 @@
             setTimeout(() => document.querySelector('.tablet-frame').classList.remove('animate-shake'), 500);
         }
 
-        // --- INIT ---
         window.initApp = () => {
             const startup = document.getElementById('startup-screen');
             startup.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => {
                  startup.style.display = 'none';
-                 // Check if already signed in
                  onAuthStateChanged(auth, async (user) => {
                      if (user) {
-                         // Check status on reload
                          const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
                          try {
                              const userSnap = await getDoc(userRef);
                              if (userSnap.exists() && userSnap.data().isInsider === true) {
-                                 document.getElementById('login-modal').classList.add('hidden-modal');
+                                 const modal = document.getElementById('login-modal');
+                                 modal.classList.add('hidden-modal');
+                                 modal.style.display = 'none'; 
                                  loadDashboardData();
                              } else {
-                                 // Logged in but not insider
                                  document.getElementById('login-modal').classList.remove('hidden-modal');
-                                 // Optional: Auto logout if strict
+                                 document.getElementById('login-modal').style.display = 'flex';
                              }
                          } catch(e) {
-                             console.log("Re-auth check failed", e);
                              document.getElementById('login-modal').classList.remove('hidden-modal');
+                             document.getElementById('login-modal').style.display = 'flex';
                          }
                      } else {
                          document.getElementById('login-modal').classList.remove('hidden-modal');
+                         document.getElementById('login-modal').style.display = 'flex';
                      }
                  });
             }, 500);
         }
-
     </script>
     
-    <!-- Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
@@ -354,11 +327,9 @@
     </script>
 
     <style>
-        /* --- CHASSIS STYLES (MATCHING INDEX.HTML) --- */
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
-            /* Industrial grid pattern */
             background-image: 
                 linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -375,7 +346,6 @@
             aspect-ratio: 16/10;
             max-width: 1100px;
             max-height: 95vh;
-            /* Brushed Aluminum & Depth Gradients */
             background-image: 
                 radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
                 radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
@@ -399,19 +369,15 @@
 
         .screen-container {
             width: 100%; height: 100%;
-            /* INSIDER THEME: Darker Executive Look */
-            background-color: #0f172a; 
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 30px 30px;
+            /* EXECUTIVE GLASS THEME (Matches Task Force Command) */
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             position: relative; z-index: 1; overflow: hidden;
             border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
             display: flex; flex-direction: column;
         }
 
         @media (max-width: 640px) {
-            body { padding: 0; align-items: flex-start; background: #0f172a; }
+            body { padding: 0; align-items: flex-start; background: #f5f7fa; }
             .tablet-frame {
                 width: 100vw !important; height: 100vh !important;
                 max-width: none !important; max-height: none !important;
@@ -423,8 +389,9 @@
             .screen-container { border-radius: 0 !important; }
         }
 
-        /* --- INTERNAL UI STYLES --- */
-        .hidden-modal { display: none; }
+        /* FIX: FORCE HIDE */
+        .hidden-modal { display: none !important; }
+        
         .updated-pulse { animation: text-flash 1s ease-out; }
         
         @keyframes text-flash {
@@ -434,19 +401,19 @@
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="text-slate-200">
+<body class="text-slate-700">
 
     <main class="w-full">
         <div class="tablet-frame">
             <div class="screen-container">
 
                 <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900 text-white">
                     <div class="text-center group">
                         <div class="mb-6 relative">
                             <div class="absolute inset-0 bg-allgood-secondary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -471,7 +438,7 @@
                             </div>
                             <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
                             <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
-                                This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
+                                This terminal is restricted to Allgood Academy administrative personnel only.
                             </p>
                         </div>
                         
@@ -479,28 +446,22 @@
                             <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                             <span>Verify Credentials</span>
                         </button>
-                        
-                        <div class="mt-6 pt-6 border-t border-gray-100">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Authorized IDs Only</p>
-                            <div class="flex justify-center gap-2 mt-2 opacity-50">
-                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <!-- 3. DASHBOARD VIEW -->
+                <!-- 3. DASHBOARD VIEW (RESKINNED TO GLASSMORPHISM) -->
                 <div id="dashboard-view" class="hidden flex-col h-full overflow-hidden p-6 max-w-7xl mx-auto w-full">
                     
                     <!-- Header -->
-                    <header class="flex-shrink-0 flex items-center justify-between mb-8 pb-4 border-b border-slate-700">
+                    <header class="flex-shrink-0 flex items-center justify-between mb-8 pb-4 border-b border-slate-300">
                         <div>
-                            <h1 class="text-3xl font-heading font-bold text-white uppercase tracking-tight">Insider <span class="text-allgood-secondary">Dashboard</span></h1>
-                            <p class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-widest">Ecosystem Surveillance & Analytics</p>
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-2xl font-heading font-bold text-allgood-dark uppercase">Insider Command</h1>
+                                <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-emerald-200">Live</span>
+                            </div>
+                            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Ecosystem Surveillance Hub</p>
                         </div>
-                        <button onclick="window.handleLogout()" class="flex items-center gap-2 text-slate-400 hover:text-allgood-primary transition-colors text-xs font-bold uppercase tracking-wide">
+                        <button onclick="window.handleLogout()" class="text-slate-500 hover:text-allgood-primary px-4 py-2 text-xs font-bold uppercase transition-all flex items-center gap-2">
                             <i data-lucide="log-out" class="w-4 h-4"></i> Secure Logout
                         </button>
                     </header>
@@ -508,39 +469,43 @@
                     <!-- Scrollable Content Area -->
                     <div class="flex-grow overflow-y-auto pr-2 pb-6 custom-scrollbar">
                         <!-- Stats Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <!-- Metric 1 -->
-                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <i data-lucide="users" class="w-24 h-24 text-white"></i>
+                            <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all">
+                                <div>
+                                    <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total Agents</span>
+                                    <span id="stat-total-agents" class="block text-3xl font-heading font-bold text-slate-700">--</span>
                                 </div>
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Agents</p>
-                                <h3 id="stat-total-agents" class="text-4xl font-heading font-bold text-white">--</h3>
+                                <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <i data-lucide="users" class="w-5 h-5"></i>
+                                </div>
                             </div>
-
                             <!-- Metric 2 -->
-                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <i data-lucide="activity" class="w-24 h-24 text-emerald-400"></i>
+                            <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all">
+                                <div>
+                                    <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Active (24h)</span>
+                                    <span id="stat-active-24h" class="block text-3xl font-heading font-bold text-emerald-600">--</span>
                                 </div>
-                                <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Active (24h)</p>
-                                <h3 id="stat-active-24h" class="text-4xl font-heading font-bold text-white">--</h3>
+                                <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                    <i data-lucide="activity" class="w-5 h-5"></i>
+                                </div>
                             </div>
-
                             <!-- Metric 3 -->
-                            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 shadow-lg relative overflow-hidden group">
-                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <i data-lucide="ghost" class="w-24 h-24 text-orange-400"></i>
+                            <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all">
+                                <div>
+                                    <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Guest Logins</span>
+                                    <span id="stat-guests" class="block text-3xl font-heading font-bold text-orange-600">--</span>
                                 </div>
-                                <p class="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">Guest Logins</p>
-                                <h3 id="stat-guests" class="text-4xl font-heading font-bold text-white">--</h3>
+                                <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                                    <i data-lucide="ghost" class="w-5 h-5"></i>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Roster Table -->
-                        <div class="bg-slate-900 rounded-xl shadow-xl overflow-hidden border border-slate-700">
-                            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800 flex justify-between items-center">
-                                <h3 class="font-bold text-slate-200 uppercase text-sm tracking-wide flex items-center gap-2">
+                        <!-- Roster Table (Glass) -->
+                        <div class="bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
+                                <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
                                     <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> Agent Roster
                                 </h3>
                                 <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Updating Live Feed...</span>
@@ -548,7 +513,7 @@
                             
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left">
-                                    <thead class="bg-slate-800 border-b border-slate-700">
+                                    <thead class="bg-slate-50/50 border-b border-gray-100">
                                         <tr>
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Agent Identity</th>
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
@@ -556,7 +521,7 @@
                                             <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Last Signal</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="roster-body" class="divide-y divide-slate-800">
+                                    <tbody id="roster-body" class="divide-y divide-gray-100">
                                         <!-- Dynamic Rows Injected Here -->
                                     </tbody>
                                 </table>
