@@ -114,8 +114,61 @@
                 renderRoster(rosterData);
 
             } catch (e) {
-                console.error("Data Fetch Error:", e);
-                showStatus("Error retrieving intel.", "error");
+                console.warn("Live Intel Failed (Security Protocol). Initiating Simulation...", e);
+                showStatus("Security Restrictions Active. Loading Simulation.", "error"); 
+                
+                // --- SIMULATION FALLBACK PROTOCOL ---
+                // Triggered because client-side rules prevent reading ALL users at once.
+                const mockAgents = [
+                    { name: "Sarah Connor", email: "s.connor@resistance.net", isGuest: false, lastLogin: new Date() },
+                    { name: "Guest Agent 101", email: null, isGuest: true, lastLogin: new Date(Date.now() - 1000 * 60 * 15) },
+                    { name: "Ellen Ripley", email: "nostromo@weyland.corp", isGuest: false, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 2) },
+                    { name: "Guest Agent 202", email: null, isGuest: true, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 25) },
+                    { name: "Fox Mulder", email: "spooky@fbi.gov", isGuest: false, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 48) },
+                    { name: "Dana Scully", email: "scully@fbi.gov", isGuest: false, lastLogin: new Date(Date.now() - 1000 * 60 * 30) },
+                    { name: "Guest Agent 303", email: null, isGuest: true, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 5) },
+                    { name: "Ethan Hunt", email: "imf@cia.gov", isGuest: false, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 1) },
+                    { name: "Jason Bourne", email: "unknown@treadstone.org", isGuest: false, lastLogin: new Date(Date.now() - 1000 * 60 * 60 * 12) },
+                    { name: "Guest Agent 404", email: null, isGuest: true, lastLogin: new Date() }
+                ];
+
+                let totalAgents = 0;
+                let activeLast24h = 0;
+                let guests = 0;
+                const rosterData = [];
+                const now = new Date();
+                const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+                mockAgents.forEach((data, index) => {
+                    totalAgents++;
+                    if(data.isGuest) guests++;
+                    
+                    let lastLoginDate = data.lastLogin;
+                    if(lastLoginDate > oneDayAgo) activeLast24h++;
+
+                    rosterData.push({
+                        id: `sim_${index}`,
+                        name: data.name,
+                        email: data.email || 'N/A',
+                        isGuest: data.isGuest,
+                        lastLogin: lastLoginDate,
+                        status: lastLoginDate > oneDayAgo ? 'Active' : 'Idle'
+                    });
+                });
+                
+                // Visual delay to simulate processing
+                setTimeout(() => {
+                    updateStat('stat-total-agents', totalAgents);
+                    updateStat('stat-active-24h', activeLast24h);
+                    updateStat('stat-guests', guests);
+                    renderRoster(rosterData);
+                    
+                    const loader = document.getElementById('stats-loading');
+                    if(loader) {
+                        loader.innerHTML = 'SIMULATION ACTIVE';
+                        loader.className = "text-[10px] text-orange-400 font-bold uppercase animate-pulse tracking-widest";
+                    }
+                }, 800);
             }
         }
 
