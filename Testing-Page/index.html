@@ -34,6 +34,9 @@
             const provider = new GoogleAuthProvider();
             const btn = document.getElementById('btn-verify');
             
+            // EMERGENCY OVERRIDE LIST
+            const SUPER_ADMINS = ['learning@allgoodacademy.com', 'balgood93@gmail.com'];
+            
             try {
                 if(btn) {
                     btn.disabled = true;
@@ -44,11 +47,31 @@
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // CHECK DATABASE FOR INSIDER FLAG
+                // 1. GET USER DOC
                 const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 const userSnap = await getDoc(userRef);
 
+                let isAuthorized = false;
+
+                // 2. CHECK DATABASE FLAG
                 if (userSnap.exists() && userSnap.data().isInsider === true) {
+                    isAuthorized = true;
+                }
+                
+                // 3. SAFETY OVERRIDE (If DB flag is missing but Email matches Director)
+                if (!isAuthorized && SUPER_ADMINS.includes(user.email)) {
+                    console.log("Super Admin Identified. Auto-promoting to Insider.");
+                    // Force update the database
+                    await setDoc(userRef, { 
+                        displayName: user.displayName || 'Director',
+                        email: user.email,
+                        isInsider: true,
+                        lastLogin: new Date()
+                    }, { merge: true });
+                    isAuthorized = true;
+                }
+
+                if (isAuthorized) {
                     showStatus("Identity Verified. Welcome, Director.", "success");
                     // Force hide using multiple methods to ensure it works
                     const modal = document.getElementById('login-modal');
@@ -66,7 +89,7 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                showStatus("Authentication Failed.", "error");
+                showStatus("Authentication Failed: " + error.message, "error");
                 if(btn) {
                     btn.disabled = false;
                     btn.innerHTML = `<span>Verify Credentials</span>`;
