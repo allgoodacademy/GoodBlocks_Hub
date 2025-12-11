@@ -144,9 +144,11 @@
                 });
 
                 // Update Widget Counts
-                updateStat('stat-total-agents', window.insiderData.allAgents.length);
+                const registeredCount = window.insiderData.allAgents.filter(a => !a.isGuest).length;
+                
+                updateStat('stat-total-agents', registeredCount);
                 updateStat('stat-active-24h', window.insiderData.activeAgents.length);
-                updateStat('stat-guests', window.insiderData.guestAgents.length);
+                updateStat('stat-guests', window.insiderData.allAgents.length);
                 updateStat('stat-intel', '-');
 
                 // Initial State: Show Home
@@ -701,13 +703,13 @@
                                     </div>
                                 </div>
                                 <!-- Clickable Card 3: Guests -->
-                                <div onclick="window.switchView('list', 'guests')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                <div onclick="window.switchView('list', 'all')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
                                     <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Guest Logins</span>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Academy Visitors</span>
                                         <span id="stat-guests" class="block text-3xl font-heading font-bold text-orange-600">--</span>
                                     </div>
                                     <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-100 transition-colors">
-                                        <i data-lucide="ghost" class="w-5 h-5"></i>
+                                        <i data-lucide="globe" class="w-5 h-5"></i>
                                     </div>
                                 </div>
                                 <!-- Clickable Card 4: Field Intel (NEW) -->
