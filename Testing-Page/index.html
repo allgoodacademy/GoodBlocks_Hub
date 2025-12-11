@@ -86,10 +86,11 @@
             document.getElementById('dashboard-view').classList.remove('hidden');
             
             const statsContainer = document.getElementById('stats-loading');
-            if(statsContainer) statsContainer.innerHTML = 'Fetching Field Reports...';
+            if(statsContainer) statsContainer.innerHTML = 'Connecting to Live Database...';
 
             try {
-                // 1. Fetch Users (The Roster) - REAL DATA REQUEST
+                // 1. ATTEMPT FULL ROSTER FETCH
+                // This requires database permission to list ALL users
                 const usersRef = collection(db, 'artifacts', appId, 'users');
                 const querySnapshot = await getDocs(usersRef);
                 
@@ -133,9 +134,44 @@
                 if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
 
             } catch (e) {
-                console.error("Live Intel Failed:", e);
+                console.warn("Full Roster Access Denied. Switching to Individual View.", e);
                 
-                // NO SIMULATION FALLBACK - REAL ERROR REPORTING
+                // 2. FALLBACK: SINGLE AGENT VIEW (You)
+                // If permissions block "list all", show "self" to prove it's real data.
+                if (auth.currentUser) {
+                    try {
+                        const myDoc = await getDoc(doc(db, 'artifacts', appId, 'users', auth.currentUser.uid));
+                        if (myDoc.exists()) {
+                            const data = myDoc.data();
+                            const rosterData = [{
+                                id: myDoc.id,
+                                name: (data.displayName || 'Unknown Agent') + ' (YOU)',
+                                email: data.email || 'N/A',
+                                isGuest: data.isGuest,
+                                lastLogin: data.lastLogin ? data.lastLogin.toDate() : new Date(),
+                                status: 'Active'
+                            }];
+                            
+                            // Update Widgets (Restricted View)
+                            updateStat('stat-total-agents', 1);
+                            updateStat('stat-active-24h', 1);
+                            updateStat('stat-guests', data.isGuest ? 1 : 0);
+                            
+                            renderRoster(rosterData);
+                            
+                            if(statsContainer) {
+                                statsContainer.innerHTML = 'RESTRICTED VIEW: SELF';
+                                statsContainer.className = "text-[10px] text-amber-400 font-bold uppercase tracking-widest";
+                            }
+                            showStatus("Database Limit: Viewing self only.", "info");
+                            return; // Exit success
+                        }
+                    } catch (innerErr) {
+                         console.error("Even self-fetch failed", innerErr);
+                    }
+                }
+
+                // 3. TOTAL FAILURE (If even self-fetch fails)
                 if(statsContainer) {
                     statsContainer.innerHTML = 'CONNECTION ERROR';
                     statsContainer.className = "text-[10px] text-red-400 font-bold uppercase tracking-widest";
@@ -149,7 +185,7 @@
                                 <div class="flex flex-col items-center justify-center text-slate-500">
                                     <i data-lucide="shield-alert" class="w-8 h-8 mb-2 text-red-500"></i>
                                     <p class="font-bold text-xs uppercase">Restricted Database Access</p>
-                                    <p class="text-[10px] mt-1 max-w-xs">Your account has Insider access, but database rules are blocking the retrieval of the full agent roster.</p>
+                                    <p class="text-[10px] mt-1 max-w-xs">Your account has Insider access, but database rules are blocking the retrieval of the agent roster.</p>
                                 </div>
                             </td>
                         </tr>
