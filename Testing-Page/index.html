@@ -141,7 +141,10 @@
 
             try {
                 const usersRef = collection(db, 'artifacts', appId, 'users');
-                const querySnapshot = await getDocs(usersRef);
+                
+                // FORCE RE-INDEX: Use orderBy to force fresh fetch and avoid stale cache
+                const q = query(usersRef, orderBy('lastLogin', 'desc'));
+                const querySnapshot = await getDocs(q);
                 
                 const now = new Date();
                 const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
@@ -474,7 +477,10 @@
         }
         
         // --- STARTUP SEQ ---
-        window.initApp = () => {
+        window.initApp = async () => {
+            // FORCE LOGOUT to ensure "Director Access" modal always appears (Zero-Trust)
+            try { await signOut(auth); } catch(e) { console.log("Session clear error", e); }
+
             // First check for initial auth token provided by environment
             const initAuth = async () => {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
