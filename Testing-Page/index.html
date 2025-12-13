@@ -3,27 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Allgood Academy Dashboard</title>
+    <title>Allgood Academy | Insider</title>
     <link rel="icon" type="image/png" href="/favicon.png">
-
-    <!-- Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EN4M7T3BLQ"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-EN4M7T3BLQ');
-    </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, getDocs, addDoc, collection, serverTimestamp, onSnapshot, query, where, orderBy, limit, collectionGroup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
@@ -31,376 +21,478 @@
             projectId: "allgood-academy",
             storageBucket: "allgood-academy.firebasestorage.app",
             messagingSenderId: "978829044870",
-            appId: "1:978829044870:web:6c780f64230a77ad0ab507",
-            measurementId: "G-EN4M7T3BLQ"
+            appId: "1:978829044870:web:6c780f64230a77ad0ab507"
         };
         
         const appId = 'allgood-academy'; 
-        
-        let auth, db;
-
         const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // --- GLOBAL ADMIN DATA STORE ---
-        window.adminData = {
-            launches: [],
-            feedback: [],
-            users: []
+        // GLOBAL DATA STORE
+        window.insiderData = {
+            allAgents: [],
+            activeAgents: [],
+            guestAgents: [],
+            intel: [],
+            currentFilter: 'all',
+            searchQuery: ''
         };
 
-        // --- AUTH & INIT ---
-        (async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } catch (e) { console.warn("Auth token failed", e); }
-            }
-        })();
-
-        window.auth = auth; 
-        window.db = db;
-
-        let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
-        let unsubscribeLaunches = null;
-        let unsubscribeDecisions = null;
-        
-        window.allModuleElements = {};
-        window.userEarnedBadges = {};
-
-        // --- AUTHENTICATION LOGIC (SSO ONLY + GATEKEEPER) ---
+        // --- AUTHENTICATION LOGIC ---
         window.handleLogin = async () => {
-            if(window.sfx) window.sfx.click();
-            
-            const btn = document.getElementById('btn-verify');
-            const originalContent = btn.innerHTML;
-            
-            btn.disabled = true;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Checking Clearance...`;
-            lucide.createIcons();
-
             const provider = new GoogleAuthProvider();
+            const btn = document.getElementById('btn-verify');
+            const SUPER_ADMINS = ['learning@allgoodacademy.com', 'balgood93@gmail.com'];
             
             try {
-                // 1. Trigger SSO
+                if(btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Checking Clearance...`;
+                    lucide.createIcons();
+                }
+
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // 2. Check Database for 'isInsider' Flag
                 const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
                 const userSnap = await getDoc(userRef);
-                
+
                 let isAuthorized = false;
+                if (userSnap.exists() && userSnap.data().isInsider === true) isAuthorized = true;
                 
-                // Check if user exists and has the flag
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
-                    if (userData.isInsider === true) {
-                        isAuthorized = true;
-                    }
-                }
-                
-                // SUPER ADMIN BACKDOOR (For initial setup/safety)
-                const SUPER_ADMINS = ['learning@allgoodacademy.com', 'balgood93@gmail.com']; // Replace/Add your email
-                if (!isAuthorized && user.email && SUPER_ADMINS.includes(user.email)) {
-                    // Auto-promote Super Admin
+                if (!isAuthorized && SUPER_ADMINS.includes(user.email)) {
                     await setDoc(userRef, { 
-                        displayName: user.displayName,
+                        displayName: user.displayName || 'Director',
                         email: user.email,
-                        isInsider: true, // Grant access
-                        lastLogin: serverTimestamp()
+                        isInsider: true,
+                        lastLogin: new Date()
                     }, { merge: true });
                     isAuthorized = true;
                 }
 
                 if (isAuthorized) {
-                    // SUCCESS: Proceed to Dashboard
-                    showStatusMessage("Identity Verified. Welcome, Director.", "success");
-                    
-                    // Update Local Storage
-                    localStorage.setItem('aa_username', user.displayName || 'Director');
-                    localStorage.setItem('aa_uid', user.uid);
-                    localStorage.setItem('aa_is_guest', 'false');
-                    
-                    // Initialize UI
-                    window.updateUI(user.displayName || 'Director');
-                    document.getElementById('page-dashboard').classList.add('active');
-                    document.getElementById('page-dashboard').style.display = 'block';
-                    document.querySelector('.navbar-content').classList.remove('opacity-0');
-                    
-                    // Close Modal
-                    window.closeLoginModal();
-                    
-                    // Start Listeners
-                    window.startLaunchListener(user.uid);
-                    window.startDecisionsStatusListener(user.uid);
-                    
+                    showStatus("Identity Verified. Welcome, Director.", "success");
+                    const modal = document.getElementById('login-modal');
+                    modal.classList.add('hidden-modal');
+                    modal.style.display = 'none'; 
+                    loadDashboardData();
                 } else {
-                    // FAIL: Unauthorized
-                    throw new Error("ACCESS DENIED: Insufficient Clearance.");
+                    await signOut(auth);
+                    showStatus("ACCESS DENIED: Insufficient Clearance.", "error");
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<span>Verify Credentials</span>`;
+                    }
                 }
-
             } catch (error) {
                 console.error("Auth Error:", error);
                 
-                // Force Logout if they managed to sign in but failed check
-                await signOut(auth);
-                
-                showStatusMessage(error.message || "Authentication Failed", "error");
-                
-                // Reset Button
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-            }
-        };
+                // --- CUSTOM ERROR TRAP FOR API KEY RESTRICTIONS ---
+                if (error.message && (error.message.includes('requests-from-referer') || error.code === 'auth/requests-from-referer-blocked')) {
+                     alert("⚠️ API KEY CONFIGURATION ERROR\n\nYour Google Cloud API Key is blocking this domain.\n\nACTION REQUIRED:\n1. Go to Google Cloud Console > APIs & Services > Credentials.\n2. Edit your API Key.\n3. Under 'Website restrictions', change the entry to:\n\nhttps://allgoodacademy.github.io/*\n\n(You MUST include the asterisk '*' at the end to allow all pages)");
+                     showStatus("API Key Domain Blocked. See Alert.", "error");
+                } else {
+                     showStatus("Authentication Failed: " + error.message, "error");
+                }
 
-        // --- ADMIN DASHBOARD ENGINE ---
-        window.loadAdminDashboard = async () => {
-            const container = document.getElementById('admin-content-area');
-            const status = document.getElementById('admin-status-indicator');
-            if(status) status.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-allgood-secondary"></i> Syncing...`;
-            lucide.createIcons();
-
-            try {
-                // 1. Live Activity Feed (Collection Group Query)
-                const launchesQ = query(collectionGroup(db, 'launches'), orderBy('timestamp', 'desc'), limit(20));
-                const launchSnap = await getDocs(launchesQ);
-                window.adminData.launches = [];
-                launchSnap.forEach(doc => window.adminData.launches.push(doc.data()));
-
-                // 2. Feedback Intel (Collection Group Query)
-                const feedbackQ = query(collectionGroup(db, 'feedback_inbox'), orderBy('timestamp', 'desc'), limit(20));
-                const feedbackSnap = await getDocs(feedbackQ);
-                window.adminData.feedback = [];
-                feedbackSnap.forEach(doc => window.adminData.feedback.push({id: doc.id, ...doc.data()}));
-
-                // 3. User Roster
-                const usersRef = collection(db, 'artifacts', appId, 'users');
-                const userSnap = await getDocs(query(usersRef, orderBy('lastLogin', 'desc'), limit(20)));
-                window.adminData.users = [];
-                userSnap.forEach(doc => window.adminData.users.push(doc.data()));
-
-                // RENDER
-                renderAdminWidgets();
-                if(status) status.innerHTML = `<span class="text-emerald-600 font-bold text-xs">LIVE DATA</span>`;
-
-            } catch(e) {
-                console.error("Admin Load Error", e);
-                if(status) status.innerHTML = `<span class="text-red-500 font-bold text-xs">CONNECTION ERROR</span>`;
-                renderAdminWidgets(); 
-            }
-        };
-
-        function renderAdminWidgets() {
-            document.getElementById('adm-stat-users').textContent = window.adminData.users.length;
-            document.getElementById('adm-stat-launches').textContent = window.adminData.launches.length;
-            document.getElementById('adm-stat-feedback').textContent = window.adminData.feedback.length;
-
-            const feedContainer = document.getElementById('adm-activity-feed');
-            feedContainer.innerHTML = '';
-            window.adminData.launches.forEach(launch => {
-                const date = launch.timestamp ? launch.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Just now';
-                feedContainer.innerHTML += `
-                    <div class="flex items-center justify-between p-3 border-b border-gray-100 last:border-0 hover:bg-slate-50 transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                                <i data-lucide="rocket" class="w-4 h-4"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-slate-700">${launch.courseName || 'Module Launch'}</p>
-                                <p class="text-[10px] text-slate-400 font-mono">User Activity</p>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-mono text-slate-400">${date}</span>
-                    </div>`;
-            });
-
-            const intelContainer = document.getElementById('adm-intel-feed');
-            intelContainer.innerHTML = '';
-            window.adminData.feedback.forEach(item => {
-                const date = item.timestamp ? item.timestamp.toDate().toLocaleDateString() : 'Unknown';
-                intelContainer.innerHTML += `
-                    <div class="p-3 border-b border-gray-100 hover:bg-slate-50 transition-colors">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="font-bold text-slate-700 text-xs">${item.senderName || 'Agent'}</span>
-                            <span class="text-[10px] text-slate-400">${date}</span>
-                        </div>
-                        <p class="text-xs text-slate-600 bg-white border border-gray-200 p-2 rounded italic">"${item.message || item.comments}"</p>
-                    </div>`;
-            });
-            lucide.createIcons();
-        }
-
-        // --- MODULE LAUNCHER ---
-        window.launchCourse = async (courseName, url, element) => {
-            if (!auth.currentUser) {
-                // Re-open login if session expired
-                const loginModal = document.getElementById('login-modal');
-                loginModal.classList.remove('hidden-modal');
-                loginModal.classList.add('visible-modal');
-                return;
-            }
-
-            let finalUrl = url;
-            try {
-                const urlObj = new URL(url);
-                urlObj.searchParams.append('dashboard_uid', auth.currentUser.uid);
-                finalUrl = urlObj.toString();
-            } catch (e) { }
-
-            if(window.sfx) window.sfx.confirm();
-            window.open(finalUrl, '_blank');
-            
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
-                    courseName: courseName,
-                    targetUrl: url,
-                    timestamp: serverTimestamp()
-                });
-            } catch(e) {}
-
-            if (element) {
-                const badge = element.querySelector('span.rounded'); 
-                if (badge && badge.id !== 'ddc-status-badge') { 
-                    badge.textContent = "LAUNCHED";
-                    badge.className = "bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide animate-pulse";
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>Verify Credentials</span>`;
                 }
             }
         };
-
-        // --- LISTENERS ---
-        window.startLaunchListener = function(uid) {
-            const launchesRef = collection(db, 'artifacts', appId, 'users', uid, 'launches');
-            unsubscribeLaunches = onSnapshot(launchesRef, (snapshot) => {
-                const total = snapshot.size;
-                localStorage.setItem('aa_launch_count', total);
-                const statEl = document.getElementById('stat-total-launches');
-                if (statEl) statEl.textContent = total;
-                window.updateBadges();
-            });
-        };
-
-        window.startDecisionsStatusListener = function(uid) {
-            const scoresRef = collection(db, 'artifacts', appId, 'users', uid, 'game_scores');
-            unsubscribeDecisions = onSnapshot(scoresRef, (snapshot) => {
-                let ddcScore = 0;
-                let jlcComplete = false;
-                
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    if(d.gameName === "Digital Decisions Challenge") ddcScore = Math.max(ddcScore, d.finalScore || 0);
-                    if(d.gameName === "Jolene's Lemonade") jlcComplete = true;
-                    if(d.completed && d.badgeSVG) window.userEarnedBadges[d.gameName] = d.badgeSVG;
-                });
-
-                if(ddcScore >= 80) localStorage.setItem('aa_ddc_complete', 'true');
-                if(jlcComplete) localStorage.setItem('aa_jlc_complete', 'true');
-                
-                const ddcBadge = document.getElementById('ddc-status-badge');
-                if(ddcBadge && ddcScore >= 80) {
-                    ddcBadge.textContent = "MISSION COMPLETE";
-                    ddcBadge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase";
-                }
-                
-                window.updateBadges();
-            });
-        };
-
-        window.updateUI = function(name) { 
-            const els = document.querySelectorAll('.user-name-display');
-            els.forEach(el => el.textContent = name);
-            window.updateBadges();
-        }
-        
-        window.updateBadges = function() { 
-            let count = 1; 
-            const user = auth.currentUser;
-            if(user && !user.isAnonymous) count++; 
-            if(parseInt(localStorage.getItem('aa_launch_count') || '0') > 0) count++;
-            if(localStorage.getItem('aa_ddc_complete') === 'true') count++;
-            if(localStorage.getItem('aa_jlc_complete') === 'true') count++;
-            
-            const badgeEl = document.getElementById('badge-count-display');
-            if(badgeEl) badgeEl.textContent = `BADGES: ${count}`;
-        }
 
         window.handleLogout = async () => {
-            localStorage.clear();
             await signOut(auth);
             location.reload();
         };
 
-        window.openAdminDashboard = () => {
-            document.getElementById('page-dashboard').style.display = 'none';
-            document.getElementById('page-admin').style.display = 'block';
-            window.loadAdminDashboard();
-        };
+        // --- DATA ENGINE ---
+        async function loadDashboardData() {
+            document.getElementById('dashboard-view').classList.remove('hidden');
+            const navbar = document.getElementById('main-navbar');
+            if(navbar) navbar.classList.remove('opacity-0');
 
-        window.closeAdminDashboard = () => {
-            document.getElementById('page-admin').style.display = 'none';
-            document.getElementById('page-dashboard').style.display = 'block';
-        };
+            const statsContainer = document.getElementById('stats-loading');
+            if(statsContainer) statsContainer.innerHTML = 'Syncing Ecosystem...';
 
-        // --- STARTUP SEQ (Strict Access Mode) ---
-        window.initApp = async () => {
-            // FORCE LOGOUT TO ENSURE MODAL APPEARS ON RELOAD
-            try { await signOut(auth); } catch(e) {}
-
-            const startup = document.getElementById('startup-screen');
-            const loginModal = document.getElementById('login-modal');
-
-            // Safety Timer
-            const safetyTimer = setTimeout(() => {
-                if (startup.style.display !== 'none') {
-                    startup.style.display = 'none';
-                    loginModal.style.display = 'flex';
-                    setTimeout(() => loginModal.classList.remove('hidden-modal'), 50);
-                }
-            }, 2000);
-
-            // Click Handler
-            startup.addEventListener('click', () => {
-                startup.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => {
-                    startup.style.display = 'none';
-                    clearTimeout(safetyTimer);
-                    
-                    // Show Login Modal
-                    loginModal.style.display = 'flex';
-                    setTimeout(() => loginModal.classList.remove('hidden-modal'), 20);
-                }, 500);
-            });
-        }
-
-        window.closeLoginModal = () => {
-            const modal = document.getElementById('login-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            setTimeout(() => { modal.style.display = 'none'; }, 300);
-        }
-
-        function showStatusMessage(message, type) {
-            const toast = document.getElementById('status-toast');
-            if (toast) {
-                const icon = toast.querySelector('#status-icon');
-                const text = toast.querySelector('#status-text');
-                text.textContent = message;
+            try {
+                const usersRef = collection(db, 'artifacts', appId, 'users');
+                const querySnapshot = await getDocs(usersRef);
                 
-                if (type === 'error') {
-                    icon.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>';
-                    toast.className = "absolute top-4 right-4 z-[9999] bg-white border-l-4 border-red-500 shadow-md p-4 rounded flex items-center gap-2 transition-all duration-300";
-                } else {
-                    icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-emerald-500"></i>';
-                    toast.className = "absolute top-4 right-4 z-[9999] bg-white border-l-4 border-emerald-500 shadow-md p-4 rounded flex items-center gap-2 transition-all duration-300";
-                }
+                const now = new Date();
+                const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
                 
-                lucide.createIcons();
-                toast.classList.remove('opacity-0', 'translate-y-[-150%]');
-                setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-[-150%]'); }, 3000);
-            } else {
-                alert(message);
+                // RESET STORE
+                window.insiderData.allAgents = [];
+                window.insiderData.activeAgents = [];
+                window.insiderData.guestAgents = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let lastLoginDate = null;
+                    if(data.lastLogin && data.lastLogin.toDate) {
+                        lastLoginDate = data.lastLogin.toDate();
+                    }
+
+                    const agent = {
+                        id: doc.id,
+                        name: data.displayName || 'Unknown Agent',
+                        email: data.email || 'N/A',
+                        isGuest: data.isGuest || false,
+                        joined: data.joined ? data.joined.toDate() : (data.lastLogin ? data.lastLogin.toDate() : new Date()), 
+                        lastLogin: lastLoginDate,
+                        isActive24h: lastLoginDate && lastLoginDate > oneDayAgo
+                    };
+
+                    window.insiderData.allAgents.push(agent);
+                    if(agent.isActive24h) window.insiderData.activeAgents.push(agent);
+                    if(agent.isGuest) window.insiderData.guestAgents.push(agent);
+                });
+
+                // Update Widget Counts
+                // WIDGET 1: Total Agents (SSO Only)
+                const ssoCount = window.insiderData.allAgents.filter(a => !a.isGuest).length;
+                updateStat('stat-total-agents', ssoCount);
+                
+                // WIDGET 2: Active 24h
+                updateStat('stat-active-24h', window.insiderData.activeAgents.length);
+                
+                // WIDGET 3: Total Ecosystem (Everyone)
+                updateStat('stat-guests', window.insiderData.allAgents.length);
+                
+                // WIDGET 4: Intel
+                updateStat('stat-intel', '-');
+
+                // Initial State: Show Home
+                window.switchView('home'); 
+                
+                if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
+
+            } catch (e) {
+                console.warn("Full Roster Access Denied.", e);
+                if(statsContainer) statsContainer.innerHTML = 'CONNECTION ERROR';
+                showStatus("Database Connection Restricted.", "error"); 
             }
+        }
+
+        // --- INTEL ENGINE ---
+        window.loadIntel = async () => {
+            const statsContainer = document.getElementById('stats-loading');
+            if(statsContainer) statsContainer.innerHTML = 'Decrypting Comms...';
+            
+            window.insiderData.intel = []; 
+            
+            try {
+                const promises = window.insiderData.allAgents.map(async (agent) => {
+                    const inboxRef = collection(db, 'artifacts', appId, 'users', agent.id, 'feedback_inbox');
+                    const q = query(inboxRef, orderBy('timestamp', 'desc'), limit(5)); 
+                    const snap = await getDocs(q);
+                    
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        window.insiderData.intel.push({
+                            id: doc.id,
+                            agentId: agent.id,
+                            agentName: agent.name,
+                            agentEmail: agent.email,
+                            message: d.message,
+                            timestamp: d.timestamp ? d.timestamp.toDate() : new Date(),
+                            courseName: d.courseName || null,
+                            rating: d.rating || null,
+                            type: (d.courseName || d.rating) ? 'review' : 'dm'
+                        });
+                    });
+                });
+
+                await Promise.all(promises);
+                window.insiderData.intel.sort((a,b) => b.timestamp - a.timestamp);
+                
+                updateStat('stat-intel', window.insiderData.intel.length);
+                if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
+                window.switchView('intel');
+
+            } catch(e) {
+                console.error("Intel Fetch Error", e);
+                showStatus("Comms Encrypted. Access Denied.", "error");
+            }
+        };
+
+        // --- VIEW CONTROLLER ---
+        window.switchView = (viewName, filterType = null, agentId = null) => {
+            const viewHome = document.getElementById('view-home');
+            const viewList = document.getElementById('view-list');
+            const viewDossier = document.getElementById('view-dossier');
+            const viewIntel = document.getElementById('view-intel');
+            
+            // Hide everything first
+            viewHome.classList.add('hidden');
+            viewList.classList.add('hidden');
+            viewDossier.classList.add('hidden');
+            viewIntel.classList.add('hidden');
+            
+            if (viewName === 'home') {
+                viewHome.classList.remove('hidden');
+            } 
+            else if (viewName === 'list') {
+                viewList.classList.remove('hidden');
+                if (filterType) window.insiderData.currentFilter = filterType;
+                // If filterType is explicitly passed as 'all' or null, we might need to reset filter for ecosystem view
+                if (filterType === 'all') window.insiderData.currentFilter = 'all'; 
+                renderListView();
+            } 
+            else if (viewName === 'dossier') {
+                viewDossier.classList.remove('hidden');
+                loadAgentDossier(agentId);
+            } 
+            else if (viewName === 'intel') {
+                viewIntel.classList.remove('hidden');
+                renderIntelView();
+            }
+            lucide.createIcons();
+        }
+
+        // --- FILTER LOGIC ---
+        window.filterRoster = () => {
+            const searchInput = document.getElementById('agent-search');
+            window.insiderData.searchQuery = searchInput.value.toLowerCase().trim();
+            renderListView();
+        };
+
+        // --- RENDER LIST ---
+        function renderListView() {
+            const tbody = document.getElementById('roster-body');
+            const listTitle = document.getElementById('list-view-title');
+            tbody.innerHTML = '';
+
+            const filterType = window.insiderData.currentFilter;
+            const searchQ = window.insiderData.searchQuery;
+            let dataSet = [];
+            
+            if (filterType === 'all_sso') {
+                dataSet = window.insiderData.allAgents.filter(a => !a.isGuest);
+                listTitle.textContent = "Registered Agents (SSO)";
+            } else if (filterType === 'active') {
+                dataSet = window.insiderData.activeAgents;
+                listTitle.textContent = "Active Personnel (24h)";
+            } else if (filterType === 'guests') {
+                dataSet = window.insiderData.guestAgents;
+                listTitle.textContent = "Guest Logins";
+            } else {
+                dataSet = window.insiderData.allAgents;
+                listTitle.textContent = "Total Ecosystem";
+            }
+
+            if (searchQ) {
+                dataSet = dataSet.filter(agent => 
+                    agent.name.toLowerCase().includes(searchQ) || 
+                    agent.email.toLowerCase().includes(searchQ)
+                );
+            }
+
+            dataSet.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
+
+            if (dataSet.length === 0) {
+                 tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-xs italic">No matching records found.</td></tr>`;
+                 return;
+            }
+
+            dataSet.forEach(agent => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-indigo-50/30 transition-all group cursor-pointer border-transparent hover:border-indigo-100";
+                tr.onclick = () => window.switchView('dossier', null, agent.id);
+                
+                const initials = agent.name.substring(0,2).toUpperCase();
+                const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
+                const createdStr = agent.joined ? agent.joined.toLocaleDateString() : 'Unknown';
+                
+                let statusBadge = `<span class="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Idle</span>`;
+                if(agent.isActive24h) statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200 shadow-sm animate-pulse">Active</span>`;
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-100 text-orange-600' : 'bg-allgood-secondary text-white'} flex items-center justify-center font-bold text-xs shadow-sm">
+                                ${initials}
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors underline-offset-2 group-hover:underline decoration-dotted">${agent.name}</p>
+                                <p class="text-[9px] text-slate-400 font-mono">${agent.email}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">${statusBadge}</td>
+                    <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">${createdStr}</td>
+                    <td class="px-6 py-4 text-[10px] text-slate-500 font-mono text-right">${dateStr}</td>
+                    <td class="px-6 py-4 text-right"><i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-allgood-secondary"></i></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // --- RENDER INTEL ---
+        function renderIntelView() {
+            const container = document.getElementById('intel-content');
+            container.innerHTML = '';
+            const msgs = window.insiderData.intel;
+
+            if (msgs.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center flex flex-col items-center justify-center h-full"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><i data-lucide="inbox" class="w-8 h-8 text-slate-300"></i></div><p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No Intelligence Reports</p></div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            msgs.forEach(msg => {
+                const dateStr = msg.timestamp.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                const initials = msg.agentName.substring(0,2).toUpperCase();
+                let starsHtml = '';
+                if (msg.rating) {
+                    for(let i=1; i<=5; i++) {
+                        if (i <= msg.rating) starsHtml += `<i data-lucide="star" class="w-3 h-3 text-yellow-400 fill-current"></i>`;
+                        else starsHtml += `<i data-lucide="star" class="w-3 h-3 text-gray-200"></i>`;
+                    }
+                }
+                let typeBadge = '';
+                if (msg.type === 'review') typeBadge = `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-indigo-200">Module Feedback</span>`;
+                else typeBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-blue-200">Direct Message</span>`;
+
+                const card = document.createElement('div');
+                card.className = "p-4 border-b border-gray-100 hover:bg-slate-50 transition-colors cursor-pointer group";
+                card.onclick = () => window.switchView('dossier', null, msg.agentId);
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">${initials}</div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                <h4 class="text-sm font-bold text-slate-800 group-hover:text-allgood-secondary transition-colors">${msg.agentName}</h4>
+                                ${typeBadge}
+                                <span class="text-[10px] text-slate-400 font-mono ml-auto">${dateStr}</span>
+                            </div>
+                            ${msg.courseName ? `<p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> ${msg.courseName}</p>` : ''}
+                            ${starsHtml ? `<div class="flex gap-0.5 mb-2">${starsHtml}</div>` : ''}
+                            <p class="text-sm text-slate-600 leading-relaxed font-mono bg-white/50 p-2 rounded border border-gray-50 border-l-2 border-l-allgood-secondary/30">"${msg.message}"</p>
+                            <div class="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Reply via Email:</span><a href="mailto:${msg.agentEmail}" onclick="event.stopPropagation()" class="text-[10px] text-allgood-secondary hover:underline">${msg.agentEmail}</a></div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        async function loadAgentDossier(agentId) {
+            const container = document.getElementById('dossier-content');
+            container.innerHTML = `<div class="p-10 text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-allgood-secondary mb-2"></i><p class="text-xs font-bold text-slate-400 uppercase">Decrypting Agent File...</p></div>`;
+            lucide.createIcons();
+
+            const agent = window.insiderData.allAgents.find(a => a.id === agentId);
+            if(!agent) { container.innerHTML = "Agent Not Found."; return; }
+
+            try {
+                const launchesRef = collection(db, 'artifacts', appId, 'users', agentId, 'launches');
+                const launchesSnap = await getDocs(query(launchesRef, orderBy('timestamp', 'desc'), limit(50)));
+                const scoresRef = collection(db, 'artifacts', appId, 'users', agentId, 'game_scores');
+                const scoresSnap = await getDocs(scoresRef);
+                
+                const launches = [];
+                launchesSnap.forEach(doc => launches.push(doc.data()));
+                const badges = [];
+                scoresSnap.forEach(doc => { const d = doc.data(); if(d.completed || d.badgeSVG) badges.push(d); });
+
+                const initials = agent.name.substring(0,2).toUpperCase();
+                let launchesHtml = '';
+                if(launches.length === 0) launchesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No mission history recorded.</div>`;
+                else {
+                    launches.forEach(l => {
+                         const date = l.timestamp ? l.timestamp.toDate().toLocaleString() : 'Unknown';
+                         launchesHtml += `<div class="flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors"><div class="mt-0.5"><i data-lucide="rocket" class="w-3 h-3 text-slate-400"></i></div><div><p class="text-xs font-bold text-slate-700">${l.courseName || 'Unknown Module'}</p><p class="text-[9px] text-slate-400 font-mono">${date}</p></div></div>`;
+                    });
+                }
+                let badgesHtml = '';
+                if(badges.length === 0) badgesHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No certifications earned.</div>`;
+                else {
+                    badges.forEach(b => {
+                        badgesHtml += `<div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded shadow-sm"><i data-lucide="award" class="w-4 h-4 text-emerald-600"></i><div><p class="text-[10px] font-bold text-emerald-800 uppercase">${b.gameName || 'Certification'}</p></div></div>`;
+                    });
+                }
+
+                container.innerHTML = `
+                    <div class="p-6 border-b border-gray-200 bg-slate-50 flex items-center gap-4 shrink-0">
+                        <div class="w-16 h-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-md text-xl font-bold text-slate-600">${initials}</div>
+                        <div><h2 class="text-2xl font-heading font-bold text-slate-800">${agent.name}</h2><div class="flex items-center gap-3 text-xs text-slate-500 font-mono"><span>${agent.email}</span><span class="text-gray-300">|</span><span>ID: ${agent.id.substring(0,8)}...</span></div></div>
+                        <div class="ml-auto text-right"><div class="inline-block px-3 py-1 rounded bg-white border border-gray-200 shadow-sm text-xs font-bold uppercase text-slate-500">${agent.isGuest ? 'Guest' : 'Verified Agent'}</div></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 flex-grow overflow-hidden h-full">
+                        <div class="border-r border-gray-200 bg-white h-full flex flex-col min-h-0"><div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2"><i data-lucide="history" class="w-3 h-3"></i> Recent Activity Log</div><div class="overflow-y-auto flex-grow custom-scrollbar p-2 h-0">${launchesHtml}</div></div>
+                        <div class="bg-slate-50/50 h-full flex flex-col min-h-0"><div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2"><i data-lucide="medal" class="w-3 h-3"></i> Earned Certifications</div><div class="p-4 grid grid-cols-1 gap-2 overflow-y-auto flex-grow custom-scrollbar h-0">${badgesHtml}</div></div>
+                    </div>
+                `;
+            } catch(e) { console.error("Dossier Error", e); container.innerHTML = "Error loading dossier."; }
+            lucide.createIcons();
+        }
+
+        // --- UTILS & MENU ---
+        window.toggleMenu = () => {
+            const menu = document.getElementById('menu-modal');
+            if(menu.classList.contains('hidden-modal')) {
+                menu.classList.remove('hidden-modal');
+                menu.classList.add('visible-modal');
+            } else {
+                menu.classList.add('hidden-modal');
+                menu.classList.remove('visible-modal');
+            }
+        };
+
+        function updateStat(id, value) {
+            const el = document.getElementById(id);
+            if(el) { el.innerText = value; el.parentElement.classList.add('updated-pulse'); }
+        }
+        function showStatus(msg, type) {
+            const modal = document.getElementById('status-toast');
+            const txt = document.getElementById('status-text');
+            const icon = document.getElementById('status-icon');
+            txt.textContent = msg; modal.classList.remove('translate-y-[-150%]', 'opacity-0');
+            if(type === 'error') { modal.className = "absolute top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-red-400"; icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>'; }
+            else { modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-emerald-400"; icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>'; }
+            lucide.createIcons(); setTimeout(() => { modal.classList.add('translate-y-[-150%]', 'opacity-0'); }, 3000);
+        }
+        function shakeScreen() { document.querySelector('.tablet-frame').classList.add('animate-shake'); setTimeout(() => document.querySelector('.tablet-frame').classList.remove('animate-shake'), 500); }
+        window.initApp = () => {
+            const startup = document.getElementById('startup-screen');
+            startup.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                 startup.style.display = 'none';
+                 onAuthStateChanged(auth, async (user) => {
+                     if (user) {
+                         const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                         try {
+                             const userSnap = await getDoc(userRef);
+                             if (userSnap.exists() && userSnap.data().isInsider === true) {
+                                 document.getElementById('login-modal').classList.add('hidden-modal');
+                                 // Force hide style
+                                 document.getElementById('login-modal').style.display = 'none';
+                                 loadDashboardData();
+                             } else {
+                                 const modal = document.getElementById('login-modal');
+                                 modal.style.display = 'flex';
+                                 // Small delay to allow display:flex to render before removing opacity class for transition
+                                 setTimeout(() => modal.classList.remove('hidden-modal'), 10);
+                             }
+                         } catch(e) { 
+                             const modal = document.getElementById('login-modal');
+                             modal.style.display = 'flex';
+                             setTimeout(() => modal.classList.remove('hidden-modal'), 10);
+                         }
+                     } else { 
+                         const modal = document.getElementById('login-modal');
+                         modal.style.display = 'flex';
+                         setTimeout(() => modal.classList.remove('hidden-modal'), 10);
+                     }
+                 });
+            }, 500);
         }
     </script>
     
@@ -416,9 +508,20 @@
                     fontFamily: {
                         'heading': ['Georgia', 'serif'],
                         'body': ['Verdana', 'sans-serif'],
+                    },
+                    animation: {
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                    }
+                },
+                keyframes: {
+                    shake: {
+                        '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                        '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                        '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                        '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
                     }
                 }
-            }
+            },
         }
     </script>
 
@@ -426,39 +529,77 @@
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 20px 20px;
             background-attachment: fixed;
             min-height: 100vh;
             margin: 0; padding: 0;
             display: flex; align-items: center; justify-content: center;
         }
+
+        /* --- THE TABLET CHASSIS --- */
         .tablet-frame {
-            height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
-            background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
-            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative; margin: 20px auto;
-            box-shadow: inset 1px 1px 2px rgba(255,255,255, 0.6), inset -1px -1px 2px rgba(0,0,0, 0.8), 0 30px 60px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px #111;
+            height: 80vh;
+            width: auto;
+            aspect-ratio: 16/10;
+            max-width: 1100px;
+            max-height: 95vh;
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
+                radial-gradient(circle at 100% 100%, rgba(211, 71, 22, 0.35) 0%, transparent 30%),
+                linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
+            border-radius: 12px;
+            padding: 12px; 
+            box-shadow: 
+                inset 1px 1px 2px rgba(255,255,255, 0.6), 
+                inset -1px -1px 2px rgba(0,0,0, 0.8), 
+                0 30px 60px -12px rgba(0, 0, 0, 0.8), 
+                0 0 0 1px #111;
+            border: 1px solid #333;
+            position: relative;
+            margin: 20px auto;
         }
-        .tablet-frame::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border-radius: 6px; background: #111; z-index: 0; }
-        .screen-container { width: 100%; height: 100%; background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); position: relative; z-index: 1; overflow: hidden; display: flex; flex-direction: column; border-radius: 4px; }
+
+        .tablet-frame::before {
+            content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border-radius: 6px; background: #111; z-index: 0;
+        }
+
+        .screen-container {
+            width: 100%; height: 100%;
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative; z-index: 1; overflow: hidden;
+            border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+        }
+
         @media (max-width: 640px) {
-            body { padding: 0; align-items: flex-start; }
-            .tablet-frame { width: 100vw !important; height: 100vh !important; max-width: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; aspect-ratio: auto !important; }
+            body { padding: 0; align-items: flex-start; background: #f5f7fa; }
+            .tablet-frame {
+                width: 100vw !important; height: 100vh !important;
+                max-width: none !important; max-height: none !important;
+                border-radius: 0 !important; border: none !important;
+                padding: 0 !important; margin: 0 !important;
+                aspect-ratio: auto !important;
+            }
             .tablet-frame::before { display: none; }
             .screen-container { border-radius: 0 !important; }
         }
+
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateX(10px); transition: all 0.3s ease; }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateX(0); transition: all 0.3s ease; }
-        .mission-file { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.8); border-left-width: 4px; border-radius: 6px; transition: all 0.2s ease; cursor: pointer; }
-        .mission-file:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.95); }
-        .status-active { border-left-color: #D34716; } .status-ready { border-left-color: #357889; } .status-locked { border-left-color: #757575; opacity: 0.7; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-        .navbar-content { flex: 0 0 60px; z-index: 30; background: rgba(53, 120, 137, 0.85); backdrop-filter: blur(5px); color: white; transition: opacity 0.3s; }
+        .updated-pulse { animation: text-flash 1s ease-out; }
+        @keyframes text-flash { 0% { color: #D34716; transform: scale(1.1); } 100% { color: inherit; transform: scale(1); } }
         
-        /* Tab Styles */
-        .tab-btn { color: #64748b; border: none; }
-        .tab-btn:hover { background-color: rgba(255,255,255,0.5); color: #357889; }
-        .active-tab { background-color: #D34716 !important; color: white !important; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(211, 71, 22, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* OS Header Style */
+        .navbar-content { flex: 0 0 60px; z-index: 30; background: rgba(53, 120, 137, 0.85); backdrop-filter: blur(5px); border-bottom: 1px solid rgba(255,255,255,0.1); color: white; transition: opacity 0.3s; position: relative; }
     </style>
 </head>
 <body class="text-slate-700">
@@ -467,23 +608,37 @@
         <div class="tablet-frame">
             <div class="screen-container">
 
-                <!-- 1. STARTUP SCREEN -->
+                <!-- 1. STARTUP SCREEN (CORRECTED: Dark Mode, Clean Text) -->
                 <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
                     <div class="text-center group relative">
+                        <!-- Glow Effect -->
                         <div class="absolute inset-0 bg-allgood-primary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="mb-6 relative z-10"><i data-lucide="shield" class="w-24 h-24 text-allgood-primary mx-auto drop-shadow-sm group-hover:scale-105 transition-transform duration-500"></i></div>
-                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-tighter uppercase"><span class="text-allgood-primary">Welcome to Your</span> <span class="text-white">Academy</span></h1>
-                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
+                        
+                        <div class="mb-6 relative z-10">
+                            <i data-lucide="shield" class="w-24 h-24 text-allgood-primary mx-auto drop-shadow-sm group-hover:scale-105 transition-transform duration-500"></i>
+                        </div>
+                        
+                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-tighter uppercase">
+                            <span class="text-allgood-primary">Welcome to Your</span> <span class="text-white">Academy</span>
+                        </h1>
+                        
+                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">
+                            Click to Power Up
+                        </p>
                     </div>
                 </div>
 
-                <!-- 2. LOGIN MODAL (SSO ONLY + GATEKEEPER) -->
-                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-allgood-dark/95 flex items-center justify-center p-6 !visible-modal !opacity-100 !pointer-events-auto backdrop-blur-sm" style="display:none;">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                <!-- 2. LOGIN MODAL -->
+                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 !visible-modal !opacity-100 !pointer-events-auto" style="display:none;">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary">
                         <div class="mb-6">
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200"><i data-lucide="lock" class="w-8 h-8 text-slate-400"></i></div>
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200">
+                                <i data-lucide="lock" class="w-8 h-8 text-slate-400"></i>
+                            </div>
                             <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
-                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.</p>
+                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
+                                This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
+                            </p>
                         </div>
                         
                         <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
@@ -493,166 +648,169 @@
                     </div>
                 </div>
 
-                <!-- 3. DASHBOARD VIEW (LEARNING HUB) -->
-                <div id="dashboard-view" class="flex flex-col h-full overflow-hidden w-full hidden bg-slate-50">
+                <!-- 3. DASHBOARD VIEW -->
+                <div id="dashboard-view" class="hidden flex flex-col h-full overflow-hidden w-full">
                     
-                    <!-- Header -->
-                    <header class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30 opacity-0">
+                    <!-- Header (MATCHING DASHBOARD OS STYLE) -->
+                    <header id="main-navbar" class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30 opacity-0">
                         <div class="flex items-center overflow-hidden">
-                            <div class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 uppercase">
-                                ALLGOOD ACADEMY <span class="opacity-60 text-sm font-normal">| DASHBOARD</span>
+                            <div class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none uppercase">
+                                ALLGOOD ACADEMY <span class="opacity-60 text-sm font-normal">| INSIDER COMMAND</span>
                             </div>
                         </div>
+                        <!-- Control Cluster -->
                         <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button onclick="window.handleLogout()" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Logout"><i data-lucide="power" class="w-6 h-6"></i></button>
+                            <button id="btn-home" onclick="window.switchView('home')" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                            </button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button onclick="document.getElementById('menu-modal').classList.remove('hidden-modal'); document.getElementById('menu-modal').classList.add('visible-modal');" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-7 h-7"></i></button>
+                            
+                            <button id="btn-fullscreen" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode" onclick="document.body.classList.toggle('focus-mode'); lucide.createIcons();">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                            </button>
+                            
+                            <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu" onclick="window.toggleMenu()">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            </button>
                         </div>
                     </header>
 
-                    <!-- Main Content -->
-                    <div class="flex-grow p-6 overflow-y-auto custom-scrollbar">
+                    <!-- Sidebar Menu (MATCHING DASHBOARD OS STYLE) -->
+                    <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-slate-900/50 flex justify-end modal-transition backdrop-blur-sm">
+                        <div class="w-64 h-full bg-white shadow-2xl flex flex-col border-l border-slate-200">
+                            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                <span class="font-bold text-slate-700 font-heading uppercase">System Menu</span>
+                                <button onclick="window.toggleMenu()" class="text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                            </div>
+                            <div class="p-3 space-y-1">
+                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.switchView('home'); window.toggleMenu();">
+                                    <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Command Center
+                                </button>
+                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.loadIntel(); window.toggleMenu();">
+                                    <i data-lucide="radio" class="w-4 h-4 mr-3 text-purple-600"></i>Field Intel
+                                </button>
+                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.switchView('list'); window.toggleMenu();">
+                                    <i data-lucide="users" class="w-4 h-4 mr-3 text-blue-600"></i>Agent Roster
+                                </button>
+                                <div class="border-t border-slate-100 my-2"></div>
+                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center transition-colors uppercase" onclick="window.handleLogout()">
+                                    <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>Log Out
+                                </button>
+                            </div>
+                            <div class="mt-auto p-4 bg-slate-50 border-t border-slate-200 text-center">
+                                <p class="text-xs text-slate-500 font-body">Allgood Academy &copy; 2025</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Scrollable Area Container -->
+                    <div class="flex-grow flex flex-col overflow-hidden relative">
                         
-                        <!-- Welcome Bar -->
-                        <div class="flex flex-col md:flex-row items-center justify-between bg-white/60 backdrop-blur-md p-4 rounded-lg shadow-sm border border-white/50 mb-6">
-                            <div>
-                                <h1 class="text-xl font-heading font-bold text-slate-700 uppercase">Welcome, <span class="user-name-display text-allgood-primary">Agent</span>.</h1>
-                                <div class="mt-2 flex items-center"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-2 py-1 rounded border border-slate-200" id="badge-count-display">BADGES: 1</span></div>
-                            </div>
-                            <div class="text-right hidden md:block">
-                                <span class="block text-2xl font-bold text-emerald-600 leading-none" id="stat-total-launches">0</span>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold">MISSIONS LAUNCHED</span>
-                            </div>
-                        </div>
-
-                        <!-- Tab Nav -->
-                        <div class="flex space-x-2 mb-6">
-                            <button class="tab-btn active-tab flex-1 py-3 rounded-lg text-sm font-bold uppercase" onclick="document.getElementById('tab-goodblocks').classList.remove('hidden'); document.getElementById('tab-games').classList.add('hidden');">GoodBlocks</button>
-                            <button class="tab-btn inactive-tab flex-1 py-3 rounded-lg text-sm font-bold uppercase bg-white border border-gray-200" onclick="document.getElementById('tab-games').classList.remove('hidden'); document.getElementById('tab-goodblocks').classList.add('hidden');">Games & Sims</button>
-                        </div>
-
-                        <!-- Tab 1: GoodBlocks -->
-                        <div id="tab-goodblocks" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" class="mission-file status-ready p-5 flex items-start gap-4 group">
-                                <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100 text-3xl">🛫</div>
-                                <div class="flex-grow">
-                                    <h3 class="font-bold text-slate-800 text-lg uppercase">Airport Navigator</h3>
-                                    <p class="text-xs text-slate-500 mt-1">Master the logistical flow from curb to gate.</p>
-                                    <span class="rounded bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 uppercase mt-2 inline-block">Ready</span>
+                        <!-- VIEW 1: STATS GRID (WIDGETS) -->
+                        <div id="view-home" class="absolute inset-0 overflow-y-auto pr-2 pb-6 custom-scrollbar p-6">
+                            <div id="widget-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                                <!-- Clickable Card 1: All SSO (Updated) -->
+                                <div onclick="window.switchView('list', 'all_sso')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                    <div>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-allgood-secondary">Total Agents</span>
+                                        <span id="stat-total-agents" class="block text-3xl font-heading font-bold text-slate-700">--</span>
+                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
+                                        <i data-lucide="users" class="w-5 h-5"></i>
+                                    </div>
                                 </div>
-                            </div>
-                            <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" class="mission-file status-ready p-5 flex items-start gap-4 group">
-                                <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center border border-blue-100 text-3xl">🛡️</div>
-                                <div class="flex-grow">
-                                    <h3 class="font-bold text-slate-800 text-lg uppercase">Digital Asset Defense</h3>
-                                    <p class="text-xs text-slate-500 mt-1">Secure wealth via wallet protocols.</p>
-                                    <span class="rounded bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 uppercase mt-2 inline-block">Ready</span>
+                                <!-- Clickable Card 2: Active 24h -->
+                                <div onclick="window.switchView('list', 'active')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                    <div>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-emerald-600">Active (24h)</span>
+                                        <span id="stat-active-24h" class="block text-3xl font-heading font-bold text-emerald-600">--</span>
+                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                                        <i data-lucide="activity" class="w-5 h-5"></i>
+                                    </div>
                                 </div>
-                            </div>
-                            <div onclick="window.launchCourse('AI Co-Pilot', 'https://www.allgoodacademy.com/goodblocks/aico-pilot', this)" class="mission-file status-ready p-5 flex items-start gap-4 group">
-                                <div class="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center border border-cyan-100 text-3xl">🤖</div>
-                                <div class="flex-grow">
-                                    <h3 class="font-bold text-slate-800 text-lg uppercase">The AI Co-Pilot</h3>
-                                    <p class="text-xs text-slate-500 mt-1">Integrate AI into your workflow.</p>
-                                    <span class="rounded bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-1 uppercase mt-2 inline-block">Ready</span>
+                                <!-- Clickable Card 3: Total Ecosystem (UPDATED: Former "Guest Logins") -->
+                                <div onclick="window.switchView('list', 'all')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                    <div>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Total Ecosystem</span>
+                                        <span id="stat-guests" class="block text-3xl font-heading font-bold text-orange-600">--</span>
+                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-100 transition-colors">
+                                        <i data-lucide="globe" class="w-5 h-5"></i>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Tab 2: Games -->
-                        <div id="tab-games" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div onclick="window.launchCourse('Jolenes Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge', this)" class="mission-file status-ready p-5 flex items-start gap-4 group">
-                                <div class="w-16 h-16 bg-yellow-50 rounded-full flex items-center justify-center border border-yellow-100 text-3xl">🍋</div>
-                                <div class="flex-grow">
-                                    <h3 class="font-bold text-slate-800 text-lg uppercase">Jolene's Lemonade</h3>
-                                    <p class="text-xs text-slate-500 mt-1">Manage supply and demand in a live market.</p>
-                                    <span class="rounded bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 uppercase mt-2 inline-block">Ready</span>
-                                </div>
-                            </div>
-                            <div onclick="window.launchCourse('Digital Decisions', 'https://www.allgoodacademy.com/educational-games/digital-decisions', this)" class="mission-file status-active p-5 flex items-start gap-4 group">
-                                <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center border border-indigo-100 text-3xl">⚖️</div>
-                                <div class="flex-grow">
-                                    <h3 class="font-bold text-slate-800 text-lg uppercase">Digital Decisions</h3>
-                                    <p class="text-xs text-slate-500 mt-1">Make high-stakes choices in conflict scenarios.</p>
-                                    <span id="ddc-status-badge" class="rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 uppercase mt-2 inline-block">Active</span>
+                                <!-- Clickable Card 4: Field Intel (NEW) -->
+                                <div onclick="window.loadIntel()" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                    <div>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-purple-600">Field Intel</span>
+                                        <span id="stat-intel" class="block text-3xl font-heading font-bold text-purple-600">-</span>
+                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-100 transition-colors">
+                                        <i data-lucide="radio" class="w-5 h-5"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                    </div>
-                </div>
-
-                <!-- 4. ADMIN DASHBOARD PAGE -->
-                <div id="page-admin" class="hidden flex flex-col h-full bg-slate-50 overflow-hidden">
-                    <!-- Admin Header -->
-                    <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-                        <div class="flex items-center gap-3">
-                            <i data-lucide="layout-dashboard" class="w-5 h-5 text-allgood-secondary"></i>
-                            <h2 class="font-heading font-bold uppercase tracking-widest text-sm">Ops Command</h2>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <div class="flex items-center gap-2" id="admin-status-indicator"></div>
-                            <button onclick="window.closeAdminDashboard()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-
-                    <!-- Admin Content -->
-                    <div id="admin-content-area" class="flex-grow p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6">
-                        
-                        <!-- KPIs -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <span class="text-[10px] uppercase font-bold text-slate-400">Total Learners</span>
-                                <h3 class="text-3xl font-heading font-bold text-slate-700" id="adm-stat-users">--</h3>
+                        <!-- VIEW 2: DYNAMIC LIST CONTAINER (FULL HEIGHT) -->
+                        <div id="view-list" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md shadow-sm border-t border-white/60 overflow-hidden flex flex-col z-10">
+                            <!-- Toolbar with Search -->
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
+                                <div class="flex items-center gap-4 flex-grow">
+                                    <h3 id="list-view-title" class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2 whitespace-nowrap">
+                                        Agent Roster
+                                    </h3>
+                                    <!-- Search Bar -->
+                                    <div class="relative w-full max-w-sm">
+                                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                        <input type="text" id="agent-search" onkeyup="window.filterRoster()" placeholder="Search agents by name or email..." 
+                                               class="w-full pl-9 pr-4 py-2 bg-white/80 border border-gray-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-allgood-secondary focus:border-transparent placeholder-slate-400 shadow-inner">
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Live</span>
+                                    <button onclick="window.loadDashboardData()" title="Refresh" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                                </div>
                             </div>
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <span class="text-[10px] uppercase font-bold text-slate-400">Mission Launches</span>
-                                <h3 class="text-3xl font-heading font-bold text-slate-700" id="adm-stat-launches">--</h3>
-                            </div>
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <span class="text-[10px] uppercase font-bold text-slate-400">Feedback Reports</span>
-                                <h3 class="text-3xl font-heading font-bold text-slate-700" id="adm-stat-feedback">--</h3>
-                            </div>
-                        </div>
-
-                        <!-- Activity Feed -->
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-64">
-                            <div class="px-4 py-2 border-b border-gray-100 bg-slate-50 font-bold text-xs text-slate-500 uppercase tracking-wide">Live Activity Stream</div>
-                            <div class="flex-grow overflow-y-auto custom-scrollbar" id="adm-activity-feed">
-                                <div class="p-4 text-center text-xs text-slate-400 italic">Initializing stream...</div>
+                            
+                            <!-- Scrollable Table Body -->
+                            <div class="flex-grow overflow-y-auto custom-scrollbar bg-white/40 p-4">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-50/90 border-b border-gray-100 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
+                                        <tr>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-1/3">Identity</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created</th>
+                                            <th class="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Last Signal</th>
+                                            <th class="px-6 py-3 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="roster-body" class="divide-y divide-gray-100">
+                                        <!-- Dynamic Rows Injected Here -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <!-- Feedback Intel -->
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-64">
-                            <div class="px-4 py-2 border-b border-gray-100 bg-slate-50 font-bold text-xs text-slate-500 uppercase tracking-wide">Field Intelligence</div>
-                            <div class="flex-grow overflow-y-auto custom-scrollbar" id="adm-intel-feed">
-                                <div class="p-4 text-center text-xs text-slate-400 italic">Decrypting comms...</div>
+                        <!-- VIEW 3: AGENT DOSSIER (Hidden by default) -->
+                        <div id="view-dossier" class="hidden absolute inset-0 bg-white/95 backdrop-blur-md shadow-xl border-t border-white/60 overflow-hidden flex flex-col z-20">
+                            <!-- Header is injected dynamically -->
+                            <div id="dossier-content" class="h-full flex flex-col"></div>
+                        </div>
+
+                        <!-- VIEW 4: INTEL / MESSAGES (NEW) -->
+                        <div id="view-intel" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md shadow-sm border-t border-white/60 overflow-hidden flex flex-col z-10">
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
+                                <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
+                                    <i data-lucide="inbox" class="w-4 h-4 text-purple-600"></i> Field Intelligence & Comms
+                                </h3>
+                                <button onclick="window.loadIntel()" title="Refresh Intel" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                            </div>
+                            <div id="intel-content" class="flex-grow overflow-y-auto custom-scrollbar p-4">
+                                <!-- Dynamic Messages Injected Here -->
                             </div>
                         </div>
 
-                    </div>
-                </div>
-
-                <!-- SIDEBAR MENU -->
-                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-slate-900/50 flex justify-end modal-transition backdrop-blur-sm">
-                    <div class="w-64 h-full bg-white shadow-2xl flex flex-col border-l border-slate-200">
-                        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <span class="font-bold text-slate-700 font-heading uppercase">System Menu</span>
-                            <button onclick="document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-5 h-5"></i></button>
-                        </div>
-                        <div class="p-3 space-y-1">
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');">
-                                <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Dashboard
-                            </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAdminDashboard(); document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');">
-                                <i data-lucide="lock" class="w-4 h-4 mr-3 text-allgood-secondary"></i>Admin Console
-                            </button>
-                            <div class="border-t border-slate-100 my-2"></div>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center transition-colors uppercase" onclick="window.handleLogout()">
-                                <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>Log Out
-                            </button>
-                        </div>
                     </div>
                 </div>
 
