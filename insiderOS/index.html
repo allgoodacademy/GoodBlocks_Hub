@@ -458,10 +458,21 @@
                                  document.getElementById('login-modal').style.display = 'none';
                                  loadDashboardData();
                              } else {
-                                 document.getElementById('login-modal').classList.remove('hidden-modal');
+                                 const modal = document.getElementById('login-modal');
+                                 modal.style.display = 'flex';
+                                 // Small delay to allow display:flex to render before removing opacity class for transition
+                                 setTimeout(() => modal.classList.remove('hidden-modal'), 10);
                              }
-                         } catch(e) { document.getElementById('login-modal').classList.remove('hidden-modal'); }
-                     } else { document.getElementById('login-modal').classList.remove('hidden-modal'); }
+                         } catch(e) { 
+                             const modal = document.getElementById('login-modal');
+                             modal.style.display = 'flex';
+                             setTimeout(() => modal.classList.remove('hidden-modal'), 10);
+                         }
+                     } else { 
+                         const modal = document.getElementById('login-modal');
+                         modal.style.display = 'flex';
+                         setTimeout(() => modal.classList.remove('hidden-modal'), 10);
+                     }
                  });
             }, 500);
         }
