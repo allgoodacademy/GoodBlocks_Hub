@@ -69,85 +69,93 @@
         window.allModuleElements = {};
         window.userEarnedBadges = {};
 
-        // --- USER DATA WRITER ---
-        async function writeUserDataToFirestore(user, name, email, isGuest) {
-             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-             
-             if (isGuest && user.displayName !== name) {
-                await updateProfile(user, { displayName: name });
-             }
-
-             await setDoc(userRef, {
-                 displayName: name,
-                 email: email || (isGuest ? null : user.email || null),
-                 isGuest: isGuest,
-                 lastLogin: serverTimestamp(),
-                 onboardingComplete: true
-             }, { merge: true });
-
-             localStorage.setItem('aa_is_guest', isGuest);
-             localStorage.setItem('aa_username', name);
-             localStorage.setItem('aa_uid', user.uid);
-             
-             window.updateUI(name); 
-             document.getElementById('page-dashboard').classList.add('active');
-             document.getElementById('page-dashboard').style.display = 'block'; 
-             
-             document.querySelector('.navbar-content').classList.remove('opacity-0');
-             
-             closeLoginModal();
-             
-             window.startLaunchListener(user.uid);
-             window.startDecisionsStatusListener(user.uid);
-        }
-
-        // --- LOGIN HANDLERS ---
-        window.handleGuestLogin = async () => {
+        // --- AUTHENTICATION LOGIC (SSO ONLY + GATEKEEPER) ---
+        window.handleLogin = async () => {
             if(window.sfx) window.sfx.click();
-            const btn = document.getElementById('btn-guest-login');
             
-            const nameInput = document.getElementById('user-name-input').value.trim();
-            const emailInput = document.getElementById('user-email-input').value.trim();
-
-            const finalName = nameInput || "Guest";
-            const finalEmail = emailInput || null;
-            const isGuest = true;
+            const btn = document.getElementById('btn-verify');
+            const originalContent = btn.innerHTML;
             
-            btn.innerText = "Connecting...";
             btn.disabled = true;
-            btn.classList.add('opacity-70', 'cursor-wait');
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Checking Clearance...`;
+            lucide.createIcons();
 
-            try {
-                const userCredential = await signInAnonymously(auth);
-                await writeUserDataToFirestore(userCredential.user, finalName, finalEmail, isGuest);
-            } catch (error) {
-                console.error("Login Error:", error);
-                showStatusMessage("Connection failed.", 'error'); 
-            } finally {
-                btn.innerText = "Enter Dashboard"; 
-                btn.disabled = false;
-                btn.classList.remove('opacity-70', 'cursor-wait');
-            }
-        };
-
-        window.handleGoogleLogin = async () => {
-            if(window.sfx) window.sfx.click();
-            const btnContainer = document.getElementById('google-icon-container');
-            btnContainer.classList.add('opacity-50', 'cursor-wait');
-            
             const provider = new GoogleAuthProvider();
+            
             try {
+                // 1. Trigger SSO
                 const result = await signInWithPopup(auth, provider);
-                await writeUserDataToFirestore(result.user, result.user.displayName || 'Agent', result.user.email, false);
+                const user = result.user;
+                
+                // 2. Check Database for 'isInsider' Flag
+                const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                
+                let isAuthorized = false;
+                
+                // Check if user exists and has the flag
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    if (userData.isInsider === true) {
+                        isAuthorized = true;
+                    }
+                }
+                
+                // SUPER ADMIN BACKDOOR (For initial setup/safety)
+                const SUPER_ADMINS = ['learning@allgoodacademy.com', 'balgood93@gmail.com']; // Replace/Add your email
+                if (!isAuthorized && user.email && SUPER_ADMINS.includes(user.email)) {
+                    // Auto-promote Super Admin
+                    await setDoc(userRef, { 
+                        displayName: user.displayName,
+                        email: user.email,
+                        isInsider: true, // Grant access
+                        lastLogin: serverTimestamp()
+                    }, { merge: true });
+                    isAuthorized = true;
+                }
+
+                if (isAuthorized) {
+                    // SUCCESS: Proceed to Dashboard
+                    showStatusMessage("Identity Verified. Welcome, Director.", "success");
+                    
+                    // Update Local Storage
+                    localStorage.setItem('aa_username', user.displayName || 'Director');
+                    localStorage.setItem('aa_uid', user.uid);
+                    localStorage.setItem('aa_is_guest', 'false');
+                    
+                    // Initialize UI
+                    window.updateUI(user.displayName || 'Director');
+                    document.getElementById('page-dashboard').classList.add('active');
+                    document.getElementById('page-dashboard').style.display = 'block';
+                    document.querySelector('.navbar-content').classList.remove('opacity-0');
+                    
+                    // Close Modal
+                    window.closeLoginModal();
+                    
+                    // Start Listeners
+                    window.startLaunchListener(user.uid);
+                    window.startDecisionsStatusListener(user.uid);
+                    
+                } else {
+                    // FAIL: Unauthorized
+                    throw new Error("ACCESS DENIED: Insufficient Clearance.");
+                }
+
             } catch (error) {
-                console.error("Google Sign-In Error:", error);
-                showStatusMessage("Sign-in failed.", 'error');
-            } finally {
-                btnContainer.classList.remove('opacity-50', 'cursor-wait');
+                console.error("Auth Error:", error);
+                
+                // Force Logout if they managed to sign in but failed check
+                await signOut(auth);
+                
+                showStatusMessage(error.message || "Authentication Failed", "error");
+                
+                // Reset Button
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
             }
         };
 
-        // --- ADMIN DASHBOARD ENGINE (New) ---
+        // --- ADMIN DASHBOARD ENGINE ---
         window.loadAdminDashboard = async () => {
             const container = document.getElementById('admin-content-area');
             const status = document.getElementById('admin-status-indicator');
@@ -180,20 +188,15 @@
             } catch(e) {
                 console.error("Admin Load Error", e);
                 if(status) status.innerHTML = `<span class="text-red-500 font-bold text-xs">CONNECTION ERROR</span>`;
-                // Fallback to empty state
                 renderAdminWidgets(); 
             }
         };
 
         function renderAdminWidgets() {
-            // KPI 1: Active Users
             document.getElementById('adm-stat-users').textContent = window.adminData.users.length;
-            // KPI 2: Total Launches (Snapshot Count)
             document.getElementById('adm-stat-launches').textContent = window.adminData.launches.length;
-            // KPI 3: Feedback Count
             document.getElementById('adm-stat-feedback').textContent = window.adminData.feedback.length;
 
-            // Activity Feed
             const feedContainer = document.getElementById('adm-activity-feed');
             feedContainer.innerHTML = '';
             window.adminData.launches.forEach(launch => {
@@ -213,7 +216,6 @@
                     </div>`;
             });
 
-            // Feedback Feed
             const intelContainer = document.getElementById('adm-intel-feed');
             intelContainer.innerHTML = '';
             window.adminData.feedback.forEach(item => {
@@ -233,12 +235,10 @@
         // --- MODULE LAUNCHER ---
         window.launchCourse = async (courseName, url, element) => {
             if (!auth.currentUser) {
+                // Re-open login if session expired
                 const loginModal = document.getElementById('login-modal');
-                if (loginModal) {
-                    loginModal.classList.remove('hidden-modal');
-                    loginModal.classList.add('visible-modal');
-                    showStatusMessage("Please sign in to launch modules.", 'info');
-                }
+                loginModal.classList.remove('hidden-modal');
+                loginModal.classList.add('visible-modal');
                 return;
             }
 
@@ -252,7 +252,6 @@
             if(window.sfx) window.sfx.confirm();
             window.open(finalUrl, '_blank');
             
-            // Log Launch
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'launches'), {
                     courseName: courseName,
@@ -270,7 +269,7 @@
             }
         };
 
-        // --- PROFILE & PROGRESS LISTENERS ---
+        // --- LISTENERS ---
         window.startLaunchListener = function(uid) {
             const launchesRef = collection(db, 'artifacts', appId, 'users', uid, 'launches');
             unsubscribeLaunches = onSnapshot(launchesRef, (snapshot) => {
@@ -298,7 +297,6 @@
                 if(ddcScore >= 80) localStorage.setItem('aa_ddc_complete', 'true');
                 if(jlcComplete) localStorage.setItem('aa_jlc_complete', 'true');
                 
-                // Update DDC Badge UI
                 const ddcBadge = document.getElementById('ddc-status-badge');
                 if(ddcBadge && ddcScore >= 80) {
                     ddcBadge.textContent = "MISSION COMPLETE";
@@ -316,10 +314,10 @@
         }
         
         window.updateBadges = function() { 
-            let count = 1; // Observer
+            let count = 1; 
             const user = auth.currentUser;
-            if(user && !user.isAnonymous) count++; // Agent
-            if(parseInt(localStorage.getItem('aa_launch_count') || '0') > 0) count++; // Operator
+            if(user && !user.isAnonymous) count++; 
+            if(parseInt(localStorage.getItem('aa_launch_count') || '0') > 0) count++;
             if(localStorage.getItem('aa_ddc_complete') === 'true') count++;
             if(localStorage.getItem('aa_jlc_complete') === 'true') count++;
             
@@ -327,7 +325,6 @@
             if(badgeEl) badgeEl.textContent = `BADGES: ${count}`;
         }
 
-        // --- SYSTEM UTILS ---
         window.handleLogout = async () => {
             localStorage.clear();
             await signOut(auth);
@@ -345,24 +342,24 @@
             document.getElementById('page-dashboard').style.display = 'block';
         };
 
-        // --- STARTUP SEQ ---
+        // --- STARTUP SEQ (Strict Access Mode) ---
         window.initApp = async () => {
-            // Force sign out to ensure "Director Access" modal appears
+            // FORCE LOGOUT TO ENSURE MODAL APPEARS ON RELOAD
             try { await signOut(auth); } catch(e) {}
 
             const startup = document.getElementById('startup-screen');
             const loginModal = document.getElementById('login-modal');
 
-            // --- ANTI-FREEZE SAFETY PROTOCOL ---
+            // Safety Timer
             const safetyTimer = setTimeout(() => {
                 if (startup.style.display !== 'none') {
                     startup.style.display = 'none';
                     loginModal.style.display = 'flex';
                     setTimeout(() => loginModal.classList.remove('hidden-modal'), 50);
                 }
-            }, 1500);
+            }, 2000);
 
-            // Startup screen click handler
+            // Click Handler
             startup.addEventListener('click', () => {
                 startup.classList.add('opacity-0', 'pointer-events-none');
                 setTimeout(() => {
@@ -376,7 +373,6 @@
             });
         }
 
-        // Helper functions
         window.closeLoginModal = () => {
             const modal = document.getElementById('login-modal');
             modal.classList.add('hidden-modal');
@@ -385,29 +381,23 @@
         }
 
         function showStatusMessage(message, type) {
-            // Simple toast logic, replace with your toast implementation if exists
             const toast = document.getElementById('status-toast');
             if (toast) {
                 const icon = toast.querySelector('#status-icon');
                 const text = toast.querySelector('#status-text');
-                
                 text.textContent = message;
                 
-                // Basic styling based on type
                 if (type === 'error') {
                     icon.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>';
                     toast.className = "absolute top-4 right-4 z-[9999] bg-white border-l-4 border-red-500 shadow-md p-4 rounded flex items-center gap-2 transition-all duration-300";
                 } else {
-                    icon.innerHTML = '<i data-lucide="info" class="w-5 h-5 text-blue-500"></i>';
-                    toast.className = "absolute top-4 right-4 z-[9999] bg-white border-l-4 border-blue-500 shadow-md p-4 rounded flex items-center gap-2 transition-all duration-300";
+                    icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-emerald-500"></i>';
+                    toast.className = "absolute top-4 right-4 z-[9999] bg-white border-l-4 border-emerald-500 shadow-md p-4 rounded flex items-center gap-2 transition-all duration-300";
                 }
                 
                 lucide.createIcons();
                 toast.classList.remove('opacity-0', 'translate-y-[-150%]');
-                
-                setTimeout(() => {
-                    toast.classList.add('opacity-0', 'translate-y-[-150%]');
-                }, 3000);
+                setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-[-150%]'); }, 3000);
             } else {
                 alert(message);
             }
@@ -487,17 +477,19 @@
                     </div>
                 </div>
 
-                <!-- 2. LOGIN MODAL -->
+                <!-- 2. LOGIN MODAL (SSO ONLY + GATEKEEPER) -->
                 <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-allgood-dark/95 flex items-center justify-center p-6 !visible-modal !opacity-100 !pointer-events-auto backdrop-blur-sm" style="display:none;">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
-                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        <p class="text-gray-500 text-sm font-body mb-6">Please sign in to start.</p>
-                        <input type="text" id="user-name-input" placeholder="Your Name" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary outline-none">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary outline-none">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md uppercase">Enter Dashboard</button>
-                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
-                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg bg-white flex items-center justify-center mx-auto"><i data-lucide="globe" class="w-6 h-6 text-blue-500"></i></button>
+                        <div class="mb-6">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200"><i data-lucide="lock" class="w-8 h-8 text-slate-400"></i></div>
+                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
+                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.</p>
+                        </div>
+                        
+                        <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
+                            <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                            <span>Verify Credentials</span>
+                        </button>
                     </div>
                 </div>
 
@@ -590,7 +582,7 @@
                     </div>
                 </div>
 
-                <!-- 4. ADMIN DASHBOARD PAGE (THE UPGRADE) -->
+                <!-- 4. ADMIN DASHBOARD PAGE -->
                 <div id="page-admin" class="hidden flex flex-col h-full bg-slate-50 overflow-hidden">
                     <!-- Admin Header -->
                     <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
