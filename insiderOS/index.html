@@ -87,7 +87,15 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                showStatus("Authentication Failed: " + error.message, "error");
+                
+                // --- CUSTOM ERROR TRAP FOR API KEY RESTRICTIONS ---
+                if (error.message && (error.message.includes('requests-from-referer') || error.code === 'auth/requests-from-referer-blocked')) {
+                     alert("⚠️ API KEY CONFIGURATION ERROR\n\nYour Google Cloud API Key is blocking this domain.\n\nACTION REQUIRED:\n1. Go to Google Cloud Console > APIs & Services > Credentials.\n2. Edit your API Key.\n3. Under 'Website restrictions', change the entry to:\n\nhttps://allgoodacademy.github.io/*\n\n(You MUST include the asterisk '*' at the end to allow all pages)");
+                     showStatus("API Key Domain Blocked. See Alert.", "error");
+                } else {
+                     showStatus("Authentication Failed: " + error.message, "error");
+                }
+
                 if(btn) {
                     btn.disabled = false;
                     btn.innerHTML = `<span>Verify Credentials</span>`;
