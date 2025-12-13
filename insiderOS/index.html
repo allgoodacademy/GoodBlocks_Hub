@@ -152,9 +152,18 @@
                 });
 
                 // Update Widget Counts
-                updateStat('stat-total-agents', window.insiderData.allAgents.length);
+                // WIDGET 1: Total Agents (SSO Only) - Hybrid View Protocol
+                // Include if NOT guest OR if they have a valid email (even if flagged as guest)
+                const ssoCount = window.insiderData.allAgents.filter(a => !a.isGuest || (a.email && a.email !== 'N/A')).length;
+                updateStat('stat-total-agents', ssoCount);
+                
+                // WIDGET 2: Active 24h
                 updateStat('stat-active-24h', window.insiderData.activeAgents.length);
-                updateStat('stat-guests', window.insiderData.guestAgents.length);
+                
+                // WIDGET 3: Total Ecosystem (Everyone)
+                updateStat('stat-guests', window.insiderData.allAgents.length);
+                
+                // WIDGET 4: Intel
                 updateStat('stat-intel', '-');
 
                 // Initial State: Show Home
@@ -230,6 +239,8 @@
             else if (viewName === 'list') {
                 viewList.classList.remove('hidden');
                 if (filterType) window.insiderData.currentFilter = filterType;
+                // If filterType is explicitly passed as 'all' or null, we might need to reset filter for ecosystem view
+                if (filterType === 'all') window.insiderData.currentFilter = 'all'; 
                 renderListView();
             } 
             else if (viewName === 'dossier') {
@@ -261,7 +272,8 @@
             let dataSet = [];
             
             if (filterType === 'all_sso') {
-                dataSet = window.insiderData.allAgents.filter(a => !a.isGuest);
+                // Hybrid View Protocol: Show non-guests OR anyone with a valid email
+                dataSet = window.insiderData.allAgents.filter(a => !a.isGuest || (a.email && a.email !== 'N/A'));
                 listTitle.textContent = "Registered Agents (SSO)";
             } else if (filterType === 'active') {
                 dataSet = window.insiderData.activeAgents;
@@ -271,7 +283,7 @@
                 listTitle.textContent = "Guest Logins";
             } else {
                 dataSet = window.insiderData.allAgents;
-                listTitle.textContent = "Full Roster";
+                listTitle.textContent = "Total Ecosystem";
             }
 
             if (searchQ) {
@@ -699,7 +711,7 @@
                         <!-- VIEW 1: STATS GRID (WIDGETS) -->
                         <div id="view-home" class="absolute inset-0 overflow-y-auto pr-2 pb-6 custom-scrollbar p-6">
                             <div id="widget-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                                <!-- Clickable Card 1: All SSO -->
+                                <!-- Clickable Card 1: All SSO (Updated) -->
                                 <div onclick="window.switchView('list', 'all_sso')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
                                     <div>
                                         <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-allgood-secondary">Total Agents</span>
@@ -719,14 +731,14 @@
                                         <i data-lucide="activity" class="w-5 h-5"></i>
                                     </div>
                                 </div>
-                                <!-- Clickable Card 3: Guests -->
-                                <div onclick="window.switchView('list', 'guests')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
+                                <!-- Clickable Card 3: Total Ecosystem (UPDATED: Former "Guest Logins") -->
+                                <div onclick="window.switchView('list', 'all')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
                                     <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Guest Logins</span>
+                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Total Ecosystem</span>
                                         <span id="stat-guests" class="block text-3xl font-heading font-bold text-orange-600">--</span>
                                     </div>
                                     <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-100 transition-colors">
-                                        <i data-lucide="ghost" class="w-5 h-5"></i>
+                                        <i data-lucide="globe" class="w-5 h-5"></i>
                                     </div>
                                 </div>
                                 <!-- Clickable Card 4: Field Intel (NEW) -->
