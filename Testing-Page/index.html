@@ -152,8 +152,9 @@
                 });
 
                 // Update Widget Counts
-                // WIDGET 1: Total Agents (SSO Only)
-                const ssoCount = window.insiderData.allAgents.filter(a => !a.isGuest).length;
+                // WIDGET 1: Total Agents (SSO Only) - Hybrid View Protocol
+                // Include if NOT guest OR if they have a valid email (even if flagged as guest)
+                const ssoCount = window.insiderData.allAgents.filter(a => !a.isGuest || (a.email && a.email !== 'N/A')).length;
                 updateStat('stat-total-agents', ssoCount);
                 
                 // WIDGET 2: Active 24h
@@ -271,7 +272,8 @@
             let dataSet = [];
             
             if (filterType === 'all_sso') {
-                dataSet = window.insiderData.allAgents.filter(a => !a.isGuest);
+                // Hybrid View Protocol: Show non-guests OR anyone with a valid email
+                dataSet = window.insiderData.allAgents.filter(a => !a.isGuest || (a.email && a.email !== 'N/A'));
                 listTitle.textContent = "Registered Agents (SSO)";
             } else if (filterType === 'active') {
                 dataSet = window.insiderData.activeAgents;
