@@ -756,20 +756,20 @@
                                     
                                     <div>
                                         <div class="text-xs text-gray-500 uppercase font-bold mb-2">User Growth</div>
-                                        <div class="text-3xl font-bold text-gray-800 animate-pulse">Slow</div>
+                                        <div id="report-growth" class="text-3xl font-bold text-gray-800">--</div>
                                     </div>
                                     <div>
                                         <div class="text-xs text-gray-500 uppercase font-bold mb-2">Churn Rate</div>
-                                        <div class="text-3xl font-bold text-green-600">0.2%</div>
+                                        <div id="report-churn" class="text-3xl font-bold text-gray-800">--</div>
                                     </div>
                                     <div>
                                         <div class="text-xs text-gray-500 uppercase font-bold mb-2">Trust Score</div>
-                                        <div class="text-3xl font-bold text-allgood-primary">98/100</div>
+                                        <div id="report-trust" class="text-3xl font-bold text-gray-800">--</div>
                                     </div>
 
                                 </div>
-                                <p class="mt-8 text-center text-gray-600 font-body max-w-lg mx-auto">
-                                    "Growth is slower than a viral app, but nobody is leaving. We are building a sustainable utility, not a casino."
+                                <p id="report-summary" class="mt-8 text-center text-gray-600 font-body max-w-lg mx-auto italic font-bold">
+                                    Generating report based on your architecture...
                                 </p>
                             </div>
                         </div>
@@ -1018,7 +1018,7 @@
                 { text: "Trust comes from transparency. Let the user hold the keys.", mood: 'neutral' }, 
                 { text: "Business model time. If it's free, they are the product. If they pay, they are the boss.", mood: 'thinking' }, 
                 { text: "Live test. See those greyed-out posts? That's your filter saving the user's brain.", mood: 'happy' }, 
-                { text: "Slow growth, zero churn. That is what a healthy business looks like.", mood: 'happy' }, 
+                { text: "Here is your report card. Did you build a casino or a community?", mood: 'thinking' }, 
                 { text: "The market notices quality. Advertisers pay more for safety.", mood: 'neutral' }, 
                 { text: "Integrity check. Selling out now would destroy everything you built.", mood: 'concerned' }, 
                 { text: "The customer is whoever pays the bill. Never forget that.", mood: 'thinking' }, 
@@ -1043,6 +1043,7 @@
             if(currentPage === 1 && window.updateTrapGraph) window.updateTrapGraph(); 
             if(currentPage === 2 && window.updateFailSimulation) window.updateFailSimulation();
             if(currentPage === 8 && window.renderMwFeed) window.renderMwFeed(); 
+            if(currentPage === 9 && window.generateReport) window.generateReport(); // NEW: Trigger Report on Page 10
             if(currentPage === 14 && window.generateBadge) window.generateBadge();
             
             if(window.lucide) window.lucide.createIcons();
@@ -1450,7 +1451,62 @@
             }
         };
 
-        // 9. QUIZ & BADGE
+        // 9. DYNAMIC Q3 REPORT (NEW FEATURE)
+        window.generateReport = () => {
+            const { ranking, velocity, agency, model } = middlewareState;
+            
+            let growth = 50; // Base score
+            let churn = 5.0; // Base percentage
+            let trust = 50; // Base score
+
+            // LOGIC MATRIX
+            if(ranking === 'engagement') { growth += 20; churn += 5; trust -= 15; }
+            if(ranking === 'bridging') { growth -= 10; churn -= 2; trust += 25; }
+            if(ranking === 'chronological') { growth -= 20; churn -= 1; trust += 10; }
+
+            if(velocity === 'unrestricted') { growth += 15; churn += 8; trust -= 20; }
+            if(velocity === 'circuit') { growth -= 10; churn -= 2; trust += 15; }
+            if(velocity === 'friction') { growth -= 5; churn += 1; trust += 5; }
+
+            if(agency === 'blackbox') { growth += 5; trust -= 10; }
+            if(agency === 'transparent') { growth -= 15; churn -= 1; trust += 20; }
+            
+            if(model === 'ads') { growth += 20; trust -= 10; }
+            if(model === 'sub') { growth -= 30; churn -= 3; trust += 30; }
+            if(model === 'freemium') { growth += 5; }
+
+            // CLAMP VALUES
+            growth = Math.max(0, Math.min(100, growth));
+            churn = Math.max(0, churn);
+            trust = Math.max(0, Math.min(100, trust));
+
+            // RENDER UI
+            const elGrowth = document.getElementById('report-growth');
+            const elChurn = document.getElementById('report-churn');
+            const elTrust = document.getElementById('report-trust');
+            const elSummary = document.getElementById('report-summary');
+
+            if(elGrowth) {
+                elGrowth.textContent = growth > 70 ? "Viral" : (growth < 30 ? "Stagnant" : "Steady");
+                elGrowth.className = `text-3xl font-bold ${growth > 70 ? 'text-green-600' : (growth < 30 ? 'text-red-500' : 'text-yellow-600')}`;
+            }
+            if(elChurn) {
+                elChurn.textContent = churn.toFixed(1) + "%";
+                elChurn.className = `text-3xl font-bold ${churn > 8 ? 'text-red-600' : 'text-green-600'}`;
+            }
+            if(elTrust) {
+                elTrust.textContent = trust + "/100";
+                elTrust.className = `text-3xl font-bold ${trust > 70 ? 'text-allgood-secondary' : (trust < 40 ? 'text-red-500' : 'text-yellow-600')}`;
+            }
+
+            if(elSummary) {
+                if(trust > 80) elSummary.textContent = "You built a public utility. Slow growth, but users love it and stay forever.";
+                else if(trust < 40) elSummary.textContent = "You built a viral money printer, but the brand is toxic and users are fleeing.";
+                else elSummary.textContent = "You built a standard tech product. Profitable, but still contributing to the noise.";
+            }
+        };
+
+        // 10. QUIZ & BADGE
         window.checkQuiz = (el, c) => {
             if(c) { 
                 el.classList.add('bg-green-100'); 
@@ -1471,7 +1527,7 @@
             if(window.logModuleCompletion) window.logModuleCompletion(svg);
         }
 
-        // 10. SYSTEM MENU
+        // 11. SYSTEM MENU
         window.closeSystemMenu = () => {
              document.getElementById('system-menu-modal').classList.add('hidden-modal');
              document.getElementById('system-menu-modal').classList.remove('visible-modal');
@@ -1495,7 +1551,7 @@
             window.location.href = "https://www.allgoodacademy.com";
         };
 
-        // 11. INIT
+        // 12. INIT
         document.addEventListener('DOMContentLoaded', () => {
             if(window.lucide) window.lucide.createIcons();
             const startup = document.getElementById('startup-screen');
