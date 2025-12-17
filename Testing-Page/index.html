@@ -38,16 +38,27 @@
             if (user) {
                 window.currentUser = user;
                 let finalName = user.displayName || "Learner";
-                if (finalName === "Learner") {
+                
+                // If generic, try to fetch from DB
+                if (finalName === "Learner" || !finalName) {
                     try {
                         const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
-                        if (userDoc.exists() && userDoc.data().displayName) finalName = userDoc.data().displayName;
-                    } catch(e) {}
+                        if (userDoc.exists() && userDoc.data().displayName) {
+                            finalName = userDoc.data().displayName;
+                        }
+                    } catch(e) { console.log("Profile fetch note:", e); }
                 }
+                
                 window.currentUserName = finalName;
-                document.getElementById('header-welcome-text').textContent = `Welcome, ${finalName}`;
-                document.getElementById('login-modal').classList.add('hidden-modal');
-                document.getElementById('login-modal').classList.remove('visible-modal');
+                const headerText = document.getElementById('header-welcome-text');
+                if(headerText) headerText.textContent = `Welcome, ${finalName}`;
+                
+                const modal = document.getElementById('login-modal');
+                if(modal) {
+                    modal.classList.add('hidden-modal');
+                    modal.classList.remove('visible-modal');
+                }
+                
                 if(window.SessionManager) window.SessionManager.start(finalName, user.email);
             }
         });
@@ -80,11 +91,15 @@
 
         // 6. LOGIN FUNCTIONS
         window.handleGuestLogin = async () => {
-            const name = document.getElementById('user-name-input').value.trim() || "Learner";
+            const nameInput = document.getElementById('user-name-input');
+            const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "Learner";
             const btn = document.getElementById('btn-guest-login');
-            const originalText = btn.innerText;
-            btn.innerText = "Connecting...";
-            btn.disabled = true;
+            
+            if(btn) {
+                const originalText = btn.innerText;
+                btn.innerText = "Connecting...";
+                btn.disabled = true;
+            }
 
             try {
                 const result = await signInAnonymously(auth);
@@ -92,9 +107,12 @@
                 const userRef = doc(db, 'artifacts', appId, 'users', result.user.uid);
                 await setDoc(userRef, { displayName: name, lastLogin: serverTimestamp() }, { merge: true });
             } catch (e) { 
-                alert("Login failed"); 
-                btn.innerText = originalText;
-                btn.disabled = false;
+                console.error("Guest login failed", e);
+                alert("Login failed. Please refresh and try again."); 
+                if(btn) {
+                    btn.innerText = "Start Mission";
+                    btn.disabled = false;
+                }
             }
         };
 
@@ -102,14 +120,21 @@
             const provider = new GoogleAuthProvider();
             try { 
                 await signInWithPopup(auth, provider); 
+                // onAuthStateChanged handles the UI update
             } catch (e) { 
                 console.error("Google Auth Error:", e);
-                if (e.code === 'auth/unauthorized-domain') {
-                    alert("Google Sign-In failed: Domain not authorized. Use Guest Login.");
+                
+                // SMART FALLBACK: If domain is unauthorized (Preview/GitHub), auto-switch to Guest
+                if (e.code === 'auth/unauthorized-domain' || e.code === 'auth/operation-not-allowed') {
+                    console.warn("Domain unauthorized. Falling back to Guest Login.");
+                    // Optional: Alert the user or just do it seamlessly
+                    alert("Note: Google Sign-In is restricted on this preview URL. Logging you in via Guest Access...");
+                    await window.handleGuestLogin();
                 } else if (e.code === 'auth/popup-closed-by-user') {
-                    // User closed popup
+                    // User closed popup, do nothing
                 } else {
-                    alert("Google Sign-In failed. Please try Guest Login."); 
+                    alert("Google Sign-In failed. Trying Guest Access..."); 
+                    await window.handleGuestLogin();
                 }
             }
         };
