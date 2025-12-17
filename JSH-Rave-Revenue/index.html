@@ -929,7 +929,7 @@
         // 1. STATE & VARS
         const totalPages = 15;
         let currentPage = 0;
-        let middlewareState = { ranking: null, velocity: null, agency: null, model: null };
+        let middlewareState = { ranking: 'engagement', velocity: 'unrestricted', agency: 'blackbox', model: 'ads' }; // Default values
         window.feedFilterActive = true; // Default state for the toggle
 
         // 2. AUDIO ENGINE (HOISTED)
@@ -1304,13 +1304,34 @@
                     let item = { ...n };
                     item.id = Math.random().toString(36).substr(2, 9);
                     item.user = users[n.type][Math.floor(Math.random() * users[n.type].length)];
+                    
+                    // Parse numeric view count for sorting
+                    let v = item.views;
+                    if(v.includes('M')) item.viewCount = parseFloat(v) * 1000000;
+                    else if(v.includes('K')) item.viewCount = parseFloat(v) * 1000;
+                    else item.viewCount = parseFloat(v);
+                    
                     feedItems.push(item);
                 });
             }
 
+            // SORTING ENGINE
+            if (ranking === 'engagement') {
+                feedItems.sort((a, b) => b.viewCount - a.viewCount);
+            } else if (ranking === 'bridging') {
+                feedItems.sort((a, b) => {
+                    if (a.type === 'safe' && b.type === 'rage') return -1;
+                    if (a.type === 'rage' && b.type === 'safe') return 1;
+                    return b.viewCount - a.viewCount; 
+                });
+            } else {
+                // Chronological (Random shuffle)
+                feedItems.sort(() => Math.random() - 0.5);
+            }
+
             // INJECT ADS
             if (model === 'ads' || model === 'freemium') {
-                for (let i = 3; i < feedItems.length; i += 5) {
+                for (let i = 2; i < feedItems.length; i += 5) {
                     const adText = i % 2 === 0 ? "⚠️ One weird trick to pay off your mortgage!" : "BUY GOLD. PROTECT YOUR FAMILY.";
                     feedItems.splice(i, 0, { type: 'ad', text: adText, user: "Sponsored" });
                 }
