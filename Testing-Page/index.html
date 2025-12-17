@@ -16,31 +16,45 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, updateProfile, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
-        // 1. CONFIGURATION
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy'; 
+        // 1. CONFIGURATION (Production Resilient)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
+            authDomain: "allgood-academy.firebaseapp.com",
+            projectId: "allgood-academy",
+            storageBucket: "allgood-academy.firebasestorage.app",
+            messagingSenderId: "978829044870",
+            appId: "1:978829044870:web:6c780f64230a77ad0ab507",
+            measurementId: "G-EN4M7T3BLQ"
+        };
+        
+        const appId = 'allgood-academy'; 
         
         // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // PERSISTENCE: This line allows the Dashboard session to carry over!
         setPersistence(auth, browserLocalPersistence).catch(console.error);
+
         window.authSignOut = () => signOut(auth);
 
         // 3. GLOBAL STATE
         window.currentUser = null;
         window.currentUserName = "Learner";
+        window.currentUserEmail = "";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         // 4. AUTH HANDLER
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 window.currentUser = user;
+                
+                // Smart Name Resolution
                 let finalName = user.displayName || "Learner";
                 
                 // If generic, try to fetch from DB
-                if (finalName === "Learner" || !finalName) {
+                if (finalName === "Learner" || !user.displayName) {
                     try {
                         const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
                         if (userDoc.exists() && userDoc.data().displayName) {
@@ -50,9 +64,12 @@
                 }
                 
                 window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
+                
                 const headerText = document.getElementById('header-welcome-text');
                 if(headerText) headerText.textContent = `Welcome, ${finalName}`;
                 
+                // AUTO-HIDE LOGIN if present
                 const modal = document.getElementById('login-modal');
                 if(modal) {
                     modal.classList.add('hidden-modal');
@@ -63,7 +80,23 @@
             }
         });
 
-        // 5. LOGGING
+        // 5. IDENTITY ENGINE (Shared Protocol)
+        async function ensureUserContainer(user, name, email, isGuest) {
+             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+             try {
+                 await setDoc(userRef, {
+                     displayName: name,
+                     email: email || (isGuest ? null : user.email || null),
+                     isGuest: isGuest,
+                     lastLogin: serverTimestamp(),
+                     lastActiveModule: "Rage Revenue"
+                 }, { merge: true });
+             } catch (e) {
+                 console.error("[Identity] Failed to create user container:", e);
+             }
+        }
+
+        // 6. LOGGING & COMPLETION
         window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
             if (!user) return;
@@ -72,7 +105,7 @@
                 await setDoc(sessionRef, {
                     gameName: "Rage Revenue", 
                     lastUpdated: serverTimestamp(),
-                    user: { uid: user.uid, displayName: window.currentUserName },
+                    user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
                     action: action,
                     detail: detail,
                     ...payload
@@ -85,27 +118,46 @@
             if (!user) return;
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
             await setDoc(sessionRef, {
-                gameName: "Rage Revenue", completed: true, finalScore: 100, badgeArtifact: badgeSVGString, lastUpdated: serverTimestamp()
+                gameName: "Rage Revenue", 
+                completed: true, 
+                finalScore: 100, 
+                rank: "Middleware Architect",
+                badgeArtifact: badgeSVGString, 
+                lastUpdated: serverTimestamp(),
+                user: { uid: user.uid, displayName: window.currentUserName }
             }, { merge: true });
         };
 
-        // 6. LOGIN FUNCTIONS
+        // 7. LOGIN FUNCTIONS (Updated for Robustness)
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input');
+            const emailInput = document.getElementById('user-email-input');
+            
             const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "Learner";
+            const email = (emailInput && emailInput.value.trim()) ? emailInput.value.trim() : null;
+            
             const btn = document.getElementById('btn-guest-login');
             
             if(btn) {
-                const originalText = btn.innerText;
                 btn.innerText = "Connecting...";
                 btn.disabled = true;
             }
 
             try {
-                const result = await signInAnonymously(auth);
-                await updateProfile(result.user, { displayName: name });
-                const userRef = doc(db, 'artifacts', appId, 'users', result.user.uid);
-                await setDoc(userRef, { displayName: name, lastLogin: serverTimestamp() }, { merge: true });
+                let user;
+                if (auth.currentUser) {
+                    user = auth.currentUser; // Reuse if already active
+                } else {
+                    const result = await signInAnonymously(auth);
+                    user = result.user;
+                }
+                
+                await updateProfile(user, { displayName: name });
+                await ensureUserContainer(user, name, email, true);
+                
+                // Explicitly set state
+                window.currentUserName = name;
+                
             } catch (e) { 
                 console.error("Guest login failed", e);
                 alert("Login failed. Please refresh and try again."); 
@@ -119,15 +171,17 @@
         window.handleGoogleLogin = async () => {
             const provider = new GoogleAuthProvider();
             try { 
-                await signInWithPopup(auth, provider); 
-                // onAuthStateChanged handles the UI update
+                const result = await signInWithPopup(auth, provider); 
+                const user = result.user;
+                const finalName = user.displayName || "Agent";
+                await ensureUserContainer(user, finalName, user.email, false);
+                // onAuthStateChanged handles the rest
             } catch (e) { 
                 console.error("Google Auth Error:", e);
                 
                 // SMART FALLBACK: If domain is unauthorized (Preview/GitHub), auto-switch to Guest
                 if (e.code === 'auth/unauthorized-domain' || e.code === 'auth/operation-not-allowed') {
                     console.warn("Domain unauthorized. Falling back to Guest Login.");
-                    // Optional: Alert the user or just do it seamlessly
                     alert("Note: Google Sign-In is restricted on this preview URL. Logging you in via Guest Access...");
                     await window.handleGuestLogin();
                 } else if (e.code === 'auth/popup-closed-by-user') {
@@ -415,7 +469,7 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
-                <!-- 1. STARTUP SCREEN (UNCHANGED) -->
+                <!-- 1. STARTUP SCREEN -->
                 <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
