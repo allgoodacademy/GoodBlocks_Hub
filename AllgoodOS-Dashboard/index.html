@@ -612,6 +612,11 @@
                             completedModules.add("The AI Co-Pilot");
                         }
                         
+                        // FIX: Normalization for "Rage Revenue"
+                        if (gameName === "Rage Revenue") {
+                            completedModules.add("Rage Revenue");
+                        }
+                        
                         // FIX: Normalization for "Conflict Resolution"
                         if (gameName === "Conflict Resolution Challenge") {
                             completedModules.add("Conflict Resolution");
@@ -1707,7 +1712,7 @@
                         </button>
                         <!-- ADDED: hidden on mobile, visible on small screens and up (sm:block) -->
                         <button id="btn-fullscreen" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg>
                         </button>
                         <button id="btn-message" class="text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ" onclick="window.openMessageModal()">
                             <i data-lucide="message-square" class="w-5 h-5"></i>
@@ -1957,17 +1962,18 @@
 
                     <!-- TAB 3: SCHOOLHOUSE (FORMERLY COURSES) -->
                     <div id="tab-courses" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-                         <!-- Placeholder 1 -->
-                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-70">
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 flex-shrink-0">
-                                <span class="text-3xl grayscale opacity-50">🛠️</span>
+                         <!-- Replaced Placeholder 1: Rage Revenue -->
+                        <div onclick="window.launchCourse('Rage Revenue', 'https://allgoodacademy.com/jsh/rage-revenue/', this)" 
+                             class="mission-file status-ready p-5 flex items-start gap-4 group">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 flex-shrink-0 group-hover:bg-red-50 transition-colors">
+                                <span class="text-3xl emoji-badge">🔥</span>
                             </div>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-500 text-lg mb-1 uppercase">Pragmatic Learning</h3>
-                                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Coming Soon</span>
+                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Rage Revenue</h3>
+                                    <span class="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
                                 </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Status:</strong> Curriculum currently under development for the new schoolhouse architecture.</p>
+                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Design an ethical social media algorithm that balances profit and user trust.</p>
                             </div>
                         </div>
 
