@@ -96,30 +96,44 @@
              }
         }
 
-        // 6. LOGGING & COMPLETION
+        // 6. LOGGING & COMPLETION (Enhanced for Option 3)
         window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
             if (!user) return;
+            
+            console.log(`[DB] Logging: ${action} - ${detail}`, payload); // Debug log
+
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            // Prepare update data
+            const updateData = {
+                gameName: "Rage Revenue", 
+                lastUpdated: serverTimestamp(),
+                user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
+                action: action, // Last action
+                detail: detail, // Last detail
+                ...payload // Spread payload (e.g. middleware choices, reflection text)
+            };
+
             try {
-                await setDoc(sessionRef, {
-                    gameName: "Rage Revenue", 
-                    lastUpdated: serverTimestamp(),
-                    user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
-                    action: action,
-                    detail: detail,
-                    ...payload
-                }, { merge: true });
+                await setDoc(sessionRef, updateData, { merge: true });
             } catch (e) { console.error("DB Error", e); }
         };
 
         window.logModuleCompletion = async (badgeSVGString) => {
             const user = auth.currentUser;
             if (!user) return;
+            
+            console.log("[DB] Logging Completion Signal");
+
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            // Option 3: Full Audit Payload
+            // We assume middleware choices and reflection have been logged incrementally.
+            // This final call seals the "Completed" status.
             await setDoc(sessionRef, {
                 gameName: "Rage Revenue", 
-                completed: true, 
+                completed: true,  // Explicit Signal
                 finalScore: 100, 
                 rank: "Middleware Architect",
                 badgeArtifact: badgeSVGString, 
@@ -898,10 +912,12 @@
                                 <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4">Strategic Insight</h2>
                                 <div class="bg-white p-6 rounded-lg shadow-lg">
                                     <p class="font-body text-gray-700 mb-4"><strong>Why is a paid filter (Middleware) inherently safer than a free, ad-based feed?</strong></p>
-                                    <textarea class="w-full h-32 p-3 border border-gray-300 rounded focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Think about who the customer is..."></textarea>
+                                    <!-- UPDATED: Added ID to textarea for grabbing value -->
+                                    <textarea id="reflection-text" class="w-full h-32 p-3 border border-gray-300 rounded focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Think about who the customer is..."></textarea>
                                     <div class="mt-4 flex justify-end">
                                         <span class="text-xs text-green-600 font-bold flex items-center opacity-0 transition" id="reflect-saved"><i data-lucide="check" class="w-3 h-3 mr-1"></i> Saved</span>
-                                        <button onclick="document.getElementById('reflect-saved').classList.remove('opacity-0')" class="bg-allgood-secondary text-white px-4 py-2 rounded text-sm font-bold ml-4">Save Reflection</button>
+                                        <!-- UPDATED: Trigger Save function -->
+                                        <button onclick="window.saveReflection()" class="bg-allgood-secondary text-white px-4 py-2 rounded text-sm font-bold ml-4">Save Reflection</button>
                                     </div>
                                 </div>
                             </div>
@@ -920,15 +936,47 @@
                             </div>
                         </div>
 
-                        <!-- Page 15: Badge -->
+                        <!-- Page 15: Feedback & Badge -->
                         <div class="page" id="page-15">
-                            <div class="flex flex-col items-center justify-center h-full text-center px-6">
-                                <div id="badge-display" class="w-64 h-64 mb-6 transition-transform hover:scale-105 cursor-pointer"></div>
-                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">Middleware Architect</h2>
-                                <p class="text-gray-600 mb-8">You have designed a sustainable alternative to the rage economy.</p>
-                                <button class="bg-allgood-primary text-white px-8 py-3 rounded-full font-bold shadow-lg flex items-center hover:bg-allgood-hover transition">
-                                    <i data-lucide="download" class="mr-2 w-4 h-4"></i> Download Badge
-                                </button>
+                            <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8 overflow-y-auto">
+                                <div class="mb-4 text-allgood-secondary font-bold tracking-widest uppercase text-xs">Mission Accomplished</div>
+                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-6">Certification & Feedback</h2>
+
+                                <!-- Feedback Card -->
+                                <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
+                                    <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this Module</h3>
+                                    
+                                    <!-- Star Rating -->
+                                    <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                        <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    </div>
+
+                                    <!-- Feedback Text -->
+                                    <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback improves the Academy. Thoughts?</label>
+                                    <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                    
+                                    <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Submit Feedback & Unlock Badge</button>
+                                </div>
+
+                                <!-- Success State (Hidden by default) -->
+                                <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-4 rounded-lg shadow-inner border border-green-200 mb-8 text-center animate-fade-in">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                                    <h3 class="font-bold text-green-800 text-sm">Feedback Received.</h3>
+                                </div>
+
+                                <!-- Badge Section (Initially Locked/Hidden state handled by JS or CSS classes) -->
+                                <div id="badge-section" class="w-full max-w-md flex flex-col items-center justify-center opacity-50 pointer-events-none transition-all duration-500 filter grayscale">
+                                    <div id="badge-display" class="w-48 h-48 mb-4 transition-transform hover:scale-105 cursor-pointer"></div>
+                                    <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-1">Middleware Architect</h2>
+                                    <p class="text-xs text-gray-500 mb-4">You have designed a sustainable alternative to the rage economy.</p>
+                                    <button onclick="window.downloadBadge()" id="download-badge-btn" disabled class="bg-gray-300 text-white px-8 py-3 rounded-full font-bold shadow-none flex items-center cursor-not-allowed transition-all">
+                                        <i data-lucide="lock" class="mr-2 w-4 h-4"></i> Badge Locked
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1009,7 +1057,9 @@
         const totalPages = 15;
         let currentPage = 0;
         let middlewareState = { ranking: 'engagement', velocity: 'unrestricted', agency: 'blackbox', model: 'ads' }; // Default values
+        let performanceMetrics = { growth: 0, churn: 0, trust: 0 }; // NEW: Metrics tracking
         window.feedFilterActive = true; // Default state for the toggle
+        let userRating = 0; // NEW: Track rating
 
         // 2. AUDIO ENGINE (HOISTED)
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1062,6 +1112,7 @@
         // 3. NAVIGATION (HOISTED)
         window.updatePage = function() {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            // Guard: ensure page element exists
             const targetPage = document.getElementById(`page-${currentPage + 1}`);
             if(targetPage) targetPage.classList.add('active');
             
@@ -1111,9 +1162,12 @@
                 if(bubble) {
                     bubble.classList.remove('visible');
                     setTimeout(() => {
-                        bubble.textContent = script.text;
-                        bubble.classList.add('visible');
-                        if(window.renderJodi) window.renderJodi(script.mood);
+                        // Guard: Check if bubble still exists after delay
+                        if(bubble) {
+                            bubble.textContent = script.text;
+                            bubble.classList.add('visible');
+                            if(window.renderJodi) window.renderJodi(script.mood);
+                        }
                     }, 300);
                 }
             }
@@ -1130,6 +1184,19 @@
 
         window.nextPage = () => { if(currentPage < totalPages - 1) { currentPage++; window.updatePage(); if(window.sfx && window.sfx.nav) window.sfx.nav(); } };
         window.prevPage = () => { if(currentPage > 0) { currentPage--; window.updatePage(); if(window.sfx && window.sfx.nav) window.sfx.nav(); } };
+        
+        // Navigation Helper
+        window.goToPage = (index) => {
+            currentPage = index;
+            window.updatePage();
+            // Close menu safely
+            const menuModal = document.getElementById('menu-modal');
+            if(menuModal) {
+                menuModal.classList.add('hidden-modal');
+                menuModal.classList.remove('visible-modal');
+            }
+            if(window.sfx && window.sfx.nav) window.sfx.nav();
+        }
 
         // 4. JODI RENDERER
         window.renderJodi = function(stateKey) {
@@ -1291,12 +1358,23 @@
                 window.renderJodi('thinking');
             }
             
+            // NEW: Log Choice Immediately
+            if(window.logToFirestore) {
+                window.logToFirestore('Build_Choice', `${key}:${value}`, { 
+                    category: key, 
+                    selection: value 
+                });
+            }
+            
             // MANUAL ADVANCE UI
             const nextBtn = document.getElementById('next-btn');
             if(nextBtn) {
                 nextBtn.classList.add('animate-pulse', 'bg-green-600', 'hover:bg-green-700');
                 nextBtn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                setTimeout(() => nextBtn.classList.remove('animate-pulse'), 2000);
+                setTimeout(() => {
+                    // Guard: Check if nextBtn still exists before modification
+                    if(nextBtn) nextBtn.classList.remove('animate-pulse');
+                }, 2000);
             }
         };
 
@@ -1338,7 +1416,7 @@
             const label = document.getElementById('filter-label');
             
             if (window.feedFilterActive) {
-                if(track) track.className = "w-10 h-5 bg-allgood-secondary rounded-full transition-colors duration-300";
+                if(track) track.className = "w-10 h-5 bg-allgood-secondary rounded-full peer-focus:ring-4 peer-focus:ring-blue-300 transition-colors duration-300";
                 if(knob) knob.className = "absolute left-[22px] top-[2px] bg-white border border-gray-300 w-4 h-4 rounded-full transition-all duration-300 shadow-sm";
                 if(label) {
                     label.innerText = "Filter ON";
@@ -1558,6 +1636,17 @@
             growth = Math.max(0, Math.min(100, growth));
             churn = Math.max(0, churn);
             trust = Math.max(0, Math.min(100, trust));
+            
+            // SAVE METRICS
+            performanceMetrics = { growth, churn, trust };
+            
+            // NEW: Log Performance Outcomes Immediately
+            if(window.logToFirestore) {
+                window.logToFirestore('Q3_Report_Generated', 'Performance Metrics Calculated', {
+                    metrics: performanceMetrics,
+                    architecture: middlewareState
+                });
+            }
 
             // RENDER UI
             const elGrowth = document.getElementById('report-growth');
@@ -1584,32 +1673,179 @@
                 else elSummary.textContent = "You built a standard tech product. Profitable, but still contributing to the noise.";
             }
         };
+        
+        // NEW: Reflection Save Function
+        window.saveReflection = function() {
+            const textEl = document.getElementById('reflection-text');
+            const text = textEl ? textEl.value : '';
+            if(!text) return;
+            
+            if(window.logToFirestore) {
+                window.logToFirestore('Reflection_Saved', 'User Insight', {
+                    reflectionText: text,
+                    page: 13
+                });
+            }
+            
+            const savedMsg = document.getElementById('reflect-saved');
+            if(savedMsg) savedMsg.classList.remove('opacity-0');
+            if(window.sfx && window.sfx.success) window.sfx.success();
+        };
 
         // 10. QUIZ & BADGE
         window.checkQuiz = (el, c) => {
+            const feedback = document.getElementById('quiz-feedback');
             if(c) { 
                 el.classList.add('bg-green-100'); 
-                document.getElementById('quiz-feedback').textContent="Correct."; 
-                document.getElementById('quiz-feedback').className="text-center mt-6 font-bold h-6 text-green-600"; 
+                if(feedback) {
+                    feedback.textContent="Correct."; 
+                    feedback.className="text-center mt-6 font-bold h-6 text-green-600";
+                }
                 window.renderJodi('happy'); 
                 if(window.sfx && window.sfx.success) window.sfx.success(); 
             } else { 
                 el.classList.add('bg-red-50'); 
-                document.getElementById('quiz-feedback').textContent="Incorrect."; 
-                document.getElementById('quiz-feedback').className="text-center mt-6 font-bold h-6 text-red-500"; 
+                if(feedback) {
+                    feedback.textContent="Incorrect."; 
+                    feedback.className="text-center mt-6 font-bold h-6 text-red-500"; 
+                }
             }
         }
 
-        window.generateBadge = () => {
-            const svg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="40" width="120" height="120" rx="20" fill="#357889" stroke="#D34716" stroke-width="6"/><path d="M70 100 L90 120 L130 80" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round"/><text x="100" y="150" font-family="Verdana" font-weight="bold" font-size="12" fill="#fff" text-anchor="middle">MIDDLEWARE ARCHITECT</text></svg>`;
-            document.getElementById('badge-display').innerHTML = svg;
-            if(window.logModuleCompletion) window.logModuleCompletion(svg);
+        window.downloadBadge = function() {
+            const nameText = (window.currentUserName || "LEARNER").toUpperCase();
+            const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+
+            // SVG Badge Code
+            const badgeSVG = `
+            <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E0E0E0" stroke-width="2"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="#F7F7F7"/>
+                <rect width="100%" height="100%" fill="url(#smallGrid)"/>
+                
+                <!-- Main Border -->
+                <rect x="30" y="30" width="1140" height="740" rx="20" ry="20" fill="none" stroke="#D34716" stroke-width="12"/>
+                
+                <!-- Academy Title -->
+                <text x="600" y="120" font-family="Georgia, serif" font-weight="bold" font-size="48" fill="#357889" text-anchor="middle" letter-spacing="2">ALLGOOD ACADEMY</text>
+                <text x="600" y="170" font-family="Verdana, sans-serif" font-size="20" fill="#4C4C4C" text-anchor="middle" letter-spacing="6">MIDDLEWARE ARCHITECT</text>
+                
+                <line x1="300" y1="200" x2="900" y2="200" stroke="#D34716" stroke-width="4"/>
+
+                <!-- Main Icon / Graphic -->
+                <g transform="translate(600, 420)">
+                    <circle cx="0" cy="0" r="160" fill="white" stroke="#357889" stroke-width="6"/>
+                    <!-- Server / Filter Icon -->
+                    <g transform="scale(6) translate(-12, -12)" stroke="#D34716" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                        <line x1="6" y1="6" x2="6.01" y2="6" />
+                        <line x1="6" y1="18" x2="6.01" y2="18" />
+                    </g>
+                </g>
+
+                <!-- Certification Details -->
+                <g transform="translate(600, 680)">
+                    <text x="0" y="0" font-family="Verdana, sans-serif" font-size="24" fill="#357889" text-anchor="middle" font-weight="bold">${nameText}</text>
+                    <text x="0" y="40" font-family="Verdana, sans-serif" font-size="18" fill="#757575" text-anchor="middle">CERTIFIED: ${dateText}</text>
+                </g>
+                
+                <!-- Footer Quote -->
+                <text x="600" y="760" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#4C4C4C" text-anchor="middle">"Building the filter to find the signal."</text>
+            </svg>`;
+
+            // Render to Display (Preview)
+            const badgeDisplay = document.getElementById('badge-display');
+            if(badgeDisplay) badgeDisplay.innerHTML = badgeSVG;
+
+            // Save artifact to Firestore
+            window.logModuleCompletion(badgeSVG);
+
+            // Trigger File Download
+            const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Allgood-MiddlewareArchitect-${nameText}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Update Button State
+            const btn = document.getElementById('download-badge-btn');
+            if(btn) {
+                btn.innerHTML = '<i data-lucide="check" class="mr-2 w-4 h-4"></i> Badge Saved';
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                if(window.lucide) window.lucide.createIcons();
+            }
+            
+            if(window.sfx && window.sfx.success) window.sfx.success();
+        }
+        
+        // FEEDBACK LOGIC
+        window.setRating = function(n) {
+            userRating = n;
+            for (let i = 1; i <= 5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
+                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
+            }
+            if(window.sfx && window.sfx.tick) window.sfx.tick();
+        }
+
+        window.submitFeedback = function() {
+            if(userRating === 0) {
+                alert("Please select a star rating first.");
+                return;
+            }
+            const feedbackText = document.getElementById('feedback-text').value;
+            
+            // Log Feedback
+            if(window.logToFirestore) {
+                window.logToFirestore('Module_Feedback', 'User Submitted Feedback', { 
+                    rating: userRating, 
+                    comments: feedbackText,
+                    sessionId: window.sessionId
+                });
+            }
+            
+            // Update UI
+            document.getElementById('feedback-container').classList.add('hidden');
+            const successMsg = document.getElementById('feedback-success');
+            if(successMsg) successMsg.classList.remove('hidden');
+            
+            // Unlock Badge Section
+            const badgeSection = document.getElementById('badge-section');
+            if(badgeSection) {
+                badgeSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                badgeSection.classList.add('opacity-100', 'pointer-events-auto');
+            }
+            
+            const badgeBtn = document.getElementById('download-badge-btn');
+            if(badgeBtn) {
+                badgeBtn.disabled = false;
+                badgeBtn.innerHTML = '<i data-lucide="download" class="mr-2 w-4 h-4"></i> Download Badge';
+                badgeBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                badgeBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx && window.sfx.success) window.sfx.success(); 
         }
 
         // 11. SYSTEM MENU
         window.closeSystemMenu = () => {
-             document.getElementById('system-menu-modal').classList.add('hidden-modal');
-             document.getElementById('system-menu-modal').classList.remove('visible-modal');
+             const sysMenu = document.getElementById('system-menu-modal');
+             if(sysMenu) {
+                 sysMenu.classList.add('hidden-modal');
+                 sysMenu.classList.remove('visible-modal');
+             }
         };
 
         window.handleLogOut = async () => {
@@ -1619,8 +1855,10 @@
             window.currentUserName = "Anonymous";
             window.closeSystemMenu();
             const startup = document.getElementById('startup-screen');
-            startup.style.display = 'flex';
-            setTimeout(() => startup.style.opacity = '1', 10);
+            if(startup) {
+                startup.style.display = 'flex';
+                setTimeout(() => startup.style.opacity = '1', 10);
+            }
             currentPage = 0;
             if(window.updatePage) window.updatePage();
             if(window.sfx) window.sfx.powerOff();
@@ -1654,8 +1892,10 @@
                         startup.style.opacity = '0';
                         setTimeout(() => { startup.style.display = 'none'; }, 700);
                     } else {
-                        loginModal.classList.remove('hidden-modal');
-                        loginModal.classList.add('visible-modal');
+                        if(loginModal) {
+                            loginModal.classList.remove('hidden-modal');
+                            loginModal.classList.add('visible-modal');
+                        }
                         startup.style.opacity = '0';
                         setTimeout(() => { startup.style.display = 'none'; }, 700);
                     }
@@ -1671,17 +1911,81 @@
 
             const fullscreenToggle = document.getElementById('fullscreen-toggle');
             if(fullscreenToggle) fullscreenToggle.addEventListener('click', () => {
-                document.querySelector('.tablet-frame').classList.toggle('focus-mode');
+                const frame = document.querySelector('.tablet-frame');
+                if(frame) frame.classList.toggle('focus-mode');
                 fullscreenToggle.classList.toggle('text-green-300');
                 if(window.sfx) window.sfx.tick();
             });
 
+            // MENU TOGGLE (HAMBURGER)
             const menuToggle = document.getElementById('menu-toggle');
             if(menuToggle) menuToggle.addEventListener('click', () => {
-                 document.getElementById('system-menu-modal').classList.remove('hidden-modal');
-                 document.getElementById('system-menu-modal').classList.add('visible-modal');
+                 const menuModal = document.getElementById('menu-modal');
+                 if(menuModal) {
+                     menuModal.classList.remove('hidden-modal');
+                     menuModal.classList.add('visible-modal');
+                 }
                  if(window.sfx) window.sfx.tick();
             });
+
+            // CLOSE MENU BUTTON
+            const closeMenu = document.getElementById('close-menu');
+            if(closeMenu) closeMenu.addEventListener('click', () => {
+                 const menuModal = document.getElementById('menu-modal');
+                 if(menuModal) {
+                     menuModal.classList.add('hidden-modal');
+                     menuModal.classList.remove('visible-modal');
+                 }
+            });
+
+            // HOME BUTTON LOGIC (Long Press = System, Short Press = Page 1)
+            const homeBtn = document.getElementById('home-button');
+            let pressTimer;
+            let isLongPress = false;
+
+            if(homeBtn) {
+                const startPress = (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        const sysMenu = document.getElementById('system-menu-modal');
+                        if(sysMenu) {
+                            sysMenu.classList.remove('hidden-modal');
+                            sysMenu.classList.add('visible-modal');
+                        }
+                        if(window.sfx) window.sfx.nav();
+                    }, 2000); // 2 seconds as requested
+                };
+
+                const endPress = (e) => {
+                    clearTimeout(pressTimer);
+                };
+
+                homeBtn.addEventListener('mousedown', startPress);
+                homeBtn.addEventListener('mouseup', endPress);
+                homeBtn.addEventListener('mouseleave', endPress);
+                
+                homeBtn.addEventListener('touchstart', (e) => {
+                    startPress();
+                }, { passive: true });
+                homeBtn.addEventListener('touchend', endPress);
+                homeBtn.addEventListener('touchcancel', endPress);
+
+                // Click handler deals with the short press
+                homeBtn.addEventListener('click', (e) => {
+                    if (isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isLongPress = false;
+                    } else {
+                        // Short press -> Go to Page 1 (Index 0)
+                        window.goToPage(0); 
+                    }
+                });
+                
+                // Prevent context menu
+                homeBtn.addEventListener('contextmenu', e => { e.preventDefault(); return false; });
+            }
 
             document.getElementById('current-year').innerText = new Date().getFullYear();
         });
