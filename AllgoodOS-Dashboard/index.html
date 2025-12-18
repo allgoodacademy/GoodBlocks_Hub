@@ -1712,7 +1712,7 @@
                         </button>
                         <!-- ADDED: hidden on mobile, visible on small screens and up (sm:block) -->
                         <button id="btn-fullscreen" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10" title="Focus Mode">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg>
+                            <i id="icon-fullscreen" data-lucide="maximize" class="w-5 h-5"></i>
                         </button>
                         <button id="btn-message" class="text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ" onclick="window.openMessageModal()">
                             <i data-lucide="message-square" class="w-5 h-5"></i>
@@ -2645,12 +2645,16 @@
             if(fullscreenBtn) {
                 fullscreenBtn.addEventListener('click', () => {
                     const body = document.body;
+                    const icon = document.getElementById('icon-fullscreen');
+
                     if (body.classList.contains('focus-mode')) {
                         body.classList.remove('focus-mode');
                         fullscreenBtn.classList.remove('text-green-300', 'bg-white/10');
+                        if(icon) icon.setAttribute('data-lucide', 'maximize');
                     } else {
                         body.classList.add('focus-mode');
                         fullscreenBtn.classList.add('text-green-300', 'bg-white/10');
+                        if(icon) icon.setAttribute('data-lucide', 'minimize');
                     }
                     lucide.createIcons();
                     sfx.tick();
