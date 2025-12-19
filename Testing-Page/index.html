@@ -24,7 +24,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        /* ADDED: limit */
+        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where, limit } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         setLogLevel('Debug');
@@ -63,6 +64,7 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let unsubscribeLaunches = null;
         let unsubscribeDecisions = null;
+        let unsubscribeIntel = null; // NEW: Intel Listener
         
         window.allModuleElements = {};
         // GLOBAL REGISTRY FOR LIVE SVG ASSETS
@@ -98,6 +100,7 @@
              
              window.startLaunchListener(user.uid);
              window.startDecisionsStatusListener(user.uid);
+             window.startIntelListener(user.uid); // NEW: Start Intel Check
         }
 
         window.handleGuestLogin = async () => {
@@ -330,6 +333,11 @@
             if (unsubscribeDecisions) { 
                 unsubscribeDecisions();
                 unsubscribeDecisions = null;
+            }
+
+            if (unsubscribeIntel) { // NEW: Cleanup Intel Listener
+                unsubscribeIntel();
+                unsubscribeIntel = null;
             }
             
             // Reset badges
@@ -1121,6 +1129,7 @@
                 
                 window.startLaunchListener(storedUID);
                 window.startDecisionsStatusListener(storedUID); 
+                window.startIntelListener(storedUID); // NEW: Restore Intel Check
                 return true; 
             }
             return false; 
@@ -1135,6 +1144,7 @@
                     if (dashboard.style.display === 'block') {
                         window.startLaunchListener(user.uid);
                         window.startDecisionsStatusListener(user.uid); 
+                        window.startIntelListener(user.uid); // NEW: Ensure check runs on reload
                         return;
                     }
                     
@@ -1164,12 +1174,38 @@
                     closeLoginModal(); 
                     window.startLaunchListener(user.uid);
                     window.startDecisionsStatusListener(user.uid); 
+                    window.startIntelListener(user.uid); // NEW: Start check on fresh login
                 } else {
                     if (dashboard.style.display === 'block') {
                          window.handleLogout(); 
                     }
                 }
             });
+        }
+
+        // --- NEW LISTENER FOR INTEL BADGE ---
+        window.startIntelListener = function(uid) {
+            if (unsubscribeIntel) unsubscribeIntel();
+
+            try {
+                const inboxRef = collection(db, 'artifacts', appId, 'users', uid, 'feedback_inbox');
+                // Efficient query: We only need to know if > 0 documents exist
+                const q = query(inboxRef, limit(1));
+
+                unsubscribeIntel = onSnapshot(q, (snapshot) => {
+                    if (!snapshot.empty) {
+                        // If any message exists, they are an Intel Officer
+                        if (localStorage.getItem('aa_intel_sent') !== 'true') {
+                            localStorage.setItem('aa_intel_sent', 'true');
+                            window.updateBadges();
+                        }
+                    }
+                }, (error) => {
+                    console.log("Intel Check Silent Fail", error);
+                });
+            } catch (e) {
+                console.warn("Intel listener setup failed", e);
+            }
         }
 
         // --- NEW ADMIN FUNCTIONS ---
