@@ -923,8 +923,7 @@
                                 <div id="balance-text" class="text-xl font-bold text-gray-300">Too Rigid...</div>
                             </div>
                         </div>
-
-                        <!-- P16: The Ego (WALL BREAKER - NEW) -->
+                        <!-- P16: The Ego (WALL BREAKER - FIXED SIZE) -->
                         <div class="page" id="page-16">
                              <div class="flex flex-col h-full relative">
                                 <!-- Background: True Self (Cosmos) -->
@@ -940,7 +939,8 @@
                                 </div>
 
                                 <!-- Foreground: Ego Wall -->
-                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-3 sm:grid-cols-4 gap-1 p-1 bg-gray-800">
+                                <!-- FIX: Using explicit repeat syntax to ensure rows fill the vertical space -->
+                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-2 md:grid-cols-4 grid-rows-[repeat(10,1fr)] md:grid-rows-[repeat(5,1fr)] gap-1 p-1 bg-gray-800">
                                     <!-- Bricks generated via JS -->
                                 </div>
                                 
@@ -1625,22 +1625,36 @@
             const wall = document.getElementById('ego-wall');
             if(!wall || wall.children.length > 0) return;
             
-            const labels = ["My Job", "My Name", "My Past", "Failures", "Success", "Body", "IQ", "Money", "Status", "Fear", "Roles", "Ego"];
+            // 20 Unique Identity Labels
+            const labels = [
+                "My Job Title", "My Salary", "My Past", "My Trauma", 
+                "My Gender", "My Age", "My Politics", "My Religion",
+                "My Body", "My IQ", "Failures", "Successes",
+                "Reputation", "Social Status", "My Anxiety", "My Pride",
+                "My Shame", "My Habits", "My Plans", "The Ego"
+            ];
             
-            for(let i=0; i<24; i++) {
+            // Loop exactly 20 times for 4x5 layout (desktop) / 2x10 (mobile)
+            for(let i=0; i<20; i++) {
                 const brick = document.createElement('div');
-                brick.className = "bg-gray-700 hover:bg-gray-600 border border-gray-600 flex items-center justify-center cursor-pointer transition-all duration-300 text-gray-500 font-bold text-xs select-none";
-                brick.innerText = labels[i % labels.length];
-                brick.style.height = "100%";
+                // Use flex and h-full to ensure it fills the grid cell completely
+                brick.className = "bg-gray-700 hover:bg-gray-600 border border-gray-600 flex items-center justify-center cursor-pointer transition-all duration-300 text-gray-300 font-bold text-sm select-none shadow-sm relative overflow-hidden group w-full h-full";
+                
+                // Inner texture for "Brick" feel
+                brick.innerHTML = `<span class="relative z-10 group-hover:scale-110 transition-transform text-center px-2">${labels[i]}</span><div class="absolute inset-0 bg-black/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>`;
                 
                 brick.onclick = function() {
-                    this.style.transform = "scale(0.8) rotate(10deg)";
+                    // Shatter Animation
+                    this.style.transform = `scale(0.9) rotate(${Math.random()*10 - 5}deg)`;
                     this.style.opacity = "0";
+                    this.style.pointerEvents = "none";
+                    
                     if(window.sfx) window.sfx.tick();
+                    
                     setTimeout(() => {
                         this.style.visibility = "hidden";
                         checkWallCleared();
-                    }, 200);
+                    }, 300);
                 };
                 wall.appendChild(brick);
             }
