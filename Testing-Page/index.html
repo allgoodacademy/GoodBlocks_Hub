@@ -302,6 +302,42 @@
             100% { transform: scale(0.8) translateY(-100px) rotate(10deg); opacity: 0; filter: blur(10px); }
         }
         .burning { animation: burnCard 0.8s forwards ease-in; pointer-events: none; }
+
+        /* Mirror Animation */
+        @keyframes drawCrack {
+            to { stroke-dashoffset: 0; }
+        }
+        @keyframes glassFall {
+            0% { transform: translateY(0) rotate(0); opacity: 1; }
+            100% { transform: translateY(50px) rotate(5deg) scale(0.9); opacity: 0; }
+        }
+        @keyframes spacePan {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+        .crack-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawCrack 0.5s forwards linear;
+        }
+        .shattered-glass {
+            animation: glassFall 0.8s forwards ease-in;
+            pointer-events: none;
+        }
+        .cosmos-bg {
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .cosmos-stars {
+            background-image: 
+                radial-gradient(white 1px, transparent 1px),
+                radial-gradient(white 1px, transparent 1px);
+            background-size: 50px 50px, 100px 100px;
+            background-position: 0 0, 25px 25px;
+            opacity: 0.5;
+            animation: spacePan 60s linear infinite;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -333,7 +369,7 @@
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Agent Learner</div>
                             <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 25</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 23</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
@@ -966,26 +1002,83 @@
                             </div>
                         </div>
                         
-                        <!-- P18: Illusion of Self -->
+                        <!-- P18: The Mirror Shatter -->
                         <div class="page" id="page-18">
-                            <div class="flex flex-col items-center justify-center min-h-full px-6 text-center">
-                                <h2 class="text-2xl font-bold text-allgood-dark mb-4">The Deepest Illusion</h2>
-                                <p class="text-gray-600 leading-relaxed mb-6">
-                                    The moment you stop clinging to the idea of who you *think* you are, you unlock infinite possibilities. This realization is both liberating and terrifying.
-                                </p>
-                                <p class="text-gray-500 italic">"Everything you have believed yourself to be—all the fears, the limitations, the stories—is merely a construct."</p>
+                            <div class="flex flex-col items-center justify-center h-full w-full relative overflow-hidden">
+                                
+                                <!-- Layer 1: Infinite Self (Cosmos Background) -->
+                                <div id="mirror-cosmos" class="absolute inset-0 cosmos-bg z-0 opacity-0 transition-opacity duration-1000 flex items-center justify-center">
+                                    <div class="absolute inset-0 cosmos-stars"></div>
+                                    <div class="text-center z-10 animate-fade-in delay-700">
+                                        <i data-lucide="infinity" class="w-24 h-24 text-white mx-auto mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]"></i>
+                                        <h2 class="text-3xl font-heading font-bold text-white mb-2">The Infinite Self</h2>
+                                        <p class="text-indigo-200 text-lg">Beyond the construct.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Layer 2 & 3: The Mirror (Container) -->
+                                <div id="mirror-frame" class="relative w-64 h-80 bg-gradient-to-br from-gray-100 to-gray-300 border-8 border-gray-400 rounded-lg shadow-2xl flex items-center justify-center cursor-pointer transition-transform duration-100 z-10 group overflow-hidden" onclick="shatterMirror()">
+                                    
+                                    <!-- Reflection (Finite Self) -->
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent pointer-events-none z-10"></div>
+                                    <div class="text-center opacity-60 group-hover:opacity-80 transition-opacity">
+                                        <i data-lucide="user" class="w-16 h-16 text-gray-500 mx-auto mb-2"></i>
+                                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">The Finite Self</p>
+                                    </div>
+
+                                    <!-- Cracks Overlay (SVG) -->
+                                    <svg id="mirror-cracks" class="absolute inset-0 w-full h-full pointer-events-none z-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                        <!-- Cracks injected via JS -->
+                                    </svg>
+                                </div>
+
+                                <!-- Instruction -->
+                                <div id="mirror-instruction" class="absolute bottom-10 text-gray-400 text-xs font-bold uppercase tracking-widest animate-pulse z-20 pointer-events-none">
+                                    Tap to Break the Illusion
+                                </div>
                             </div>
                         </div>
 
-                        <!-- P19: Tools -->
+                        <!-- P19: Tools (UPDATED INTERACTIVE KIT) -->
                         <div class="page" id="page-19">
-                            <div class="max-w-md mx-auto pt-6 px-6">
-                                <h2 class="text-lg font-bold text-allgood-dark mb-4">The Archeologist's Kit</h2>
-                                <p class="text-sm text-gray-600 mb-6">How do we access this deeper self? Jung offered practical tools to bridge the gap between the conscious and unconscious mind.</p>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="cloud-moon" class="w-5 h-5 text-purple-500 mr-3"></i><span class="text-sm font-bold">Dreams</span><span class="text-xs text-gray-400 ml-auto">Messages from the Self</span></div>
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="pen-tool" class="w-5 h-5 text-pink-500 mr-3"></i><span class="text-sm font-bold">Creativity</span><span class="text-xs text-gray-400 ml-auto">Art accesses the unknown</span></div>
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="eye" class="w-5 h-5 text-blue-500 mr-3"></i><span class="text-sm font-bold">Introspection</span><span class="text-xs text-gray-400 ml-auto">Question your reactions</span></div>
+                            <div class="max-w-md mx-auto pt-6 px-6 h-full flex flex-col">
+                                <h2 class="text-lg font-bold text-allgood-dark mb-2">The Archeologist's Kit</h2>
+                                <p class="text-xs text-gray-600 mb-6">How do we access the unconscious? Jung offered three primary tools. Click to inspect the Field Guide.</p>
+                                
+                                <!-- Tool Selector Grid -->
+                                <div class="grid grid-cols-3 gap-3 mb-4">
+                                    <!-- Dreams Button -->
+                                    <button onclick="openTool('dreams', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 rounded-lg shadow-sm transition-all group active:scale-95">
+                                        <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mb-2 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                            <i data-lucide="cloud-moon" class="w-5 h-5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Dreams</span>
+                                    </button>
+                                    
+                                    <!-- Creativity Button -->
+                                    <button onclick="openTool('creativity', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-pink-300 hover:bg-pink-50 rounded-lg shadow-sm transition-all group active:scale-95">
+                                        <div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center mb-2 text-pink-600 group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                                            <i data-lucide="pen-tool" class="w-5 h-5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Creativity</span>
+                                    </button>
+                                    
+                                    <!-- Introspection Button -->
+                                    <button onclick="openTool('introspection', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-blue-300 hover:bg-blue-50 rounded-lg shadow-sm transition-all group active:scale-95">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            <i data-lucide="eye" class="w-5 h-5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Insight</span>
+                                    </button>
+                                </div>
+
+                                <!-- Dynamic Detail View -->
+                                <div id="tool-detail" class="flex-grow bg-gray-50 border border-gray-200 rounded-lg p-5 relative overflow-hidden transition-all duration-300 shadow-inner">
+                                    <!-- Default State -->
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none opacity-50">
+                                        <i data-lucide="search" class="w-8 h-8 mb-2"></i>
+                                        <span class="text-xs uppercase tracking-widest">Select a Tool</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1000,41 +1093,56 @@
                             </div>
                         </div>
 
-                        <!-- P21: Paradigm Shift -->
+                        <!-- P21: The Manifesto (COMBINED 21-23) -->
                         <div class="page" id="page-21">
-                             <div class="flex flex-col items-center justify-center min-h-full px-6 text-center">
-                                <p class="text-xl italic text-gray-700 mb-6">"Life truly begins when you stop running from yourself."</p>
-                                <div class="h-1 w-20 bg-jung-primary rounded-full mb-6"></div>
-                                <p class="text-sm text-gray-500">
-                                    The ultimate realization is that you were never truly lost. The deep, authentic self has always been within you, waiting to be remembered.
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <!-- P22: Embrace Unknown -->
-                        <div class="page" id="page-22">
-                             <div class="max-w-md mx-auto pt-10 px-6 text-center">
-                                <i data-lucide="help-circle" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                                <h2 class="text-lg font-bold text-allgood-dark">Embrace the Unknown</h2>
-                                <p class="text-sm text-gray-600 mt-2 leading-relaxed">
-                                    Most people fear the unknown because it represents uncertainty. But the unknown is where growth happens. It is where transformation occurs.
-                                </p>
-                            </div>
-                        </div>
-                        
-                         <!-- P23: Release Labels -->
-                        <div class="page" id="page-23">
-                             <div class="max-w-md mx-auto pt-10 px-6 text-center">
-                                <i data-lucide="tag" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                                <h2 class="text-lg font-bold text-allgood-dark">Release Labels</h2>
-                                <p class="text-sm text-gray-600 mt-2 leading-relaxed">
-                                    You are not just your name. You are not just your job, your past, or your personality. You are something far beyond definition.
-                                </p>
-                            </div>
-                        </div>
+                             <div class="max-w-2xl mx-auto px-6 pb-20">
+                                <!-- Header -->
+                                <div class="text-center pt-10 mb-16 fade-in">
+                                    <div class="w-16 h-16 mx-auto bg-allgood-dark text-white rounded-full flex items-center justify-center mb-4 shadow-lg">
+                                        <i data-lucide="feather" class="w-8 h-8"></i>
+                                    </div>
+                                    <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">The Realization</h2>
+                                    <p class="text-sm text-gray-500 uppercase tracking-widest">Scroll to internalize the truth</p>
+                                </div>
 
-                        <!-- P24: Contract -->
-                        <div class="page" id="page-24">
+                                <!-- Section 1: The Shift -->
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-24 relative" id="man-1">
+                                    <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-primary to-transparent opacity-30"></div>
+                                    <h3 class="text-2xl font-bold text-gray-800 mb-4">1. The Paradigm Shift</h3>
+                                    <p class="text-lg text-gray-600 leading-relaxed italic mb-4">"Life truly begins when you stop running from yourself."</p>
+                                    <p class="text-gray-500 text-sm leading-relaxed">
+                                        The ultimate realization is that you were never truly lost. The deep, authentic self has always been within you, waiting to be remembered. You are not fixing a broken machine; you are uncovering a buried treasure.
+                                    </p>
+                                </div>
+
+                                <!-- Section 2: The Unknown -->
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-24 relative" id="man-2">
+                                    <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-secondary to-transparent opacity-30"></div>
+                                    <h3 class="text-2xl font-bold text-gray-800 mb-4">2. Embrace the Unknown</h3>
+                                    <p class="text-lg text-gray-600 leading-relaxed italic mb-4">"Certainty is the cage. Mystery is the door."</p>
+                                    <p class="text-gray-500 text-sm leading-relaxed">
+                                        The Ego craves safety and prediction. The Self thrives in the unknown. Growth only happens when you step off the map. Stop asking "What will happen?" and start asking "Who will I become?"
+                                    </p>
+                                </div>
+
+                                <!-- Section 3: Release Labels -->
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-10 relative" id="man-3">
+                                    <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-accent to-transparent opacity-30"></div>
+                                    <h3 class="text-2xl font-bold text-gray-800 mb-4">3. Release the Labels</h3>
+                                    <p class="text-lg text-gray-600 leading-relaxed italic mb-4">"You are the sky, not the weather."</p>
+                                    <p class="text-gray-500 text-sm leading-relaxed">
+                                        You are not your name. You are not your job, your trauma, or your bank account. These are just costumes you wear. When you strip them away, what remains is the infinite, observing presence. That is You.
+                                    </p>
+                                </div>
+                                
+                                <div class="text-center pt-10 pb-10 opacity-50">
+                                    <i data-lucide="arrow-down" class="w-6 h-6 mx-auto animate-bounce text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- P22: Contract (Renumbered from 24) -->
+                        <div class="page" id="page-22">
                             <div class="max-w-md mx-auto pt-6 px-6">
                                 <div class="bg-white p-6 rounded shadow-lg border-2 border-jung-primary/20 text-center">
                                     <h3 class="font-heading font-bold text-lg mb-4 text-gray-800">Surrender Contract</h3>
@@ -1048,18 +1156,51 @@
                             </div>
                         </div>
 
-                        <!-- P25: Certification -->
-                        <div class="page" id="page-25">
-                            <div class="flex flex-col items-center justify-start h-full text-center px-6 pt-10">
-                                <div class="mb-6"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                                <div class="w-24 h-24 bg-gradient-to-br from-jung-primary to-jung-accent rounded-full flex items-center justify-center shadow-xl mb-6 animate-fade-in">
-                                    <i data-lucide="award" class="w-12 h-12 text-white"></i>
+                        <!-- P23: Certification (Renumbered from 25) -->
+                        <div class="page" id="page-23">
+                            <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8 overflow-y-auto">
+                                <div class="mb-4 text-allgood-secondary font-bold tracking-widest uppercase text-xs">Mission Accomplished</div>
+                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-6">Certification & Feedback</h2>
+
+                                <!-- Feedback Card -->
+                                <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
+                                    <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this Module</h3>
+                                    
+                                    <!-- Star Rating -->
+                                    <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                        <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    </div>
+
+                                    <!-- Feedback Text -->
+                                    <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback improves the Academy. Thoughts?</label>
+                                    <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                    
+                                    <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Submit Feedback & Unlock Badge</button>
                                 </div>
-                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">Architect of Self</h2>
-                                <p class="text-sm text-gray-600 mb-8">You have completed the Archeology of Identity.</p>
-                                <button class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center">
-                                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Badge
-                                </button>
+
+                                <!-- Success State (Hidden by default) -->
+                                <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-4 rounded-lg shadow-inner border border-green-200 mb-8 text-center animate-fade-in">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                                    <h3 class="font-bold text-green-800 text-sm">Feedback Received.</h3>
+                                </div>
+
+                                <!-- Badge Section (Locked State) -->
+                                <div id="badge-section" class="w-full max-w-md flex flex-col items-center justify-center opacity-50 pointer-events-none transition-all duration-500 filter grayscale">
+                                    <!-- REPLACED: Static Placeholder instead of SVG Preview -->
+                                    <div id="badge-display" class="w-48 h-48 mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-white shadow-xl flex items-center justify-center">
+                                        <i data-lucide="award" class="w-24 h-24 text-gray-300"></i>
+                                    </div>
+                                    
+                                    <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-1">Architect of Self</h2>
+                                    <p class="text-xs text-gray-500 mb-4">You have completed the Archeology of Identity.</p>
+                                    <button onclick="window.downloadBadge()" id="download-badge-btn" disabled class="bg-gray-300 text-white px-8 py-3 rounded-full font-bold shadow-none flex items-center cursor-not-allowed transition-all">
+                                        <i data-lucide="lock" class="mr-2 w-4 h-4"></i> Badge Locked
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1138,10 +1279,14 @@
     <!-- LOGIC -->
     <script>
         // --- CONFIG & STATE ---
-        const totalPages = 25;
+        const totalPages = 23; // Reduced from 25
         let currentPage = 0;
         let sortedItems = 0;
         let maskClickCount = 0;
+        let userRating = 0; // NEW
+        
+        // PAGE 18: MIRROR SHATTER STATE
+        let mirrorTapCount = 0;
 
         // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1221,11 +1366,9 @@
             "Let's break the illusion. You are more than a construct.", // P18
             "I'm giving you the Archeologist's Kit. Dreams and Creativity are your shovels.", // P19
             "What symbols are appearing in your life? Log them. They are messages.", // P20
-            "This is the shift. You aren't fixing yourself. You are remembering yourself.", // P21
-            "Embrace the unknown. That is where the growth happens.", // P22
-            "Release the labels. You are not your past.", // P23
-            "I need a commitment. Sign the contract to drop the mask for just one moment today.", // P24
-            "You have done the work. You are now an Architect of Self. Well done." // P25
+            "This is the Manifesto of the True Self. Read it slowly. Let it sink in.", // P21 (Combined)
+            "I need a commitment. Sign the contract to drop the mask for just one moment today.", // P22 (Contract)
+            "You have done the work. You are now an Architect of Self. Well done." // P23 (Badge)
         ];
 
         window.updateJodi = (idx) => {
@@ -1269,12 +1412,200 @@
             if(idx === 15) { // Page 16
                  setTimeout(buildEgoWall, 100);
             }
+
+            if (idx === 17) { // Page 18
+                if (typeof window.resetMirror === 'function') window.resetMirror();
+            }
+
+            // Manifesto Scroll Animation (Page 21)
+            if (idx === 20) {
+                setTimeout(initManifesto, 100);
+            }
+
+            // REMOVED: renderBadgePreview call
         }
 
         window.nextPage = () => window.showPage(currentPage + 1);
         window.prevPage = () => window.showPage(currentPage - 1);
 
         // --- INTERACTIONS ---
+        
+        // PAGE 18: MIRROR SHATTER LOGIC
+        window.shatterMirror = () => {
+            const frame = document.getElementById('mirror-frame');
+            const cracks = document.getElementById('mirror-cracks');
+            const cosmos = document.getElementById('mirror-cosmos');
+            const instruction = document.getElementById('mirror-instruction');
+            
+            mirrorTapCount++;
+            
+            // Jolt Animation helper
+            const jolt = () => {
+                frame.style.transform = `scale(${0.98 + Math.random()*0.04}) rotate(${Math.random()*2 - 1}deg)`;
+                setTimeout(() => frame.style.transform = 'scale(1) rotate(0deg)', 100);
+            };
+
+            if (mirrorTapCount === 1) {
+                // First Crack
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", "M50,50 L20,10 M50,50 L80,90");
+                path.setAttribute("stroke", "rgba(0,0,0,0.6)");
+                path.setAttribute("stroke-width", "0.5");
+                path.setAttribute("fill", "none");
+                path.classList.add("crack-path");
+                cracks.appendChild(path);
+                
+                jolt();
+                if(window.sfx) window.sfx.error(); // Sharp sound
+                instruction.innerText = "Strike Harder";
+                
+            } else if (mirrorTapCount === 2) {
+                // Second Crack (More severe)
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", "M50,50 L10,60 M50,50 L90,20 M50,50 L40,95");
+                path.setAttribute("stroke", "rgba(0,0,0,0.7)");
+                path.setAttribute("stroke-width", "0.8");
+                path.setAttribute("fill", "none");
+                path.classList.add("crack-path");
+                cracks.appendChild(path);
+                
+                jolt();
+                if(window.sfx) window.sfx.error();
+                instruction.innerText = "One More Blow";
+
+            } else if (mirrorTapCount >= 3) {
+                // Shatter
+                if(window.sfx) {
+                    window.sfx.error(); // Crack
+                    setTimeout(() => window.sfx.success(), 200); // Reveal sound
+                }
+                
+                frame.classList.add('shattered-glass');
+                instruction.style.opacity = '0';
+                
+                // Reveal Cosmos
+                cosmos.classList.remove('opacity-0');
+                
+                // Update Jodi
+                const bubble = document.getElementById('jodi-bubble');
+                if(bubble) {
+                     bubble.textContent = "The barrier is gone. This... is what you really are.";
+                     bubble.classList.remove('visible');
+                     setTimeout(() => bubble.classList.add('visible'), 100);
+                }
+            }
+        };
+
+        window.resetMirror = () => {
+            const frame = document.getElementById('mirror-frame');
+            const cracks = document.getElementById('mirror-cracks');
+            const cosmos = document.getElementById('mirror-cosmos');
+            const instruction = document.getElementById('mirror-instruction');
+            
+            if(frame) {
+                mirrorTapCount = 0;
+                frame.classList.remove('shattered-glass');
+                frame.style.transform = 'scale(1) rotate(0deg)';
+                cracks.innerHTML = ''; // Remove SVG paths
+                cosmos.classList.add('opacity-0');
+                instruction.style.opacity = '1';
+                instruction.innerText = "Tap to Break the Illusion";
+            }
+        };
+
+        // PAGE 19: TOOLKIT LOGIC
+        const toolData = {
+            dreams: {
+                title: "Dreams: The Night Letter",
+                subtitle: "Unedited messages from the Self.",
+                color: "text-purple-600",
+                bg: "bg-purple-50",
+                border: "border-purple-200",
+                icon: "cloud-moon",
+                desc: "Dreams are the most direct door to the unconscious. They balance your conscious attitude. If you are too rigid, you might dream of chaos.",
+                examples: [
+                    { icon: "arrow-down", label: "Falling", text: "Often signals a loss of control or fear of letting go." },
+                    { icon: "footprints", label: "Being Chased", text: "You are running from a Shadow aspect you deny." },
+                    { icon: "user-x", label: "Teeth Falling Out", text: "Anxiety about powerlessness or major life transition." }
+                ]
+            },
+            creativity: {
+                title: "Creativity: Active Imagination",
+                subtitle: "Letting the hand speak for the mind.",
+                color: "text-pink-600",
+                bg: "bg-pink-50",
+                border: "border-pink-200",
+                icon: "pen-tool",
+                desc: "The unconscious is non-verbal. Art, dance, and play allow it to express itself without the censor of logic.",
+                examples: [
+                    { icon: "edit-3", label: "Automatic Writing", text: "Write fast without stopping. Don't think. Just flow." },
+                    { icon: "image", label: "Mandala Drawing", text: "Draw a circle and fill it. It represents the Self seeking order." },
+                    { icon: "music", label: "Play", text: "Do something with no goal. The ego hates it; the soul loves it." }
+                ]
+            },
+            introspection: {
+                title: "Insight: The Sacred Pause",
+                subtitle: "Catching the reaction before it becomes behavior.",
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+                border: "border-blue-200",
+                icon: "eye",
+                desc: "Most people live on autopilot. Introspection is the act of stopping the machine to see who is driving.",
+                examples: [
+                    { icon: "zap", label: "The Trigger", text: "Why did that make me angry? What is it touching in me?" },
+                    { icon: "copy", label: "The Envy", text: "Envy is a map. It shows you what you want but repress." },
+                    { icon: "message-circle", label: "The Complaint", text: "What you complain about in others is often your own shadow." }
+                ]
+            }
+        };
+
+        window.openTool = (type, btn) => {
+            const data = toolData[type];
+            const detail = document.getElementById('tool-detail');
+            
+            // Highlight Button
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                b.classList.remove('ring-2', 'ring-offset-2', 'ring-allgood-primary', 'bg-gray-50');
+                b.classList.add('bg-white');
+            });
+            btn.classList.remove('bg-white');
+            btn.classList.add(data.bg, 'ring-2', 'ring-offset-2', 'ring-allgood-primary');
+
+            // Build Examples HTML
+            const examplesHTML = data.examples.map(ex => `
+                <div class="flex items-start p-2 bg-white rounded border border-gray-100 shadow-sm mb-2">
+                    <div class="p-1.5 bg-gray-100 rounded mr-3 shrink-0 text-gray-500">
+                        <i data-lucide="${ex.icon}" class="w-3 h-3"></i>
+                    </div>
+                    <div>
+                        <strong class="text-xs font-bold text-gray-700 block">${ex.label}</strong>
+                        <p class="text-[10px] text-gray-500 leading-tight">${ex.text}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Content
+            detail.innerHTML = `
+                <div class="animate-fade-in h-full flex flex-col">
+                    <div class="flex items-center mb-3 pb-3 border-b ${data.border}">
+                        <i data-lucide="${data.icon}" class="w-6 h-6 ${data.color} mr-3"></i>
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-800 leading-none">${data.title}</h3>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wide mt-1">${data.subtitle}</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-600 leading-relaxed mb-4 italic">"${data.desc}"</p>
+                    <div class="overflow-y-auto flex-grow pr-1">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Relatable Examples</h4>
+                        ${examplesHTML}
+                    </div>
+                </div>
+            `;
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx) window.sfx.tick();
+        };
+
         // PAGE 2: RADIO TUNER
         window.updateTuner = (val) => {
             const target = 935; // 93.5
@@ -1706,6 +2037,167 @@
             if(window.sfx) window.sfx.tick();
         };
 
+        // --- FEEDBACK & BADGE LOGIC ---
+        
+        window.setRating = function(n) {
+            userRating = n;
+            for (let i = 1; i <= 5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
+                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
+            }
+            if(window.sfx) window.sfx.tick();
+        }
+
+        window.submitFeedback = function() {
+            if(userRating === 0) {
+                alert("Please select a star rating first.");
+                return;
+            }
+            const feedbackText = document.getElementById('feedback-text').value;
+            
+            // Log Feedback (Mock if no DB, but this file has DB setup)
+            if(window.logFinalScoreToFirestore) {
+                window.logFinalScoreToFirestore({ 
+                    action: 'Feedback_Submitted',
+                    rating: userRating, 
+                    comments: feedbackText
+                });
+            }
+            
+            // Update UI
+            document.getElementById('feedback-container').classList.add('hidden');
+            const successMsg = document.getElementById('feedback-success');
+            if(successMsg) successMsg.classList.remove('hidden');
+            
+            // Unlock Badge Section
+            const badgeSection = document.getElementById('badge-section');
+            if(badgeSection) {
+                badgeSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                badgeSection.classList.add('opacity-100', 'pointer-events-auto');
+            }
+            
+            // Visual Flair for the Icon
+            const badgeIcon = document.querySelector('#badge-display i');
+            const badgeContainer = document.getElementById('badge-display');
+            if(badgeIcon && badgeContainer) {
+                badgeIcon.classList.remove('text-gray-300');
+                badgeIcon.classList.add('text-allgood-primary');
+                badgeContainer.classList.remove('from-gray-100', 'to-gray-200');
+                badgeContainer.classList.add('from-orange-50', 'to-orange-100', 'border-allgood-primary');
+            }
+
+            const badgeBtn = document.getElementById('download-badge-btn');
+            if(badgeBtn) {
+                badgeBtn.disabled = false;
+                badgeBtn.innerHTML = '<i data-lucide="download" class="mr-2 w-4 h-4"></i> Download Badge';
+                badgeBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                badgeBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx) window.sfx.success(); 
+        }
+
+        // Shared Badge SVG Generator
+        window.getBadgeSVG = (nameText, dateText) => {
+            return `
+            <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E0E0E0" stroke-width="2"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="#F7F7F7"/>
+                <rect width="100%" height="100%" fill="url(#smallGrid)"/>
+                <rect x="30" y="30" width="1140" height="740" rx="20" ry="20" fill="none" stroke="#D34716" stroke-width="12"/>
+                <text x="600" y="120" font-family="Georgia, serif" font-weight="bold" font-size="48" fill="#357889" text-anchor="middle" letter-spacing="2">ALLGOOD ACADEMY</text>
+                <text x="600" y="170" font-family="Verdana, sans-serif" font-size="20" fill="#4C4C4C" text-anchor="middle" letter-spacing="6">ARCHITECT OF SELF</text>
+                <line x1="300" y1="200" x2="900" y2="200" stroke="#D34716" stroke-width="4"/>
+                <g transform="translate(600, 420)">
+                    <circle cx="0" cy="0" r="160" fill="white" stroke="#357889" stroke-width="6"/>
+                    <g transform="scale(3.5) translate(-12, -12)" stroke="#D34716" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <circle cx="12" cy="12" r="10" />
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                    </g>
+                </g>
+                <g transform="translate(600, 680)">
+                    <text x="0" y="0" font-family="Verdana, sans-serif" font-size="24" fill="#357889" text-anchor="middle" font-weight="bold">${nameText}</text>
+                    <text x="0" y="40" font-family="Verdana, sans-serif" font-size="18" fill="#757575" text-anchor="middle">CERTIFIED: ${dateText}</text>
+                </g>
+                <text x="600" y="760" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#4C4C4C" text-anchor="middle">"Life begins when you stop running from yourself."</text>
+            </svg>`;
+        };
+
+        // REMOVED: window.renderBadgePreview function entirely
+
+        window.downloadBadge = function() {
+            const nameText = (window.currentUserName || "LEARNER").toUpperCase();
+            const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            const badgeSVG = window.getBadgeSVG(nameText, dateText);
+
+            // Log Completion
+            if(window.logFinalScoreToFirestore) {
+                window.logFinalScoreToFirestore({ 
+                    completed: true,
+                    badgeArtifact: badgeSVG
+                });
+            }
+
+            // Trigger File Download
+            const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Allgood-ArchitectOfSelf-${nameText}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Update Button State
+            const btn = document.getElementById('download-badge-btn');
+            if(btn) {
+                btn.innerHTML = '<i data-lucide="check" class="mr-2 w-4 h-4"></i> Badge Saved';
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover', 'animate-pulse');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                if(window.lucide) window.lucide.createIcons();
+            }
+            if(window.sfx) window.sfx.success();
+        };
+
+        // PAGE 21: MANIFESTO SCROLL
+        window.initManifesto = () => {
+            const scroller = document.getElementById('content-column');
+            const sects = [
+                document.getElementById('man-1'),
+                document.getElementById('man-2'),
+                document.getElementById('man-3')
+            ];
+            
+            // Immediate check in case already visible
+            checkManifestoScroll();
+
+            // Attach scroll listener
+            if(scroller) scroller.onscroll = checkManifestoScroll;
+            
+            function checkManifestoScroll() {
+                if(currentPage !== 20) return; // Only run on page 21 (index 20)
+                
+                sects.forEach((s, i) => {
+                    if(!s) return;
+                    const rect = s.getBoundingClientRect();
+                    const viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+                    
+                    // Element is entering viewport
+                    if (rect.top <= viewHeight * 0.85) {
+                        s.classList.remove('opacity-0', 'translate-y-10');
+                        s.classList.add('opacity-100', 'translate-y-0');
+                    }
+                });
+            }
+        };
+
         // --- INIT HOOKS ---
         const originalShowPage = window.showPage;
         
@@ -1802,7 +2294,7 @@
                 const list = document.getElementById('toc-list');
                 list.innerHTML = '';
                 const titles = [
-                    "Cover", "Signal", "Evidence", "Diagnosis", "Persona", "Shred", "Sort", "Shadow", "Warning", "Mirror", "Integration", "Archetypes", "Dialogue", "Anima", "Balance", "Ego", "True Self", "Illusion", "Tools", "Log", "Shift", "Unknown", "Labels", "Contract", "Badge"];
+                    "Cover", "Signal", "Evidence", "Diagnosis", "Persona", "Shred", "Sort", "Shadow", "Warning", "Mirror", "Integration", "Archetypes", "Dialogue", "Anima", "Balance", "Ego", "True Self", "Mirror", "Tools", "Log", "Manifesto", "Contract", "Badge"];
                 titles.forEach((t, i) => {
                     list.innerHTML += `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded text-xs font-bold transition-colors" onclick="window.showPage(${i}); document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');">${i+1}. ${t}</button>`;
                 });
