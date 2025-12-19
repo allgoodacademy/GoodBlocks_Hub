@@ -284,7 +284,7 @@
         body { 
             font-family: Verdana, sans-serif; 
             background-color: #1a1a1a; 
-            /* ADDED: Background Image */
+            /* ACADEMY STANDARD BACKGROUND: Network/Digital Theme */
             background-image: url("https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
             background-size: cover;
             background-position: center;
@@ -480,17 +480,21 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
-                <!-- 1. STARTUP SCREEN (Solid Background Fixed) -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+                <!-- 1. STARTUP SCREEN (Upgraded: Glassmorphism + Fingerprint) -->
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900/90 backdrop-blur-xl">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
-                            <div class="relative">
-                                <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                <h2 class="text-xl md:text-3xl font-heading font-bold text-white mb-1 relative z-10">Allgood Academy</h2>
-                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md">GoodBlock</h1>
-                                <p class="mt-2 text-white/80 relative z-10 font-body text-sm font-semibold">Digital Decisions Challenge</p>
+                            <div class="relative flex flex-col items-center">
+                                <div class="absolute inset-0 bg-white/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                                
+                                <!-- Identity Symbol: Glowing Fingerprint -->
+                                <i data-lucide="fingerprint" class="w-24 h-24 text-cyan-400 mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"></i>
+                                
+                                <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-widest uppercase">Allgood Academy</h2>
+                                <h1 class="text-5xl md:text-7xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-sm">GoodBlock</h1>
+                                <p class="mt-4 text-cyan-400/80 font-bold text-lg relative z-10 bg-black/30 px-4 py-1 rounded-full backdrop-blur-sm border border-cyan-500/20">Digital Decisions Challenge</p>
                             </div>
-                            <p class="mt-12 text-white/80 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">Click to Power Up</p>
+                            <p class="mt-16 text-white/60 text-xs tracking-[0.4em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
                         </div>
                         <div class="absolute bottom-10 w-full text-center">
                             <p class="text-white/40 text-xs font-body tracking-wide">Powered by the <span class="text-white/60 font-bold">Allgood Academy</span></p>
