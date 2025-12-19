@@ -868,6 +868,26 @@
                     </button>
                 </footer>
 
+                <!-- CONFIRM EXIT MODAL (NEW) -->
+                <div id="exit-modal" class="hidden-modal absolute inset-0 z-[260] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                        <div class="mb-4 text-allgood-primary">
+                            <i data-lucide="log-out" class="w-12 h-12 mx-auto"></i>
+                        </div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Return to Dashboard?</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">You have completed this module. Your progress and badge have been saved.</p>
+                        
+                        <div class="space-y-3">
+                            <button onclick="window.location.href = 'https://allgoodacademy.com'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
+                                Yes, Return Home
+                            </button>
+                            <button onclick="document.getElementById('exit-modal').classList.add('hidden-modal'); document.getElementById('exit-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
+                                Stay Here
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Login Modal & System Menus -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
@@ -1046,8 +1066,34 @@
             
             const backBtn = document.getElementById('back-button');
             const nextBtn = document.getElementById('next-button');
+            
             if(backBtn) { backBtn.disabled = (idx === 0); backBtn.classList.toggle('opacity-30', idx === 0); }
-            if(nextBtn) nextBtn.disabled = (idx === totalPages - 1);
+            
+            // NEXT BUTTON LOGIC
+            if(nextBtn) {
+                // Reset to default state first
+                nextBtn.innerHTML = '<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>';
+                nextBtn.onclick = window.nextPage;
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('bg-gray-500', 'hover:bg-gray-600', 'cursor-not-allowed');
+                nextBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+
+                if (idx === totalPages - 1) {
+                    // Final Page: Transform to "Return to Dashboard"
+                    nextBtn.innerHTML = '<span>Dashboard</span><i data-lucide="layout-grid" class="w-4 h-4 ml-1"></i>';
+                    // UPDATED: Trigger Modal instead of direct link
+                    nextBtn.onclick = () => {
+                        const exitModal = document.getElementById('exit-modal');
+                        if(exitModal) {
+                            exitModal.classList.remove('hidden-modal');
+                            exitModal.classList.add('visible-modal');
+                        }
+                    };
+                } else {
+                    // Normal Page: Ensure standard "Next" behavior
+                     nextBtn.onclick = window.nextPage;
+                }
+            }
             
             const scroll = document.getElementById('content-column');
             if(scroll) scroll.scrollTop = 0;
