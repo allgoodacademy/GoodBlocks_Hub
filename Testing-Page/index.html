@@ -865,31 +865,46 @@
                             </div>
                         </div>
                         
-                        <!-- P14: Anima/Animus (ECLIPSE DRAG - NEW) -->
+                        <!-- P14: Anima/Animus (CONVERGENCE SLIDER - FIXED) -->
                         <div class="page" id="page-14">
-                            <div class="flex flex-col items-center justify-start min-h-full px-6 pt-6 text-center relative overflow-hidden" id="eclipse-container">
-                                <h2 class="text-xl font-bold text-allgood-dark mb-2 z-20 pointer-events-none">Anima & Animus</h2>
-                                <p class="text-xs text-gray-500 mb-4 z-20 pointer-events-none">Drag the Sun and Moon together to find Wholeness.</p>
+                            <div class="flex flex-col items-center justify-center min-h-full px-6 pt-6 text-center relative overflow-hidden h-full">
+                                <h2 class="text-xl font-bold text-allgood-dark mb-2 z-20">Anima & Animus</h2>
+                                <p class="text-xs text-gray-500 mb-8 z-20">Slide to merge the Logic (Sun) and Intuition (Moon).</p>
                                 
-                                <!-- Drop Zone Indicator -->
-                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center z-0">
-                                    <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
+                                <!-- Celestial Container -->
+                                <div class="relative w-full max-w-sm h-40 mb-8 flex items-center justify-center">
+                                    <!-- Center Guide -->
+                                    <div class="absolute w-px h-full bg-gray-200 z-0"></div>
+                                    
+                                    <!-- Sun (Animus) - Starts Left -->
+                                    <div id="celestial-sun" class="absolute left-0 w-20 h-20 bg-amber-400 rounded-full shadow-[0_0_20px_rgba(251,191,36,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white" style="transform: translateX(0);">
+                                        <i data-lucide="sun" class="w-8 h-8 text-amber-900"></i>
+                                    </div>
+
+                                    <!-- Moon (Anima) - Starts Right -->
+                                    <div id="celestial-moon" class="absolute right-0 w-20 h-20 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white mix-blend-multiply" style="transform: translateX(0);">
+                                        <i data-lucide="moon" class="w-8 h-8 text-white"></i>
+                                    </div>
+                                    
+                                    <!-- Eclipse Glow (Hidden until merge) -->
+                                    <div id="eclipse-glow" class="absolute w-24 h-24 bg-white rounded-full opacity-0 shadow-[0_0_40px_rgba(255,255,255,0.9)] transition-opacity duration-500 z-0"></div>
                                 </div>
 
-                                <!-- Draggable Sun (Animus) -->
-                                <div id="drag-sun" class="absolute top-32 right-10 w-24 h-24 bg-amber-400 rounded-full shadow-[0_0_30px_rgba(251,191,36,0.6)] flex items-center justify-center cursor-move z-10 touch-none active:scale-110 transition-transform" style="touch-action: none;">
-                                    <i data-lucide="sun" class="w-10 h-10 text-amber-900"></i>
-                                </div>
-
-                                <!-- Draggable Moon (Anima) -->
-                                <div id="drag-moon" class="absolute bottom-32 left-10 w-24 h-24 bg-indigo-500 rounded-full shadow-[0_0_30px_rgba(99,102,241,0.6)] flex items-center justify-center cursor-move z-10 touch-none active:scale-110 transition-transform" style="touch-action: none;">
-                                    <i data-lucide="moon" class="w-10 h-10 text-white"></i>
+                                <!-- The Slider -->
+                                <div class="w-full max-w-xs z-20">
+                                    <div class="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                        <span>Separation</span>
+                                        <span>Integration</span>
+                                    </div>
+                                    <input type="range" min="0" max="100" value="0" class="range-slider" oninput="updateEclipse(this.value)">
                                 </div>
 
                                 <!-- Success Text -->
-                                <div id="eclipse-text" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 text-center opacity-0 pointer-events-none z-30 transition-opacity duration-1000">
-                                    <h3 class="text-2xl font-bold text-white drop-shadow-md mb-2">WHOLENESS</h3>
-                                    <p class="text-sm text-white drop-shadow-md">Logic and Intuition integrated. The conflict ends.</p>
+                                <div id="eclipse-text" class="h-16 mt-6 flex items-center justify-center opacity-0 transition-opacity duration-500">
+                                    <div>
+                                        <h3 class="text-lg font-bold text-allgood-primary">WHOLENESS</h3>
+                                        <p class="text-xs text-gray-500">Conflict ends when the two halves meet.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1249,9 +1264,8 @@
             if(idx === 11) { // Page 12 (0-based 11)
                 setTimeout(window.renderArchetype, 100);
             }
-            if(idx === 13) { // Page 14
-                 setTimeout(initDraggables, 100);
-            }
+            // Page 14 (idx 13) uses CSS/Slider logic, no init needed.
+            
             if(idx === 15) { // Page 16
                  setTimeout(buildEgoWall, 100);
             }
@@ -1558,96 +1572,53 @@
             }
         }
 
-        // PAGE 14: ECLIPSE DRAG
-        const initDraggables = () => {
-            const container = document.getElementById('eclipse-container');
-            if(!container) return; // safety
-            
-            const sun = document.getElementById('drag-sun');
-            const moon = document.getElementById('drag-moon');
+        // PAGE 14: ECLIPSE CONVERGENCE (SLIDER LOGIC)
+        window.updateEclipse = (val) => {
+            const sun = document.getElementById('celestial-sun');
+            const moon = document.getElementById('celestial-moon');
+            const glow = document.getElementById('eclipse-glow');
             const text = document.getElementById('eclipse-text');
             
-            let isDragging = null;
-            let offset = { x:0, y:0 };
-
-            const onStart = (e, el) => {
-                isDragging = el;
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                const rect = el.getBoundingClientRect();
-                offset.x = clientX - rect.left;
-                offset.y = clientY - rect.top;
-                el.style.zIndex = 100;
-            };
-
-            const onMove = (e) => {
-                if (!isDragging) return;
-                e.preventDefault();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                
-                const containerRect = container.getBoundingClientRect();
-                let x = clientX - containerRect.left - offset.x;
-                let y = clientY - containerRect.top - offset.y;
-                
-                isDragging.style.left = x + 'px';
-                isDragging.style.top = y + 'px';
-                isDragging.style.right = 'auto'; 
-                isDragging.style.bottom = 'auto'; 
-
-                checkOverlap();
-            };
-
-            const onEnd = () => {
-                if(isDragging) isDragging.style.zIndex = 10;
-                isDragging = null;
-            };
-
-            const checkOverlap = () => {
-                const r1 = sun.getBoundingClientRect();
-                const r2 = moon.getBoundingClientRect();
-                
-                const distance = Math.hypot(r1.x - r2.x, r1.y - r2.y);
-                
-                if (distance < 30) { 
-                    const cx = container.offsetWidth / 2 - 48; 
-                    const cy = container.offsetHeight / 2 - 48;
-                    
-                    sun.style.transition = 'all 0.5s ease';
-                    moon.style.transition = 'all 0.5s ease';
-                    
-                    sun.style.left = cx + 'px'; sun.style.top = cy + 'px';
-                    moon.style.left = cx + 'px'; moon.style.top = cy + 'px';
-                    
-                    sun.style.backgroundColor = '#000'; 
-                    sun.style.boxShadow = '0 0 50px rgba(255,255,255,0.8)';
-                    moon.style.opacity = '0.1'; 
-                    
-                    text.style.opacity = 1;
-                    
-                    container.removeEventListener('mousemove', onMove);
-                    container.removeEventListener('touchmove', onMove);
-                    
-                    if(text.dataset.played !== 'true') {
-                        if(window.sfx) window.sfx.success();
-                        text.dataset.played = 'true';
-                    }
+            // Calculate Movement (0 to 100)
+            // Ideally, at 100, both transform to the center.
+            // Sun starts at left: 0. Needs to move RIGHT.
+            // Moon starts at right: 0. Needs to move LEFT.
+            // The container is relative.
+            
+            // We can use percentage offsets.
+            // Sun: left-0. transform: translateX(val * X)
+            // Let's assume container width ~300px. Center is 150px.
+            // Item width 80px. Center of item is 40px.
+            // So we need to move them inward.
+            
+            // Simpler approach: Use CSS variables or fixed percentage assumption
+            // Sun moves from 0% left towards 50% left (minus half width)
+            // Moon moves from 0% right towards 50% right (minus half width)
+            
+            // 35% seems like a safe "meet in the middle" distance for this responsive container
+            const moveDistance = val * 1.1; // multiplier to ensure they touch
+            
+            sun.style.transform = `translateX(${moveDistance}px)`;
+            moon.style.transform = `translateX(-${moveDistance}px)`;
+            
+            // Check for overlap/completion
+            if (val > 95) {
+                if (text.style.opacity !== '1') {
+                    text.style.opacity = '1';
+                    glow.style.opacity = '1';
+                    sun.classList.add('bg-black', 'border-indigo-500'); // Eclipse Effect
+                    moon.classList.add('opacity-50');
+                    if(window.sfx) window.sfx.success();
                 }
-            };
-
-            sun.addEventListener('mousedown', (e) => onStart(e, sun));
-            sun.addEventListener('touchstart', (e) => onStart(e, sun));
-            
-            moon.addEventListener('mousedown', (e) => onStart(e, moon));
-            moon.addEventListener('touchstart', (e) => onStart(e, moon));
-            
-            container.addEventListener('mousemove', onMove);
-            container.addEventListener('touchmove', onMove);
-            
-            container.addEventListener('mouseup', onEnd);
-            container.addEventListener('touchend', onEnd);
-            container.addEventListener('mouseleave', onEnd);
+            } else {
+                text.style.opacity = '0';
+                glow.style.opacity = '0';
+                sun.classList.remove('bg-black', 'border-indigo-500');
+                moon.classList.remove('opacity-50');
+            }
         };
+
+        // REMOVED OLD initDraggables FUNCTION AND LOGIC
 
         // PAGE 16: EGO WALL GENERATOR
         const buildEgoWall = () => {
@@ -1682,6 +1653,7 @@
         // PAGE 12: ARCHETYPE CAROUSEL
         const archetypes = [
             { name: "The Hero", icon: "sword", color: "blue", desc: "Seeks to prove worth through action and mastery.", fear: "Weakness" },
+            { name: "The Saboteur", icon: "shield-alert", color: "gray", desc: "Uses fear and doubt to keep you safe from change.", fear: "Growth" },
             { name: "The Sage", icon: "book-open", color: "amber", desc: "Seeks truth, knowledge, and understanding.", fear: "Deception" },
             { name: "The Orphan", icon: "users", color: "teal", desc: "Seeks safety, belonging, and connection.", fear: "Abandonment" },
             { name: "The Rebel", icon: "flame", color: "red", desc: "Seeks to overturn what isn't working.", fear: "Powerlessness" },
@@ -1704,16 +1676,17 @@
                     amber: { bg: 'bg-amber-50', text: 'text-amber-500', border: 'border-amber-200' },
                     teal: { bg: 'bg-teal-50', text: 'text-teal-500', border: 'border-teal-200' },
                     red: { bg: 'bg-red-50', text: 'text-red-500', border: 'border-red-200' },
-                    purple: { bg: 'bg-purple-50', text: 'text-purple-500', border: 'border-purple-200' }
+                    purple: { bg: 'bg-purple-50', text: 'text-purple-500', border: 'border-purple-200' },
+                    gray: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' }
                 };
-                const c = colors[data.color];
+                const c = colors[data.color] || colors.blue; // Fallback
 
                 card.innerHTML = `
                     <div class="w-20 h-20 ${c.bg} rounded-full flex items-center justify-center mb-6 ${c.border} border-2 shadow-inner">
                         <i data-lucide="${data.icon}" class="w-10 h-10 ${c.text}"></i>
                     </div>
                     <h3 class="text-xl font-heading font-bold text-gray-800 mb-3">${data.name}</h3>
-                    <p class="text-sm text-gray-600 mb-6 leading-relaxed italic">"${data.desc}"</p>
+                    <p class="text-sm text-gray-600 mb-6 leading-relaxed italic text-center px-4">${data.desc}</p>
                     <div class="mt-auto border-t border-gray-100 w-full pt-4">
                         <span class="text-[10px] uppercase font-bold text-gray-400 tracking-widest block mb-1">Core Fear</span>
                         <p class="text-xs font-bold text-red-400 uppercase tracking-wide">${data.fear}</p>
