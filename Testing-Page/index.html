@@ -1664,9 +1664,10 @@
 
     <!-- ORBITAL LINK: Video Injection -->
     <div id="bg-video-container">
-        <!-- Secure Feed: Earth Rotation -->
-        <video id="bg-video" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop">
-            <source src="https://assets.mixkit.co/videos/preview/mixkit-spinning-earth-in-space-29379-large.mp4" type="video/mp4">
+        <!-- Secure Feed: Earth Rotation (Night Side) -->
+        <video id="bg-video" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072&auto=format&fit=crop">
+            <!-- FIXED SOURCE: Pexels CDN (Earth Night Rotation - High Contrast) -->
+            <source src="https://videos.pexels.com/video-files/856856/856856-hd_1920_1080_25fps.mp4" type="video/mp4">
             <!-- Fallback if video fails -->
             Your browser does not support the video tag.
         </video>
@@ -2772,17 +2773,21 @@
             
             // Startup Screen Listener
             const startupScreen = document.getElementById('startup-screen');
-            if(startupScreen) {
-                startupScreen.addEventListener('click', () => {
-                    if(window.sfx && window.sfx.powerOn) {
-                        window.sfx.powerOn(); 
-                    } else if (window.initAudio) {
-                        window.initAudio();
-                    }
-                    
-                    startupScreen.style.opacity = '0';
-                    
-                    const storedUID = localStorage.getItem('aa_uid');
+        if(startupScreen) {
+            startupScreen.addEventListener('click', () => {
+                if(window.sfx && window.sfx.powerOn) {
+                    window.sfx.powerOn(); 
+                } else if (window.initAudio) {
+                    window.initAudio();
+                }
+                
+                // FORCE VIDEO START (Fix for black screen)
+                const video = document.getElementById('bg-video');
+                if(video) video.play().catch(e => console.log("Video autoplay blocked by policy", e));
+                
+                startupScreen.style.opacity = '0';
+                
+                const storedUID = localStorage.getItem('aa_uid');
                     const storedName = localStorage.getItem('aa_username');
                     
                     if (storedName && storedUID) {
