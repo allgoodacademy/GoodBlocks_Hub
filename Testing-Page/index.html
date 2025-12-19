@@ -1403,6 +1403,20 @@
             window.updateJodi(idx);
             if(window.sfx) window.sfx.nav();
 
+            // NEW: Log Page View & Progress
+            if(window.logFinalScoreToFirestore) {
+                // Calculate completion percentage based on highest page visited vs total
+                // For simplicity here, we track current page as progress
+                const progressPercent = Math.round(((idx + 1) / totalPages) * 100);
+                
+                window.logFinalScoreToFirestore({ 
+                    action: 'Page_View',
+                    detail: `Page_${idx + 1}`,
+                    page_number: idx + 1,
+                    progress: progressPercent
+                });
+            }
+
             // --- Init Special Pages ---
             if(idx === 11) { // Page 12 (0-based 11)
                 setTimeout(window.renderArchetype, 100);
@@ -2132,6 +2146,12 @@
         // REMOVED: window.renderBadgePreview function entirely
 
         window.downloadBadge = function() {
+            // THRESHOLD CHECK: Ensure user is actually at the end
+            if (currentPage < totalPages - 1) {
+                alert("You must complete the entire module to unlock this badge.");
+                return;
+            }
+
             const nameText = (window.currentUserName || "LEARNER").toUpperCase();
             const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
             const badgeSVG = window.getBadgeSVG(nameText, dateText);
@@ -2140,7 +2160,8 @@
             if(window.logFinalScoreToFirestore) {
                 window.logFinalScoreToFirestore({ 
                     completed: true,
-                    badgeArtifact: badgeSVG
+                    badgeArtifact: badgeSVG,
+                    progress: 100 // Force 100% on completion
                 });
             }
 
