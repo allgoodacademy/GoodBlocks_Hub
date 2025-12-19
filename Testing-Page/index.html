@@ -16,7 +16,7 @@
         import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         
         // 1. CONFIGURATION
-        const firebaseConfig = {
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
             authDomain: "allgood-academy.firebaseapp.com",
             projectId: "allgood-academy",
@@ -26,7 +26,7 @@
             measurementId: "G-EN4M7T3BLQ"
         };
         
-        const appId = 'allgood-academy'; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy'; 
         
         // 2. INITIALIZE SERVICES
         const app = initializeApp(firebaseConfig);
@@ -166,7 +166,10 @@
 
             try {
                 let user;
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                    user = auth.currentUser;
+                } else if (auth.currentUser) {
                     user = auth.currentUser;
                 } else {
                     const result = await signInAnonymously(auth);
@@ -249,6 +252,13 @@
         // Expose for Debugging
         window.auth = auth;
         window.db = db;
+
+        // Auto-init auth if token exists (Prevents referer errors on load)
+        (async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { console.log("Auto-auth failed", e); }
+            }
+        })();
     </script>
     
     <script>
@@ -528,12 +538,12 @@
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Reset"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
+                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Reset"><i data-lucide="home" class="w-6 h-6"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></button>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="moon" class="w-5 h-5"></i></button>
                             <!-- UPDATED: Hidden on mobile (sm:block) -->
-                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+                            <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-7 h-7"></i></button>
                         </div>
                     </div>
                 </header>
@@ -557,7 +567,7 @@
                     <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
                         <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                             <span class="font-bold text-allgood-dark font-heading">Table of Contents</span>
-                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
                         <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
                     </div>
@@ -593,13 +603,21 @@
                         <div class="mb-4 text-allgood-primary">
                             <i data-lucide="log-out" class="w-12 h-12 mx-auto"></i>
                         </div>
-                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Return to Dashboard?</h2>
-                        <p class="text-sm text-gray-500 mb-6 font-body">You have completed this module. Your progress and badge have been saved.</p>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Module Complete</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Your progress has been saved. What's your next move?</p>
                         
                         <div class="space-y-3">
-                            <button onclick="window.location.href = 'https://allgoodacademy.com'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
-                                Yes, Return Home
+                            <!-- NEW: Next Lesson (Growth Path) -->
+                            <button onclick="window.location.href = 'https://allgoodacademy.com/jsh/finding-yourself'" class="w-full bg-allgood-secondary hover:bg-[#2D6473] text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
+                                <i data-lucide="play-circle" class="w-5 h-5 mr-2"></i> Next Lesson
                             </button>
+
+                            <!-- Existing: Return Home -->
+                            <button onclick="window.location.href = 'https://allgoodacademy.com'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
+                                Return Home
+                            </button>
+
+                            <!-- Existing: Stay Here -->
                             <button onclick="document.getElementById('exit-modal').classList.add('hidden-modal'); document.getElementById('exit-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
                                 Stay Here
                             </button>
@@ -620,16 +638,16 @@
                             </div>
                             <button class="accordion-toggle w-full bg-white border border-gray-200 p-4 rounded-lg shadow-md flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                 <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
-                                <svg class="accordion-icon h-5 w-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                <i data-lucide="chevron-down" class="accordion-icon w-5 h-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary"></i>
                             </button>
                             <!-- UPDATED ACCORDION CONTENT FROM INDEX (7).HTML -->
                             <div class="accordion-content hidden bg-gray-50 border-x border-b border-gray-200 rounded-b-lg p-5 text-gray-600 shadow-inner text-xs font-body">
                                 <p class="mb-4 text-sm text-allgood-dark">This GoodBlock is your interactive workspace. Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m5 5v-4m0 4h-4" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
-                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><i data-lucide="home" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover. <strong>Hold for 2s</strong> to return to dashboard.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><i data-lucide="moon" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Toggle high-contrast Dark Mode for low-light environments.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><i data-lucide="maximize" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace. Removes the frame for mobile devices.</span></div></div>
+                                    <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-dark"><i data-lucide="menu" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Table of Contents</strong><span class="text-gray-500 leading-snug">Jump directly to any section without losing progress.</span></div></div>
                                 </div>
                             </div>
                         </div>
@@ -803,6 +821,8 @@
         const BADGE_THRESHOLD = 80;
         let totalChallengeScore = 0;
         let answeredScenarioScores = {};
+        // NEW: State for feedback
+        let feedbackSubmitted = false;
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         function sanitizeText(text) {
@@ -871,10 +891,10 @@
             window.showPage = function(index) {
                 if (index < 0 || index >= TOTAL_PAGES) return;
                 
-                // Final Score Check
-                if (index === 32 && Object.keys(answeredScenarioScores).length < TOTAL_SCENARIOS) {
-                    window.showScenarioOutcome('challenge-incomplete'); return;
-                }
+                // REMOVED: Navigation Guard for Page 33
+                // if (index === 32 && Object.keys(answeredScenarioScores).length < TOTAL_SCENARIOS) {
+                //    window.showScenarioOutcome('challenge-incomplete'); return;
+                // }
 
                 // PLAY NAV SOUND
                 if(window.sfx && window.sfx.nav) window.sfx.nav();
@@ -1386,13 +1406,12 @@
                 let rank = "";
                 let rankColor = "";
                 let message = "";
-                let isCertified = false;
+                // REMOVED: isCertified calculation here, moving to logic block below
                 
                 if (percentage >= 89) { // 80 points
                     rank = "Digital Architect";
                     rankColor = "text-green-600";
                     message = "Exceptional! You consistently demonstrated the Publisher Mindset.";
-                    isCertified = true;
                 } else if (percentage >= 70) {
                     rank = "Digital Manager";
                     rankColor = "text-yellow-600";
@@ -1411,32 +1430,44 @@
                 rankMessage.textContent = message;
                 certReqText.innerHTML = sanitizeText(certReqText.innerHTML);
 
-                // GATEKEEPER LOGIC: Lock Badge until Feedback
-                // Default state: visual lock
-                if (certSection) certSection.classList.add('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
-
-                if (currentScore >= BADGE_THRESHOLD) {
-                    // Passed, but locked pending feedback
-                    badgeBtn.disabled = true;
-                    badgeBtn.classList.add('bg-gray-300', 'cursor-not-allowed', 'shadow-none');
-                    badgeBtn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg');
-                    badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Submit Feedback to Unlock';
+                // GATEKEEPER LOGIC: Check Completion, Score, and Feedback
+                const isComplete = Object.keys(answeredScenarioScores).length === TOTAL_SCENARIOS;
+                const isPassing = currentScore >= BADGE_THRESHOLD;
+                
+                // Reset Button State Base
+                badgeBtn.disabled = true;
+                badgeBtn.className = "w-full bg-gray-300 text-white font-bold py-3 rounded shadow-none cursor-not-allowed flex items-center justify-center transition-all duration-300";
+                
+                // Logic Tree
+                if (!isComplete) {
+                     // Condition 1: Incomplete
+                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Finish Challenge to Unlock';
+                     if (certSection) certSection.classList.add('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                } else if (!isPassing) {
+                     // Condition 2: Complete but Failed
+                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked (Score < 80)';
+                     if (certSection) certSection.classList.add('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                } else if (!feedbackSubmitted) {
+                     // Condition 3: Passed but Needs Feedback
+                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Submit Feedback to Unlock';
+                     // Unlock the visual section so they can see the badge, but button is locked
+                     if (certSection) certSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
                 } else {
-                    // Failed
-                    badgeBtn.disabled = true;
-                    badgeBtn.classList.add('bg-gray-300', 'cursor-not-allowed', 'shadow-none');
-                    badgeBtn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg');
-                    badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked';
+                     // Condition 4: All Green
+                     badgeBtn.disabled = false;
+                     badgeBtn.className = "w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-lg flex items-center justify-center transition-all duration-300 animate-pulse";
+                     badgeBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4 mr-2"></i>Download Your Badge';
+                     if (certSection) certSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
                 }
                 
-                // Send both signals: 'completed' (always true here) and 'isCertified' (based on score)
+                // Send signals
                 window.logFinalScoreToFirestore({ 
                     finalScore: currentScore, 
                     maxScore: MAX_SCORE, 
                     percentage: percentage, 
                     rank: rank, 
-                    completed: true, 
-                    isCertified: isCertified, 
+                    completed: isComplete, 
+                    isCertified: (isComplete && isPassing), 
                     sessionId: window.sessionId 
                 });
                 
@@ -1466,9 +1497,15 @@
 
                 for (let i = 1; i <= TOTAL_SCENARIOS; i++) {
                     const data = SCENARIO_DATA[i - 1];
-                    const pageIndex = i + 1;
+                    // Nav Index: Cover(0), Welcome(1), Scen1(2)...
+                    const navIndex = i + 1; 
+                    // Visual Page: Cover(1), Welcome(2), Scen1(3)...
+                    const visualNum = i + 2;
+                    
                     const shortTitle = data.title.split('. Question:')[0].substring(0, 30) + "...";
-                    addLink(`${pageIndex}. ${shortTitle}`, pageIndex);
+                    
+                    // Display: "3. Scenario Title" (links to index 2)
+                    addLink(`${visualNum}. ${shortTitle}`, navIndex);
                 }
 
                 addLink("33. Score, Feedback & Badge", 32, true, "text-allgood-secondary");
@@ -1481,10 +1518,8 @@
             });
 
             // --- NAV LISTENERS ---
-            if(nextButton) nextButton.addEventListener('click', () => {
-                if (currentPageIndex < (TOTAL_PAGES - 1)) window.showPage(currentPageIndex + 1);
-                else window.performHardReset();
-            });
+            // REMOVED: nextButton.addEventListener... logic is now fully handled in showPage() via .onclick to prevent double-firing.
+            
             if(backButton) backButton.addEventListener('click', () => { if(currentPageIndex > 0) window.showPage(currentPageIndex - 1); });
             document.getElementById('menu-toggle').addEventListener('click', window.openMenuModal);
             document.getElementById('close-menu').addEventListener('click', window.closeMenuModal);
@@ -1725,20 +1760,9 @@
                 document.getElementById('feedback-container').classList.add('hidden');
                 document.getElementById('feedback-success').classList.remove('hidden');
                 
-                // UNLOCK LOGIC
-                if (totalChallengeScore >= BADGE_THRESHOLD) {
-                    const certSection = document.getElementById('certification-section');
-                    if (certSection) certSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
-                    
-                    const badgeBtn = document.getElementById('download-badge-btn');
-                    if (badgeBtn) {
-                        badgeBtn.disabled = false;
-                        badgeBtn.classList.remove('bg-gray-300', 'cursor-not-allowed', 'shadow-none');
-                        badgeBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg');
-                        badgeBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4 mr-2"></i>Download Your Badge';
-                    }
-                    if(window.lucide) window.lucide.createIcons();
-                }
+                // UPDATE STATE & REFRESH UI
+                feedbackSubmitted = true;
+                window.updateFinalScorePage();
 
                 sfx.nav(); 
             }
