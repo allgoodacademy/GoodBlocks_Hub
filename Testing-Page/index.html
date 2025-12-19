@@ -653,6 +653,11 @@
                         if (gameName === "Digital Asset Defense" && data.badgeSVG) {
                             window.userEarnedBadges['defense'] = data.badgeSVG;
                         }
+
+                        // 3c. Finding Yourself Asset Logic (NEW)
+                        if (gameName === "Jodi's Schoolhouse: Finding Yourself" && data.badgeSVG) {
+                            window.userEarnedBadges['finding'] = data.badgeSVG;
+                        }
                         
                         // Future proofing: Generic badge storage logic could go here
                         if (data.badgeSVG && gameName === "Airport Navigator") {
