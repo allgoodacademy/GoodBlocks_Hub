@@ -252,8 +252,24 @@
             .tablet-frame::before { display: none !important; }
             .screen-container { border-radius: 0 !important; box-shadow: none !important; }
             header.navbar-content { padding-top: max(env(safe-area-inset-top), 12px); height: auto; min-height: 60px; padding-bottom: 12px; }
-            footer.footer-content { position: absolute; bottom: 0; left: 0; width: 100%; padding-bottom: max(env(safe-area-inset-bottom), 20px); padding-top: 12px; height: auto; min-height: 80px; z-index: 100; background-color: white; border-top: 1px solid #e5e7eb; }
-            .content-column { padding-bottom: 120px !important; }
+            
+            /* MOBILE FOOTER OVERRIDE */
+            footer.footer-content { 
+                position: absolute; bottom: 0; left: 0; width: 100%; 
+                padding-bottom: max(env(safe-area-inset-bottom), 10px); 
+                padding-top: 10px; 
+                height: auto; 
+                min-height: 60px; /* Reduced from 80px */
+                z-index: 100; 
+                background-color: white; 
+                border-top: 1px solid #e5e7eb; 
+            }
+            /* Smaller buttons on mobile */
+            footer.footer-content button {
+                padding-top: 0.5rem; padding-bottom: 0.5rem;
+                font-size: 0.75rem; /* Smaller text */
+            }
+            .content-column { padding-bottom: 100px !important; }
         }
 
         .navbar-content { flex: 0 0 60px; z-index: 50; }
