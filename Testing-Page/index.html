@@ -1328,7 +1328,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.6; /* Dimmed for legibility */
+            opacity: 1.0; /* MAX VISIBILITY */
         }
 
         /* ORBITAL LINK: Sat-Link Overlay (Scanlines + Vignette) */
@@ -1342,8 +1342,8 @@
             background: 
                 /* Scanlines */
                 linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                /* Vignette */
-                radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+                /* Vignette (Reduced Intensity 0.8 -> 0.4) */
+                radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
             background-size: 100% 4px, 100% 100%;
             pointer-events: none;
         }
