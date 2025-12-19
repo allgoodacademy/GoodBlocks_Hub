@@ -24,7 +24,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        /* ADDED: limit */
+        import { getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp, onSnapshot, query, where, limit } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         setLogLevel('Debug');
@@ -63,6 +64,7 @@
         let launchCount = parseInt(localStorage.getItem('aa_launch_count') || '0');
         let unsubscribeLaunches = null;
         let unsubscribeDecisions = null;
+        let unsubscribeIntel = null; // NEW: Intel Listener
         
         window.allModuleElements = {};
         // GLOBAL REGISTRY FOR LIVE SVG ASSETS
@@ -98,6 +100,7 @@
              
              window.startLaunchListener(user.uid);
              window.startDecisionsStatusListener(user.uid);
+             window.startIntelListener(user.uid); // NEW: Start Intel Check
         }
 
         window.handleGuestLogin = async () => {
@@ -260,6 +263,10 @@
                     isGuest: user.isAnonymous
                 });
                 
+                // NEW: Unlock Intel Badge immediately
+                localStorage.setItem('aa_intel_sent', 'true');
+                window.updateBadges();
+
                 sfx.confirm();
                 input.value = "";
                 
@@ -276,6 +283,9 @@
                         btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
                         btn.innerHTML = originalText;
                         lucide.createIcons();
+                        
+                        // Show notification of badge unlock if it was just unlocked
+                        // (Optional enhancement, sticking to core logic for now)
                     }, 500);
                 }, 1500);
 
@@ -306,6 +316,8 @@
             localStorage.removeItem('aa_jlc_complete');
             localStorage.removeItem('aa_identity_complete');
             localStorage.removeItem('aa_defense_complete');
+            localStorage.removeItem('aa_intel_sent');
+            localStorage.removeItem('aa_finding_complete'); // NEW: Clear Finding status
 
             launchCount = 0; 
             
@@ -321,6 +333,11 @@
             if (unsubscribeDecisions) { 
                 unsubscribeDecisions();
                 unsubscribeDecisions = null;
+            }
+
+            if (unsubscribeIntel) { // NEW: Cleanup Intel Listener
+                unsubscribeIntel();
+                unsubscribeIntel = null;
             }
             
             // Reset badges
@@ -636,6 +653,11 @@
                         if (gameName === "Digital Asset Defense" && data.badgeSVG) {
                             window.userEarnedBadges['defense'] = data.badgeSVG;
                         }
+
+                        // 3c. Finding Yourself Asset Logic (NEW)
+                        if (gameName === "Jodi's Schoolhouse: Finding Yourself" && data.badgeSVG) {
+                            window.userEarnedBadges['finding'] = data.badgeSVG;
+                        }
                         
                         // Future proofing: Generic badge storage logic could go here
                         if (data.badgeSVG && gameName === "Airport Navigator") {
@@ -659,6 +681,10 @@
                 // Store Defense Status (NEW)
                 if (completedModules.has("Digital Asset Defense")) localStorage.setItem('aa_defense_complete', 'true');
                 else localStorage.removeItem('aa_defense_complete');
+
+                // Store Finding Yourself Status (NEW - Badge 9)
+                if (completedModules.has("Finding Yourself")) localStorage.setItem('aa_finding_complete', 'true');
+                else localStorage.removeItem('aa_finding_complete');
                 
                 // Check specifically for Airport Navigator for the specialized badge slot
                 if (completedModules.has("Airport Navigator")) localStorage.setItem('aa_airport_complete', 'true');
@@ -745,6 +771,12 @@
             const defenseComplete = localStorage.getItem('aa_defense_complete') === 'true';
             if (defenseComplete) badgeCount++; // 7. Asset Defender
 
+            const intelSent = localStorage.getItem('aa_intel_sent') === 'true';
+            if (intelSent) badgeCount++; // 8. Intel Officer
+
+            const findingComplete = localStorage.getItem('aa_finding_complete') === 'true';
+            if (findingComplete) badgeCount++; // 9. Origin Scout
+
             // Update Header Display
             const badgeCountEl = document.getElementById('badge-count-display');
             if(badgeCountEl) badgeCountEl.textContent = `BADGES: ${badgeCount}`;
@@ -762,6 +794,10 @@
             updateBadgeSlot('badge-slot-6', identityComplete);
             // Badge 7 (Asset Defender)
             updateBadgeSlot('badge-slot-7', defenseComplete);
+            // Badge 8 (Intel Officer)
+            updateBadgeSlot('badge-slot-8', intelSent);
+            // Badge 9 (Origin Scout)
+            updateBadgeSlot('badge-slot-9', findingComplete);
 
             const launchStat = document.getElementById('stat-total-launches');
             if (launchStat) launchStat.textContent = launchCount;
@@ -862,20 +898,30 @@
                     desc = "Awarded for demonstrating superior judgment in the Digital Decisions Challenge (Score > 80%).";
                     largeIconHtml = `<i data-lucide="shield-check" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
-                case 'entrepreneur': // NEW CASE
+                case 'entrepreneur': 
                     title = "Certified Entrepreneur";
                     desc = "Awarded for achieving $800+ profit in Jolene's Lemonade Challenge. Demonstrates business acumen.";
                     largeIconHtml = `<span class="text-5xl ${finalUnlocked ? '' : 'grayscale opacity-50'}">🍋</span>`;
                     break;
-                case 'identity': // NEW CASE 6
+                case 'identity': 
                     title = "Identity Guardian";
                     desc = "Awarded for completing 'Your Digital Identity'. Signifies mastery of personal perimeter security.";
                     largeIconHtml = `<i data-lucide="fingerprint" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
-                case 'defense': // NEW CASE 7
+                case 'defense': 
                     title = "Asset Defender";
                     desc = "Awarded for completing 'Digital Asset Defense'. Demonstrates mastery of wallet security protocols.";
                     largeIconHtml = `<i data-lucide="shield" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
+                    break;
+                case 'intel': // NEW CASE 8
+                    title = "Intel Officer";
+                    desc = "Awarded for sharing your voice. Submit a question, feedback, or tip via the message tool to earn this badge.";
+                    largeIconHtml = `<i data-lucide="radio-tower" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
+                    break;
+                case 'finding': // NEW CASE 9
+                    title = "Origin Scout";
+                    desc = "Awarded for completing 'Finding Yourself'. Signifies the courage to explore one's own history to build a stronger future.";
+                    largeIconHtml = `<i data-lucide="compass" class="w-12 h-12 ${finalUnlocked ? 'text-allgood-primary' : 'text-slate-400'}"></i>`;
                     break;
                 case 'classified': 
                     title = "Classified Asset";
@@ -1088,6 +1134,7 @@
                 
                 window.startLaunchListener(storedUID);
                 window.startDecisionsStatusListener(storedUID); 
+                window.startIntelListener(storedUID); // NEW: Restore Intel Check
                 return true; 
             }
             return false; 
@@ -1102,6 +1149,7 @@
                     if (dashboard.style.display === 'block') {
                         window.startLaunchListener(user.uid);
                         window.startDecisionsStatusListener(user.uid); 
+                        window.startIntelListener(user.uid); // NEW: Ensure check runs on reload
                         return;
                     }
                     
@@ -1131,12 +1179,38 @@
                     closeLoginModal(); 
                     window.startLaunchListener(user.uid);
                     window.startDecisionsStatusListener(user.uid); 
+                    window.startIntelListener(user.uid); // NEW: Start check on fresh login
                 } else {
                     if (dashboard.style.display === 'block') {
                          window.handleLogout(); 
                     }
                 }
             });
+        }
+
+        // --- NEW LISTENER FOR INTEL BADGE ---
+        window.startIntelListener = function(uid) {
+            if (unsubscribeIntel) unsubscribeIntel();
+
+            try {
+                const inboxRef = collection(db, 'artifacts', appId, 'users', uid, 'feedback_inbox');
+                // Efficient query: We only need to know if > 0 documents exist
+                const q = query(inboxRef, limit(1));
+
+                unsubscribeIntel = onSnapshot(q, (snapshot) => {
+                    if (!snapshot.empty) {
+                        // If any message exists, they are an Intel Officer
+                        if (localStorage.getItem('aa_intel_sent') !== 'true') {
+                            localStorage.setItem('aa_intel_sent', 'true');
+                            window.updateBadges();
+                        }
+                    }
+                }, (error) => {
+                    console.log("Intel Check Silent Fail", error);
+                });
+            } catch (e) {
+                console.warn("Intel listener setup failed", e);
+            }
         }
 
         // --- NEW ADMIN FUNCTIONS ---
@@ -1272,19 +1346,33 @@
         */
         body {
             font-family: Verdana, sans-serif;
-            background-color: #1a1a1a;
-            /* Industrial grid pattern - FIXED */
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
-            background-attachment: fixed;
+            background-color: #0f172a; /* Deep Space Blue fallback */
             min-height: 100vh;
             position: relative;
             margin: 0;
             padding: 0;
             overflow: hidden;
         }
+
+        /* ORBITAL LINK: Video Background Layer */
+        #bg-video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -50;
+            overflow: hidden;
+        }
+
+        #bg-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 1.0; /* MAX VISIBILITY */
+        }
+
+        /* ORBITAL LINK: Overlay Removed completely */
 
         h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
 
@@ -1600,6 +1688,14 @@
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body">
 
+    <!-- ORBITAL LINK: Static Feed Injection -->
+    <div id="bg-video-container">
+        <!-- Secure Feed: Earth Night Side (Unsplash Asset) -->
+        <img id="bg-image" src="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Orbital View">
+    </div>
+    
+    <!-- Overlay Element Removed -->
+
     <main class="flex-grow flex items-center justify-center py-8">
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
@@ -1612,7 +1708,14 @@
                             <h2 class="text-xl md:text-2xl font-heading text-slate-400 mb-2 uppercase">WELCOME TO THE</h2>
                             <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md static-neon-glow uppercase">ALLGOOD<span class="text-white">ACADEMY</span></h1>
                         </div>
-                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
+                        
+                        <!-- ADDED: Power Icon Flare -->
+                        <div class="mt-8 mb-4 relative transition-transform duration-500 group-hover:scale-110">
+                            <div class="absolute inset-0 bg-allgood-primary/50 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <i data-lucide="power" class="w-16 h-16 text-slate-600 group-hover:text-white transition-colors duration-300 relative z-10"></i>
+                        </div>
+
+                        <p id="startup-message" class="text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-allgood-primary transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
                     </div>
                 </div>
 
@@ -2084,14 +2187,25 @@
                                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Defender</span>
                                     </div>
 
-                                    <!-- EXPANDED CAPACITY: 9 CLASSIFIED SLOTS (Completes 4x4 Grid) -->
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
+                                    <!-- 8. Intel Officer (NEW) -->
+                                    <div id="badge-slot-8" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('intel', this)">
+                                        <div class="badge-token token-locked group-hover:scale-105">
+                                            <i data-lucide="radio-tower" class="badge-content w-8 h-8 text-slate-500"></i>
+                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
                                         </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Intel</span>
                                     </div>
                                     
+                                    <!-- 9. Origin Scout (NEW) -->
+                                    <div id="badge-slot-9" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('finding', this)">
+                                        <div class="badge-token token-locked group-hover:scale-105">
+                                            <i data-lucide="compass" class="badge-content w-8 h-8 text-slate-500"></i>
+                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Scout</span>
+                                    </div>
+
+                                    <!-- EXPANDED CAPACITY: Remaining Classified Slots -->
                                     <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
                                         <div class="badge-token token-locked border-dashed border-slate-300">
                                             <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
@@ -2688,17 +2802,19 @@
             
             // Startup Screen Listener
             const startupScreen = document.getElementById('startup-screen');
-            if(startupScreen) {
-                startupScreen.addEventListener('click', () => {
-                    if(window.sfx && window.sfx.powerOn) {
-                        window.sfx.powerOn(); 
-                    } else if (window.initAudio) {
-                        window.initAudio();
-                    }
-                    
-                    startupScreen.style.opacity = '0';
-                    
-                    const storedUID = localStorage.getItem('aa_uid');
+        if(startupScreen) {
+            startupScreen.addEventListener('click', () => {
+                if(window.sfx && window.sfx.powerOn) {
+                    window.sfx.powerOn(); 
+                } else if (window.initAudio) {
+                    window.initAudio();
+                }
+                
+                // FORCE VIDEO START REMOVED (Static Mode Active)
+                
+                startupScreen.style.opacity = '0';
+                
+                const storedUID = localStorage.getItem('aa_uid');
                     const storedName = localStorage.getItem('aa_username');
                     
                     if (storedName && storedUID) {
