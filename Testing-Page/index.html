@@ -1324,29 +1324,14 @@
             overflow: hidden;
         }
 
-        #bg-video {
+        #bg-image {
             width: 100%;
             height: 100%;
             object-fit: cover;
             opacity: 1.0; /* MAX VISIBILITY */
         }
 
-        /* ORBITAL LINK: Sat-Link Overlay (Scanlines + Vignette) */
-        #bg-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -40;
-            background: 
-                /* Scanlines */
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                /* Vignette (Reduced Intensity 0.8 -> 0.4) */
-                radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
-            background-size: 100% 4px, 100% 100%;
-            pointer-events: none;
-        }
+        /* ORBITAL LINK: Overlay Removed completely */
 
         h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
 
@@ -1662,17 +1647,13 @@
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body">
 
-    <!-- ORBITAL LINK: Video Injection -->
+    <!-- ORBITAL LINK: Static Feed Injection -->
     <div id="bg-video-container">
-        <!-- Secure Feed: Earth Rotation (Night Side) -->
-        <video id="bg-video" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072&auto=format&fit=crop">
-            <!-- FIXED SOURCE: Pexels CDN (Earth Night Rotation - High Contrast) -->
-            <source src="https://videos.pexels.com/video-files/856856/856856-hd_1920_1080_25fps.mp4" type="video/mp4">
-            <!-- Fallback if video fails -->
-            Your browser does not support the video tag.
-        </video>
+        <!-- Secure Feed: Earth Night Side (Unsplash Asset) -->
+        <img id="bg-image" src="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Orbital View">
     </div>
-    <div id="bg-overlay"></div>
+    
+    <!-- Overlay Element Removed -->
 
     <main class="flex-grow flex items-center justify-center py-8">
         <div class="tablet-frame">
@@ -2781,9 +2762,7 @@
                     window.initAudio();
                 }
                 
-                // FORCE VIDEO START (Fix for black screen)
-                const video = document.getElementById('bg-video');
-                if(video) video.play().catch(e => console.log("Video autoplay blocked by policy", e));
+                // FORCE VIDEO START REMOVED (Static Mode Active)
                 
                 startupScreen.style.opacity = '0';
                 
