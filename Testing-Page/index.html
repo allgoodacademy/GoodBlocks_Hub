@@ -923,30 +923,30 @@
                                 <div id="balance-text" class="text-xl font-bold text-gray-300">Too Rigid...</div>
                             </div>
                         </div>
-                        <!-- P16: The Ego (WALL BREAKER - FIXED SIZE) -->
+                        
+                        <!-- P16: The Ego (WALL BREAKER - FIXED 4x5) -->
                         <div class="page" id="page-16">
-                             <div class="flex flex-col h-full relative">
+                             <div class="flex flex-col items-center justify-center h-full w-full relative min-h-[500px]">
                                 <!-- Background: True Self (Cosmos) -->
-                                <div class="absolute inset-0 bg-gray-900 overflow-hidden z-0">
+                                <div class="absolute inset-0 bg-gray-900 overflow-hidden z-0 rounded-lg">
                                     <div class="absolute inset-0 opacity-60" style="background-image: radial-gradient(white 1px, transparent 1px); background-size: 30px 30px;"></div>
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <div class="text-center">
-                                            <i data-lucide="infinity" class="w-20 h-20 text-white mx-auto mb-4 animate-pulse"></i>
-                                            <h2 class="text-3xl font-heading font-bold text-white">The True Self</h2>
-                                            <p class="text-indigo-200">Infinite. Limitless. Connected.</p>
+                                        <div class="text-center animate-pulse">
+                                            <i data-lucide="infinity" class="w-24 h-24 text-white mx-auto mb-4"></i>
+                                            <h2 class="text-4xl font-heading font-bold text-white">The True Self</h2>
+                                            <p class="text-indigo-200 text-lg">Infinite. Limitless. Connected.</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Foreground: Ego Wall -->
-                                <!-- FIX: Using explicit repeat syntax to ensure rows fill the vertical space -->
-                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-2 md:grid-cols-4 grid-rows-[repeat(10,1fr)] md:grid-rows-[repeat(5,1fr)] gap-1 p-1 bg-gray-800">
+                                <!-- Foreground: Ego Wall (4x5 Grid) -->
+                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-4 grid-rows-5 gap-1 p-2 bg-gray-800/50 backdrop-blur-sm rounded-lg">
                                     <!-- Bricks generated via JS -->
                                 </div>
                                 
                                 <!-- UI Layer -->
-                                <div class="absolute top-4 left-0 w-full text-center z-20 pointer-events-none">
-                                    <span class="bg-black/50 text-white px-3 py-1 rounded text-xs font-bold backdrop-blur-sm">Click bricks to dismantle the Ego</span>
+                                <div class="absolute top-2 left-0 w-full text-center z-20 pointer-events-none">
+                                    <span class="bg-black/70 text-white px-4 py-1 rounded-full text-sm font-bold backdrop-blur-md border border-white/10 shadow-lg">Click bricks to dismantle the Ego</span>
                                 </div>
                             </div>
                         </div>
@@ -956,7 +956,7 @@
                             <div class="max-w-md mx-auto pt-6 px-6">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4">The True Self</h2>
                                 <p class="text-sm text-gray-600 mb-6 leading-relaxed">
-                                    But what if the person you think you are is just a fragment of something larger? Jung believed in the **True Self**—the totality of who you are beyond the illusions of identity.
+                                    But what if the person you think you are is just a fragment of something larger? Jung believed in the <strong>True Self</strong>—the totality of who you are beyond the illusions of identity.
                                 </p>
                                 <div class="bg-indigo-50 p-6 rounded-lg text-center border border-indigo-100">
                                     <i data-lucide="infinity" class="w-8 h-8 text-jung-primary mx-auto mb-2"></i>
@@ -1579,22 +1579,6 @@
             const glow = document.getElementById('eclipse-glow');
             const text = document.getElementById('eclipse-text');
             
-            // Calculate Movement (0 to 100)
-            // Ideally, at 100, both transform to the center.
-            // Sun starts at left: 0. Needs to move RIGHT.
-            // Moon starts at right: 0. Needs to move LEFT.
-            // The container is relative.
-            
-            // We can use percentage offsets.
-            // Sun: left-0. transform: translateX(val * X)
-            // Let's assume container width ~300px. Center is 150px.
-            // Item width 80px. Center of item is 40px.
-            // So we need to move them inward.
-            
-            // Simpler approach: Use CSS variables or fixed percentage assumption
-            // Sun moves from 0% left towards 50% left (minus half width)
-            // Moon moves from 0% right towards 50% right (minus half width)
-            
             // 35% seems like a safe "meet in the middle" distance for this responsive container
             const moveDistance = val * 1.1; // multiplier to ensure they touch
             
@@ -1618,8 +1602,6 @@
             }
         };
 
-        // REMOVED OLD initDraggables FUNCTION AND LOGIC
-
         // PAGE 16: EGO WALL GENERATOR
         const buildEgoWall = () => {
             const wall = document.getElementById('ego-wall');
@@ -1634,19 +1616,19 @@
                 "My Shame", "My Habits", "My Plans", "The Ego"
             ];
             
-            // Loop exactly 20 times for 4x5 layout (desktop) / 2x10 (mobile)
+            // Loop exactly 20 times for 4x5 layout
             for(let i=0; i<20; i++) {
                 const brick = document.createElement('div');
-                // Use flex and h-full to ensure it fills the grid cell completely
-                brick.className = "bg-gray-700 hover:bg-gray-600 border border-gray-600 flex items-center justify-center cursor-pointer transition-all duration-300 text-gray-300 font-bold text-sm select-none shadow-sm relative overflow-hidden group w-full h-full";
+                brick.className = "bg-gray-700 hover:bg-gray-600 border-2 border-gray-500 flex items-center justify-center cursor-pointer transition-all duration-200 text-gray-200 font-bold text-xs sm:text-sm md:text-base text-center select-none shadow-md relative overflow-hidden group w-full h-full rounded-sm";
                 
-                // Inner texture for "Brick" feel
-                brick.innerHTML = `<span class="relative z-10 group-hover:scale-110 transition-transform text-center px-2">${labels[i]}</span><div class="absolute inset-0 bg-black/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>`;
+                // Inner texture
+                brick.innerHTML = `<span class="relative z-10 group-hover:scale-105 transition-transform px-1 leading-tight drop-shadow-md">${labels[i]}</span><div class="absolute inset-0 bg-gradient-to-br from-white/5 to-black/20 pointer-events-none"></div>`;
                 
                 brick.onclick = function() {
                     // Shatter Animation
-                    this.style.transform = `scale(0.9) rotate(${Math.random()*10 - 5}deg)`;
+                    this.style.transform = `scale(0.95) rotate(${Math.random()*6 - 3}deg)`;
                     this.style.opacity = "0";
+                    this.style.filter = "blur(10px)";
                     this.style.pointerEvents = "none";
                     
                     if(window.sfx) window.sfx.tick();
@@ -1661,7 +1643,7 @@
         };
         
         const checkWallCleared = () => {
-            // Optional logic
+            // Optional: trigger something if mostly cleared
         };
 
         // PAGE 12: ARCHETYPE CAROUSEL
