@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Jodi's Schoolhouse: The Archeology of Self</title>
+    <title>Jodi's Schoolhouse: Finding Yourself</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -217,8 +217,9 @@
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-image: url("https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=2070&auto=format&fit=crop");
+            background-size: cover;
+            background-position: center;
             background-attachment: fixed;
             min-height: 100vh; margin: 0; padding: 0;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
@@ -365,17 +366,17 @@
             <div class="screen-container" id="screen">
 
                 <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-allgood-accent">
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
                             <div class="relative">
-                                <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                <div class="absolute inset-0 bg-white/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                                 <i data-lucide="compass" class="w-24 h-24 text-white mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"></i>
                                 <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-widest uppercase">Allgood Academy</h2>
-                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-white tracking-tighter relative z-10 drop-shadow-md">Finding Yourself</h1>
-                                <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10">The Archeology of Self</p>
+                                <h1 class="text-5xl md:text-7xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter relative z-10 drop-shadow-sm">Jodi's Schoolhouse</h1>
+                                <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10">Module: Finding Yourself</p>
                             </div>
-                            <p class="mt-12 text-white/60 text-xs tracking-[0.3em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
+                            <p class="mt-16 text-white/60 text-xs tracking-[0.4em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
                         </div>
                     </div>
                 </div>
@@ -434,7 +435,8 @@
                                 <div class="w-24 h-24 bg-jung-primary/10 rounded-full flex items-center justify-center mb-6 border border-jung-primary/20">
                                     <i data-lucide="compass" class="w-12 h-12 text-jung-primary"></i>
                                 </div>
-                                <h1 class="text-3xl sm:text-4xl font-heading font-bold text-allgood-dark mb-4 leading-tight">The Archeology of Self</h1>
+                                <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-2 leading-tight">Finding Yourself</h1>
+                                <h2 class="text-sm font-bold text-allgood-secondary uppercase tracking-[0.2em] mb-6">The Archeology of Self</h2>
                                 <p class="text-lg text-gray-600 mb-8 max-w-md italic">"You don’t become yourself by changing. You become yourself by remembering who you were before you forgot."</p>
                                 
                                 <div class="w-full max-w-lg text-left mx-auto space-y-4 mb-8">
