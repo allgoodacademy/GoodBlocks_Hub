@@ -1667,7 +1667,14 @@
                             <h2 class="text-xl md:text-2xl font-heading text-slate-400 mb-2 uppercase">WELCOME TO THE</h2>
                             <h1 class="text-4xl md:text-6xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-md static-neon-glow uppercase">ALLGOOD<span class="text-white">ACADEMY</span></h1>
                         </div>
-                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
+                        
+                        <!-- ADDED: Power Icon Flare -->
+                        <div class="mt-8 mb-4 relative transition-transform duration-500 group-hover:scale-110">
+                            <div class="absolute inset-0 bg-allgood-primary/50 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <i data-lucide="power" class="w-16 h-16 text-slate-600 group-hover:text-white transition-colors duration-300 relative z-10"></i>
+                        </div>
+
+                        <p id="startup-message" class="text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-allgood-primary transition-colors animate-pulse font-body">CLICK TO POWER UP</p>
                     </div>
                 </div>
 
