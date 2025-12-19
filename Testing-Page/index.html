@@ -826,7 +826,7 @@
         // --- GLOBAL APP VARIABLES ---
         let currentUserName = "Anonymous";
         let currentPageIndex = 0; 
-        const TOTAL_PAGES = 33; // UPDATED from 34
+        const TOTAL_PAGES = 33; 
         const TOTAL_SCENARIOS = 30;
         const MAX_SCORE = 90; 
         const BADGE_THRESHOLD = 80;
@@ -834,6 +834,7 @@
         let answeredScenarioScores = {};
         // NEW: State for feedback
         let feedbackSubmitted = false;
+        let currentStarRating = 0; // FIX 1: Initialize rating state
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         function sanitizeText(text) {
@@ -1758,6 +1759,7 @@
             
             // FEEDBACK LOGIC
             window.setRating = function(n) {
+                currentStarRating = n; // FIX 2: Capture the selected rating
                 for (let i = 1; i <= 5; i++) {
                     const star = document.getElementById(`star-${i}`);
                     if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
@@ -1767,7 +1769,15 @@
             }
             window.submitFeedback = function() {
                 const feedbackText = document.getElementById('feedback-text').value;
-                window.logFinalScoreToFirestore({ feedback: feedbackText, rank: "Feedback", sessionId: window.sessionId });
+                
+                // FIX 3: Include rating in the database payload
+                window.logFinalScoreToFirestore({ 
+                    feedback: feedbackText, 
+                    rating: currentStarRating,
+                    rank: "Feedback", 
+                    sessionId: window.sessionId 
+                });
+                
                 document.getElementById('feedback-container').classList.add('hidden');
                 document.getElementById('feedback-success').classList.remove('hidden');
                 
