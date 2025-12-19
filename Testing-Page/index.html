@@ -481,23 +481,30 @@
             <div class="screen-container" id="screen">
 
                 <!-- 1. STARTUP SCREEN (Upgraded: Glassmorphism + Fingerprint) -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900/90 backdrop-blur-xl">
+                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
                             <div class="relative flex flex-col items-center">
-                                <div class="absolute inset-0 bg-white/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                                <div class="absolute inset-0 bg-white/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                                 
-                                <!-- Identity Symbol: Glowing Fingerprint -->
-                                <i data-lucide="fingerprint" class="w-24 h-24 text-cyan-400 mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"></i>
+                                <!-- Identity Symbol: Glowing Fingerprint (Offset Left) -->
+                                <div class="-translate-x-6">
+                                    <i data-lucide="fingerprint" class="w-24 h-24 text-white mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"></i>
+                                </div>
                                 
                                 <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-widest uppercase">Allgood Academy</h2>
-                                <h1 class="text-5xl md:text-7xl font-heading font-bold text-allgood-primary tracking-tighter relative z-10 drop-shadow-sm">GoodBlock</h1>
-                                <p class="mt-4 text-cyan-400/80 font-bold text-lg relative z-10 bg-black/30 px-4 py-1 rounded-full backdrop-blur-sm border border-cyan-500/20">Digital Decisions Challenge</p>
+                                
+                                <!-- FIX: Added pb-4 and leading-normal to prevent descender clipping -->
+                                <h1 class="text-4xl md:text-6xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter relative z-10 drop-shadow-sm leading-normal pb-4 max-w-4xl">Digital Decisions Challenge</h1>
+                                
+                                <!-- FIX: Restyled Powered By/GoodBlock/TM -->
+                                <div class="mt-2 flex items-baseline justify-center gap-2 relative z-10 opacity-90">
+                                    <span class="text-white/60 text-[10px] sm:text-xs tracking-[0.2em] uppercase font-bold font-body">Powered by</span>
+                                    <span class="text-allgood-primary text-2xl sm:text-3xl font-heading font-bold">GoodBlock</span>
+                                    <span class="text-white/60 text-[8px] sm:text-[10px] tracking-widest uppercase font-bold font-body self-start mt-1">TM</span>
+                                </div>
                             </div>
                             <p class="mt-16 text-white/60 text-xs tracking-[0.4em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
-                        </div>
-                        <div class="absolute bottom-10 w-full text-center">
-                            <p class="text-white/40 text-xs font-body tracking-wide">Powered by the <span class="text-white/60 font-bold">Allgood Academy</span></p>
                         </div>
                     </div>
                 </div>
