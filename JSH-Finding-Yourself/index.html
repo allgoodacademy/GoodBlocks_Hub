@@ -12,7 +12,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko", authDomain: "allgood-academy.firebaseapp.com", projectId: "allgood-academy" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
@@ -27,6 +27,7 @@
 
         window.currentUser = null;
         window.currentUserName = "Agent Learner";
+        window.currentUserEmail = "";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         onAuthStateChanged(auth, async (user) => {
@@ -42,6 +43,7 @@
                 }
                 
                 window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
                 const welcomeText = document.getElementById('header-welcome-text');
                 if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
                 
@@ -49,6 +51,8 @@
                 if (loginModal && !loginModal.classList.contains('hidden-modal')) {
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
+                    // Auto-start session log if we just auto-logged in
+                    if(window.SessionManager) window.SessionManager.start(finalName, user.email);
                 }
             } else {
                 window.currentUser = null;
@@ -62,14 +66,53 @@
              } catch (e) { console.error(e); }
         }
 
-        window.logFinalScoreToFirestore = async (data) => {
+        // --- SESSION + STREAM LOGGING ARCHITECTURE ---
+        window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
             if (!user) return;
+            
+            // 1. Session Reference (The "Head" - Latest Status)
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            // 2. Logs Collection (The "Stream" - History)
+            const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
+
+            // WRITE 1: Update Session Head
+            const sessionData = {
+                gameName: document.title,
+                lastUpdated: serverTimestamp(),
+                user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
+                last_action: action,
+                current_page: window.currentPageIndex || 0, 
+                percent_complete: window.progressPercent || 0
+            };
+            
+            if (payload.completed) sessionData.completed = true;
+            if (payload.badgeArtifact) sessionData.badgeArtifact = payload.badgeArtifact;
+
             try {
-                await setDoc(sessionRef, { gameName: document.title, ...data, lastUpdated: serverTimestamp(), user: { uid: user.uid, displayName: window.currentUserName } }, { merge: true });
-            } catch (e) { console.error(e); }
+                await setDoc(sessionRef, sessionData, { merge: true });
+                
+                // WRITE 2: Append to Log Stream
+                await addDoc(logsRef, {
+                    action: action,
+                    detail: detail,
+                    payload: payload,
+                    timestamp: serverTimestamp(),
+                    page_context: window.currentPageIndex || 0
+                });
+            } catch (e) { console.error("[DB] Error:", e); }
         }
+
+        // --- SESSION MANAGER WRAPPER ---
+        window.SessionManager = {
+            log: function(action, detail, payload = {}) {
+                window.logToFirestore(action, detail, payload);
+            },
+            start: function(name, email) { 
+                this.log("System", "Session Started", { startTime: new Date().toISOString() }); 
+            }
+        };
 
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input');
@@ -89,8 +132,10 @@
                     await updateProfile(user, { displayName: name });
                     await window.ensureUserContainer(user, name, email);
                     window.currentUserName = name;
+                    window.currentUserEmail = email;
                     localStorage.setItem('aa_username', name);
-                    window.logFinalScoreToFirestore({ rank: "Journey Started", sessionId: window.sessionId });
+                    
+                    window.SessionManager.start(name, email);
                     
                     const welcomeText = document.getElementById('header-welcome-text');
                     if(welcomeText) welcomeText.textContent = `Welcome: ${name}`;
@@ -119,8 +164,11 @@
                 const finalName = user.displayName || "Agent Learner";
                 await window.ensureUserContainer(user, finalName, user.email);
                 window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
                 localStorage.setItem('aa_username', finalName);
                 
+                window.SessionManager.start(finalName, user.email);
+
                 const welcomeText = document.getElementById('header-welcome-text');
                 if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
                 
@@ -146,18 +194,15 @@
             theme: {
                 extend: {
                     colors: {
-                        // SYSTEM BRAND COLORS (Fixed)
-                        'allgood-primary': '#D34716',   /* Burnt Orange */
-                        'allgood-secondary': '#357889', /* Deep Cyan */
-                        'allgood-dark': '#4C4C4C',      /* Dark Gray */
+                        'allgood-primary': '#D34716',
+                        'allgood-secondary': '#357889',
+                        'allgood-dark': '#4C4C4C',
                         'allgood-light': '#F7F7F7',
                         'allgood-hover': '#EB8D69',
                         'allgood-accent': '#2D6473',
-                        
-                        // LESSON SPECIFIC COLORS (Variable - Jungian)
-                        'jung-primary': '#4F46E5', /* Indigo */
-                        'jung-secondary': '#10B981', /* Emerald */
-                        'jung-accent': '#D97706', /* Amber */
+                        'jung-primary': '#4F46E5',
+                        'jung-secondary': '#10B981',
+                        'jung-accent': '#D97706',
                     },
                     fontFamily: {
                         'heading': ['Georgia', 'serif'],
@@ -169,7 +214,6 @@
     </script>
     
     <style>
-        /* FIXED CHASSIS */
         body {
             font-family: Verdana, sans-serif;
             background-color: #1a1a1a;
@@ -205,28 +249,20 @@
         #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
         #flex-progress-fill { height: 100%; background-color: #D34716; width: 0%; transition: width 0.3s ease; }
         
-        /* SPLIT LAYOUT */
         .split-layout { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
-        
-        /* Left Column (Jodi) */
         .sidebar-jodi {
             width: 100%; height: auto; min-height: 140px;
-            background-color: #1F2937; /* Jungian Dark for Contrast */
+            background-color: #1F2937;
             border-bottom: 2px solid #374151;
             display: flex; align-items: flex-end; padding: 10px; position: relative; z-index: 10;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
         }
-
-        /* Right Column (Content) */
-        .content-column {
-            flex: 1; overflow-y: auto; position: relative; background-color: #F9FAFB; padding-bottom: 20px;
-        }
+        .content-column { flex: 1; overflow-y: auto; position: relative; background-color: #F9FAFB; padding-bottom: 20px; }
 
         .page { width: 100%; height: auto; padding: 20px; position: relative; display: none; }
         .page.active { display: block; animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* JODI COMPONENT */
         .jodi-wrapper { display: flex; flex-direction: row; align-items: center; width: 100%; max-width: 600px; margin: 0 auto; }
         .jodi-avatar { width: 80px; height: 80px; flex-shrink: 0; margin-right: 15px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3)); }
         .jodi-bubble {
@@ -238,7 +274,6 @@
         .jodi-bubble.visible { opacity: 1; }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         
-        /* BLUEPRINT & FOCUS */
         .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
         .blueprint-mode .page, .blueprint-mode .content-column { background-color: #0f172a !important; }
         .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
@@ -248,7 +283,6 @@
         .tablet-frame.focus-mode { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; aspect-ratio: unset !important; margin: 0 !important; padding: 0 !important; z-index: 99999 !important; border-radius: 0 !important; background: #F7F7F7 !important; }
         .tablet-frame.focus-mode::before { display: none; }
         
-        /* DESKTOP BREAKPOINT */
         @media (min-width: 768px) {
             .split-layout { flex-direction: row; }
             .sidebar-jodi { width: 25%; height: 100%; border-bottom: none; border-right: 2px solid #374151; flex-direction: column; justify-content: flex-end; padding: 20px; }
@@ -266,14 +300,28 @@
             .tablet-frame::before { display: none !important; }
             .screen-container { border-radius: 0 !important; box-shadow: none !important; }
             header.navbar-content { padding-top: max(env(safe-area-inset-top), 12px); height: auto; min-height: 60px; padding-bottom: 12px; }
-            footer.footer-content { position: absolute; bottom: 0; left: 0; width: 100%; padding-bottom: max(env(safe-area-inset-bottom), 20px); padding-top: 12px; height: auto; min-height: 80px; z-index: 100; background-color: white; border-top: 1px solid #e5e7eb; }
-            .content-column { padding-bottom: 120px !important; }
+            
+            /* MOBILE FOOTER OVERRIDE */
+            footer.footer-content { 
+                position: absolute; bottom: 0; left: 0; width: 100%; 
+                padding-bottom: max(env(safe-area-inset-bottom), 10px); 
+                padding-top: 10px; 
+                height: auto; 
+                min-height: 60px; /* Reduced from 80px */
+                z-index: 100; 
+                background-color: white; 
+                border-top: 1px solid #e5e7eb; 
+            }
+            footer.footer-content button {
+                padding-top: 0.5rem; padding-bottom: 0.5rem;
+                font-size: 0.75rem; 
+            }
+            .content-column { padding-bottom: 100px !important; }
         }
 
         .navbar-content { flex: 0 0 60px; z-index: 50; }
         .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
 
-        /* INTERACTIVE ELEMENTS */
         .flip-card { background-color: transparent; width: 100%; height: 200px; perspective: 1000px; cursor: pointer; }
         .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
         .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
@@ -290,11 +338,9 @@
         .range-slider { -webkit-appearance: none; width: 100%; height: 8px; border-radius: 5px; background: #d3d3d3; outline: none; }
         .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #4F46E5; cursor: pointer; transition: background .15s ease-in-out; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         
-        /* New Animations */
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Combustion Animation */
         @keyframes burnCard {
             0% { transform: scale(1) rotate(0deg); box-shadow: 0 0 0 rgba(255, 69, 0, 0); }
             20% { transform: scale(1.05) rotate(-2deg); background-color: #ff4500; color: #000; box-shadow: 0 0 20px #ff4500; }
@@ -302,6 +348,14 @@
             100% { transform: scale(0.8) translateY(-100px) rotate(10deg); opacity: 0; filter: blur(10px); }
         }
         .burning { animation: burnCard 0.8s forwards ease-in; pointer-events: none; }
+
+        @keyframes drawCrack { to { stroke-dashoffset: 0; } }
+        @keyframes glassFall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(50px) rotate(5deg) scale(0.9); opacity: 0; } }
+        @keyframes spacePan { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+        .crack-path { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: drawCrack 0.5s forwards linear; }
+        .shattered-glass { animation: glassFall 0.8s forwards ease-in; pointer-events: none; }
+        .cosmos-bg { background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%); position: relative; overflow: hidden; }
+        .cosmos-stars { background-image: radial-gradient(white 1px, transparent 1px), radial-gradient(white 1px, transparent 1px); background-size: 50px 50px, 100px 100px; background-position: 0 0, 25px 25px; opacity: 0.5; animation: spacePan 60s linear infinite; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -333,7 +387,7 @@
                             <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Agent Learner</div>
                             <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                                 <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 25</span>
+                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 23</span>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0 relative">
@@ -352,15 +406,12 @@
                     <!-- LEFT COLUMN: MENTOR SIDEBAR -->
                     <div class="sidebar-jodi shrink-0">
                         <div class="jodi-wrapper">
-                            <!-- Using a Jung-themed avatar (SVG construction) -->
                             <div id="jodi-avatar-svg" class="jodi-avatar">
                                 <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
                                     <circle cx="50" cy="50" r="45" fill="#fff" stroke="#4F46E5" stroke-width="3"/>
                                     <path d="M20 50 Q50 90 80 50" fill="#f0f0f0" opacity="0.2"/>
-                                    <!-- Simple 'Scholar' Avatar -->
                                     <circle cx="50" cy="40" r="15" fill="#1F2937"/>
                                     <path d="M30 80 Q50 60 70 80 V95 H30 Z" fill="#1F2937"/>
-                                    <!-- Dynamic Expression handled by JS -->
                                     <g id="jodi-face">
                                         <circle cx="45" cy="38" r="2" fill="white"/>
                                         <circle cx="55" cy="38" r="2" fill="white"/>
@@ -387,7 +438,6 @@
                                 <p class="text-lg text-gray-600 mb-8 max-w-md italic">"You don’t become yourself by changing. You become yourself by remembering who you were before you forgot."</p>
                                 
                                 <div class="w-full max-w-lg text-left mx-auto space-y-4 mb-8">
-                                    <!-- Accordion: About -->
                                     <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
                                         <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                             <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">About this module</span>
@@ -400,7 +450,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- Accordion: How To -->
                                     <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
                                         <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
                                             <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
@@ -420,41 +469,24 @@
                             </div>
                         </div>
 
-                        <!-- P2: The Signal (TUNER - NEW) -->
+                        <!-- P2: The Signal -->
                         <div class="page" id="page-2">
                             <div class="max-w-xl mx-auto pt-8 px-6 text-center relative h-full flex flex-col">
                                 <i data-lucide="radio" class="w-12 h-12 text-jung-primary mx-auto mb-4 opacity-80 animate-pulse"></i>
                                 <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">Signal Strength</h2>
                                 <p class="text-xs text-gray-400 mb-6 uppercase tracking-widest">Tune the frequency to clear the interference.</p>
-                                
-                                <!-- Static Overlay Container -->
                                 <div class="relative flex-grow bg-gray-100 rounded-lg border-2 border-gray-300 p-6 overflow-hidden shadow-inner mb-6 transition-colors duration-500" id="signal-screen">
-                                    <!-- The Content (Blurred initially) -->
                                     <div id="signal-content" class="filter blur-md opacity-30 transition-all duration-300 select-none">
                                         <h3 class="text-lg font-bold text-gray-800 mb-3">The Unsettling Realization</h3>
-                                        <p class="text-gray-700 leading-relaxed mb-4 text-left">
-                                            Imagine waking up one day realizing the life you've been living is not truly your own. That every decision, belief, and desire may not have originated from you, but from the expectations of the world.
-                                        </p>
-                                        <p class="text-gray-700 leading-relaxed text-left">
-                                            How much of your identity is a reflection of your authentic self, and how much is a constructed mask?
-                                        </p>
+                                        <p class="text-gray-700 leading-relaxed mb-4 text-left">Imagine waking up one day realizing the life you've been living is not truly your own. That every decision, belief, and desire may not have originated from you, but from the expectations of the world.</p>
+                                        <p class="text-gray-700 leading-relaxed text-left">How much of your identity is a reflection of your authentic self, and how much is a constructed mask?</p>
                                     </div>
-                                    
-                                    <!-- Static Noise Overlay (Visual) -->
                                     <div id="static-overlay" class="absolute inset-0 bg-repeat opacity-40 pointer-events-none" style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIi8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMwMDAiLz4KPC9zdmc+');"></div>
                                 </div>
-
-                                <!-- Tuner Controls -->
                                 <div class="bg-gray-800 p-4 rounded-lg shadow-lg border-t-4 border-gray-600">
-                                    <div class="flex justify-between text-xs font-mono text-green-400 mb-1">
-                                        <span>88.0</span>
-                                        <span id="freq-display" class="text-lg font-bold text-white">FM 88.0</span>
-                                        <span>108.0</span>
-                                    </div>
+                                    <div class="flex justify-between text-xs font-mono text-green-400 mb-1"><span>88.0</span><span id="freq-display" class="text-lg font-bold text-white">FM 88.0</span><span>108.0</span></div>
                                     <input type="range" min="880" max="1080" value="880" class="range-slider mb-2" oninput="updateTuner(this.value)" style="background: #374151;">
-                                    <div class="h-1 w-full bg-gray-700 rounded overflow-hidden">
-                                        <div id="tuner-bar" class="h-full bg-green-500 w-0 transition-all duration-100"></div>
-                                    </div>
+                                    <div class="h-1 w-full bg-gray-700 rounded overflow-hidden"><div id="tuner-bar" class="h-full bg-green-500 w-0 transition-all duration-100"></div></div>
                                 </div>
                             </div>
                         </div>
@@ -487,27 +519,17 @@
                             </div>
                         </div>
 
-                        <!-- P4: The Diagnosis (STICKER PEEL - NEW) -->
+                        <!-- P4: The Diagnosis -->
                         <div class="page" id="page-4">
                             <div class="max-w-xl mx-auto pt-8 px-6 text-center relative h-full">
                                 <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Conditioning</h2>
                                 <p class="text-xs text-gray-400 mb-6 uppercase tracking-widest">Peel away the labels to reveal the truth.</p>
-                                
                                 <div class="relative w-full h-80 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex items-center justify-center">
-                                    
-                                    <!-- Hidden Content -->
                                     <div id="conditioning-reveal" class="absolute inset-0 p-8 flex flex-col items-center justify-center opacity-0 transition-opacity duration-1000">
                                         <i data-lucide="book-open" class="w-10 h-10 text-jung-primary mb-4"></i>
-                                        <p class="text-gray-600 leading-relaxed text-left text-sm">
-                                            From birth, we are conditioned. We are given names, roles, and rules. We adapt to survive. Over time, we suppress parts of ourselves that don't align with these expectations.
-                                            <br><br>
-                                            <strong>This is the False Self.</strong>
-                                        </p>
+                                        <p class="text-gray-600 leading-relaxed text-left text-sm">From birth, we are conditioned. We are given names, roles, and rules. We adapt to survive. Over time, we suppress parts of ourselves that don't align with these expectations.<br><br><strong>This is the False Self.</strong></p>
                                     </div>
-
-                                    <!-- Stickers Overlay -->
                                     <div id="sticker-container" class="absolute inset-0 z-10">
-                                        <!-- Stickers generated via JS or hardcoded below -->
                                         <button onclick="peelSticker(this)" class="absolute top-10 left-10 bg-yellow-300 text-yellow-900 px-4 py-2 rounded-sm shadow-md transform -rotate-6 font-bold font-hand text-sm hover:scale-110 transition-transform">"Be Nice"</button>
                                         <button onclick="peelSticker(this)" class="absolute top-20 right-12 bg-blue-300 text-blue-900 px-4 py-2 rounded-sm shadow-md transform rotate-3 font-bold font-hand text-sm hover:scale-110 transition-transform">"Don't Cry"</button>
                                         <button onclick="peelSticker(this)" class="absolute bottom-24 left-1/2 bg-green-300 text-green-900 px-6 py-3 rounded-sm shadow-md transform -translate-x-1/2 -rotate-2 font-bold font-hand text-lg hover:scale-110 transition-transform">"SUCCESS"</button>
@@ -519,41 +541,26 @@
                             </div>
                         </div>
 
-                        <!-- P5: Persona X-Ray (Visual Inspection) -->
+                        <!-- P5: Persona X-Ray -->
                         <div class="page" id="page-5">
                             <div class="flex flex-col items-center justify-start min-h-full px-4 pt-6 text-center">
                                 <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-2">The Persona Inspection</h2>
                                 <p class="text-sm text-gray-500 mb-4">Click specific features to X-Ray the psychological mechanism.</p>
-                                
-                                <!-- X-RAY CONTAINER -->
                                 <div class="relative w-64 h-64 mb-6 mx-auto">
-                                    <!-- Base Mask SVG -->
                                     <svg viewBox="0 0 200 250" class="w-full h-full drop-shadow-2xl filter transition-all duration-500" id="persona-mask">
                                         <defs>
-                                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stop-color="#FCD34D" />
-                                                <stop offset="100%" stop-color="#D97706" />
-                                            </linearGradient>
+                                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FCD34D" /><stop offset="100%" stop-color="#D97706" /></linearGradient>
                                         </defs>
-                                        <!-- Face Shape -->
                                         <path d="M40,50 Q100,0 160,50 V150 Q160,220 100,240 Q40,220 40,150 Z" fill="url(#goldGradient)" stroke="#B45309" stroke-width="2" />
-                                        <!-- Eyes (Closed/Stoic) -->
                                         <path id="feature-eyes" d="M60,110 Q80,100 100,110 T140,110" fill="none" stroke="#78350F" stroke-width="3" class="transition-all duration-300" />
-                                        <!-- Nose -->
                                         <path d="M100,110 V160 L90,170" fill="none" stroke="#92400E" stroke-width="2" opacity="0.5"/>
-                                        <!-- Mouth (Smile) -->
                                         <path id="feature-smile" d="M70,190 Q100,210 130,190" fill="none" stroke="#78350F" stroke-width="3" class="transition-all duration-300" />
-                                        <!-- Forehead/Armor -->
                                         <path id="feature-armor" d="M45,60 Q100,30 155,60" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="10" class="transition-all duration-300" />
                                     </svg>
-
-                                    <!-- Hotspots -->
                                     <div class="absolute top-[20%] left-[10%] w-[80%] h-[20%] cursor-pointer hover:bg-white/10 rounded-full" onclick="inspectFeature('armor')" title="Inspect Armor"></div>
                                     <div class="absolute top-[40%] left-[20%] w-[60%] h-[15%] cursor-pointer hover:bg-white/10 rounded-full" onclick="inspectFeature('eyes')" title="Inspect Eyes"></div>
                                     <div class="absolute top-[70%] left-[30%] w-[40%] h-[15%] cursor-pointer hover:bg-white/10 rounded-full" onclick="inspectFeature('smile')" title="Inspect Smile"></div>
                                 </div>
-
-                                <!-- Diagnostic Panel -->
                                 <div id="diagnostic-panel" class="w-full max-w-md bg-white border-l-4 border-gray-300 p-4 rounded shadow-sm text-left min-h-[120px] transition-all duration-300">
                                     <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Status: Scanning...</h4>
                                     <p class="text-sm text-gray-500 italic">Select a facial feature to analyze its defensive function.</p>
@@ -561,290 +568,114 @@
                             </div>
                         </div>
 
-                        <!-- P6: Script Shredder (UPDATED) -->
+                        <!-- P6: Script Shredder -->
                         <div class="page" id="page-6">
                              <div class="max-w-xl mx-auto pt-6 px-6 text-center relative h-full">
                                  <h2 class="text-lg font-bold text-allgood-dark mb-4">Incinerate the Script</h2>
                                  <p class="text-xs text-gray-500 mb-6">These are the viral programs running your life. Click to burn them out.</p>
-                                 
-                                 <!-- Terminal Reveal (Hidden initially) -->
                                  <div id="source-code-terminal" class="absolute inset-x-6 top-24 bottom-10 bg-black rounded p-4 font-mono text-xs text-green-500 text-left overflow-hidden hidden shadow-inner border border-gray-700">
-                                     <p>> SYSTEM CHECK...</p>
-                                     <p>> VIRUS 'PPL_PLEASER' ... DELETED</p>
-                                     <p>> VIRUS 'FEAR_FAILURE' ... DELETED</p>
-                                     <p>> VIRUS 'SUPPRESS_EMOTION' ... DELETED</p>
-                                     <p class="mt-4 text-white animate-pulse">> CORE SELF ONLINE.</p>
+                                     <p>> SYSTEM CHECK...</p><p>> VIRUS 'PPL_PLEASER' ... DELETED</p><p>> VIRUS 'FEAR_FAILURE' ... DELETED</p><p>> VIRUS 'SUPPRESS_EMOTION' ... DELETED</p><p class="mt-4 text-white animate-pulse">> CORE SELF ONLINE.</p>
                                  </div>
-
-                                 <!-- Cards Container -->
                                  <div class="grid grid-cols-2 gap-4 relative z-10" id="shredder-grid">
-                                     <!-- Money Card -->
-                                     <div onclick="shredItem(this)" class="cursor-pointer bg-green-100 border-2 border-green-600 rounded-lg p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 relative group">
-                                         <div class="absolute inset-0 border-2 border-green-600/20 m-1 rounded"></div>
-                                         <i data-lucide="dollar-sign" class="w-8 h-8 text-green-700 mb-2"></i>
-                                         <span class="font-heading font-bold text-green-900 text-sm">"Must be Rich"</span>
-                                     </div>
-                                     <!-- Tear Card -->
-                                     <div onclick="shredItem(this)" class="cursor-pointer bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 relative group">
-                                         <div class="absolute top-2 right-4 w-2 h-2 bg-blue-200 rounded-full opacity-50"></div>
-                                         <div class="absolute top-4 right-3 w-1.5 h-1.5 bg-blue-300 rounded-full opacity-60"></div>
-                                         <i data-lucide="droplet" class="w-8 h-8 text-blue-400 mb-2"></i>
-                                         <span class="font-body italic text-blue-800 text-sm">"Don't Cry"</span>
-                                     </div>
-                                     <!-- Valentine Card -->
-                                     <div onclick="shredItem(this)" class="cursor-pointer bg-pink-50 border-2 border-pink-300 border-dotted rounded-xl p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32">
-                                         <i data-lucide="heart" class="w-8 h-8 text-pink-500 mb-2 fill-current"></i>
-                                         <span class="font-heading text-pink-700 text-sm font-bold">"Please Others"</span>
-                                     </div>
-                                     <!-- Gov Form Card -->
-                                     <div onclick="shredItem(this)" class="cursor-pointer bg-gray-100 border border-gray-400 rounded-sm p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 font-mono">
-                                         <div class="w-full h-1 bg-gray-300 mb-1"></div>
-                                         <div class="w-full h-1 bg-gray-300 mb-2"></div>
-                                         <span class="text-gray-700 text-xs font-bold uppercase tracking-tighter">"Be Realistic"</span>
-                                         <div class="absolute bottom-2 right-2 w-4 h-4 border border-gray-400"></div>
-                                     </div>
+                                     <div onclick="shredItem(this)" class="cursor-pointer bg-green-100 border-2 border-green-600 rounded-lg p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 relative group"><div class="absolute inset-0 border-2 border-green-600/20 m-1 rounded"></div><i data-lucide="dollar-sign" class="w-8 h-8 text-green-700 mb-2"></i><span class="font-heading font-bold text-green-900 text-sm">"Must be Rich"</span></div>
+                                     <div onclick="shredItem(this)" class="cursor-pointer bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 relative group"><div class="absolute top-2 right-4 w-2 h-2 bg-blue-200 rounded-full opacity-50"></div><div class="absolute top-4 right-3 w-1.5 h-1.5 bg-blue-300 rounded-full opacity-60"></div><i data-lucide="droplet" class="w-8 h-8 text-blue-400 mb-2"></i><span class="font-body italic text-blue-800 text-sm">"Don't Cry"</span></div>
+                                     <div onclick="shredItem(this)" class="cursor-pointer bg-pink-50 border-2 border-pink-300 border-dotted rounded-xl p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32"><i data-lucide="heart" class="w-8 h-8 text-pink-500 mb-2 fill-current"></i><span class="font-heading text-pink-700 text-sm font-bold">"Please Others"</span></div>
+                                     <div onclick="shredItem(this)" class="cursor-pointer bg-gray-100 border border-gray-400 rounded-sm p-4 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col justify-center items-center h-32 font-mono"><div class="w-full h-1 bg-gray-300 mb-1"></div><div class="w-full h-1 bg-gray-300 mb-2"></div><span class="text-gray-700 text-xs font-bold uppercase tracking-tighter">"Be Realistic"</span><div class="absolute bottom-2 right-2 w-4 h-4 border border-gray-400"></div></div>
                                  </div>
                             </div>
                         </div>
 
-                        <!-- P7: Sorter (ENHANCED DUALISTIC ENGINE) -->
+                        <!-- P7: Sorter -->
                         <div class="page" id="page-7">
                             <div class="max-w-md mx-auto pt-6 px-6 relative h-full flex flex-col">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4 text-center">Separate Role from Soul</h2>
                                 <p class="text-sm text-gray-600 mb-4 text-center">Drag attributes to their source. The Mask is rigid; the Soul is deep.</p>
-                                
-                                <!-- Drop Zones -->
                                 <div class="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
-                                    <!-- The Mask (Rigid Container) -->
-                                    <div id="zone-mask" class="drop-zone bg-gray-100 border-4 border-double border-gray-400 rounded-sm h-32 flex flex-col items-center justify-center transition-all shadow-inner relative overflow-hidden group">
-                                        <div class="absolute inset-0 bg-gray-200 opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                                        <i data-lucide="shield" class="w-8 h-8 text-gray-400 mb-1"></i>
-                                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">The Persona</span>
-                                    </div>
-                                    <!-- The Soul (Luminous Well) -->
-                                    <div id="zone-self" class="drop-zone bg-teal-50 border-2 border-teal-300 rounded-full h-32 flex flex-col items-center justify-center transition-all shadow-[0_0_15px_rgba(20,184,166,0.1)] relative overflow-hidden group">
-                                        <div class="absolute inset-0 bg-teal-100 opacity-0 group-hover:opacity-30 transition-opacity animate-pulse"></div>
-                                        <i data-lucide="sparkles" class="w-8 h-8 text-teal-500 mb-1"></i>
-                                        <span class="text-xs font-bold text-teal-600 uppercase tracking-widest">The Soul</span>
-                                    </div>
+                                    <div id="zone-mask" class="drop-zone bg-gray-100 border-4 border-double border-gray-400 rounded-sm h-32 flex flex-col items-center justify-center transition-all shadow-inner relative overflow-hidden group"><div class="absolute inset-0 bg-gray-200 opacity-0 group-hover:opacity-20 transition-opacity"></div><i data-lucide="shield" class="w-8 h-8 text-gray-400 mb-1"></i><span class="text-xs font-bold text-gray-500 uppercase tracking-widest">The Persona</span></div>
+                                    <div id="zone-self" class="drop-zone bg-teal-50 border-2 border-teal-300 rounded-full h-32 flex flex-col items-center justify-center transition-all shadow-[0_0_15px_rgba(20,184,166,0.1)] relative overflow-hidden group"><div class="absolute inset-0 bg-teal-100 opacity-0 group-hover:opacity-30 transition-opacity animate-pulse"></div><i data-lucide="sparkles" class="w-8 h-8 text-teal-500 mb-1"></i><span class="text-xs font-bold text-teal-600 uppercase tracking-widest">The Soul</span></div>
                                 </div>
-
-                                <!-- Feedback Area (Dynamic Wisdom) -->
-                                <div id="sorter-feedback" class="h-16 flex items-center justify-center text-center mb-4 transition-all duration-300 opacity-0 transform translate-y-2">
-                                    <p class="text-sm font-bold text-teal-600"></p>
-                                </div>
-
-                                <!-- Draggable Items -->
+                                <div id="sorter-feedback" class="h-16 flex items-center justify-center text-center mb-4 transition-all duration-300 opacity-0 transform translate-y-2"><p class="text-sm font-bold text-teal-600"></p></div>
                                 <div id="drag-source" class="flex flex-wrap gap-3 justify-center content-start flex-grow">
-                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d1" data-target="zone-mask" data-wisdom="Correct. A job title is a role you play, not who you are.">
-                                        <span>👔</span> Job Title
-                                    </div>
-                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d2" data-target="zone-self" data-wisdom="Yes. Curiosity is the compass of the True Self.">
-                                        <span>✨</span> Curiosity
-                                    </div>
-                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d3" data-target="zone-mask" data-wisdom="Right. Salary measures market value, not human worth.">
-                                        <span>💰</span> Salary
-                                    </div>
-                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d4" data-target="zone-self" data-wisdom="Correct. Core values are the bedrock of your soul.">
-                                        <span>🧭</span> Values
-                                    </div>
-                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d5" data-target="zone-mask" data-wisdom="Exactly. Reputation is just a story others tell about you.">
-                                        <span>🎭</span> Reputation
-                                    </div>
-                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d6" data-target="zone-self" data-wisdom="Profound. Your deepest fears point to your deepest wounds.">
-                                        <span>🌑</span> Inner Fears
-                                    </div>
+                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d1" data-target="zone-mask" data-wisdom="Correct. A job title is a role you play, not who you are."><span>👔</span> Job Title</div>
+                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d2" data-target="zone-self" data-wisdom="Yes. Curiosity is the compass of the True Self."><span>✨</span> Curiosity</div>
+                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d3" data-target="zone-mask" data-wisdom="Right. Salary measures market value, not human worth."><span>💰</span> Salary</div>
+                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d4" data-target="zone-self" data-wisdom="Correct. Core values are the bedrock of your soul."><span>🧭</span> Values</div>
+                                    <div class="draggable-item bg-white border border-gray-300 px-4 py-2 rounded shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d5" data-target="zone-mask" data-wisdom="Exactly. Reputation is just a story others tell about you."><span>🎭</span> Reputation</div>
+                                    <div class="draggable-item bg-white border border-teal-200 px-4 py-2 rounded-full shadow-sm text-xs font-bold cursor-grab flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all" draggable="true" id="d6" data-target="zone-self" data-wisdom="Profound. Your deepest fears point to your deepest wounds."><span>🌑</span> Inner Fears</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- P8: Shadow Intro (Enhanced & Padded) -->
+                        <!-- P8: Shadow Intro -->
                         <div class="page" id="page-8">
                              <div class="flex flex-col items-center justify-center min-h-full w-full py-20 px-12 bg-gray-900 text-white rounded-lg shadow-2xl relative overflow-hidden">
-                                
-                                <!-- Background Ambience -->
                                 <div class="absolute inset-0 opacity-20 bg-gradient-to-br from-gray-800 via-gray-900 to-black pointer-events-none"></div>
-
                                 <i data-lucide="moon" class="w-16 h-16 text-indigo-400 mb-8 relative z-10 drop-shadow-md"></i>
-                                
                                 <h2 class="text-3xl font-heading font-bold mb-6 relative z-10 tracking-wide text-indigo-100">The Shadow</h2>
-                                
-                                <p class="text-center text-gray-300 max-w-lg leading-relaxed mb-12 text-lg relative z-10">
-                                    If the Persona is what we show, the <strong class="text-indigo-300">Shadow</strong> is what we hide. It is the repository of the rejected self.
-                                </p>
-
-                                <!-- Visual Breakdown -->
+                                <p class="text-center text-gray-300 max-w-lg leading-relaxed mb-12 text-lg relative z-10">If the Persona is what we show, the <strong class="text-indigo-300">Shadow</strong> is what we hide. It is the repository of the rejected self.</p>
                                 <div class="grid grid-cols-3 gap-4 w-full max-w-md mb-12 relative z-10">
-                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm">
-                                        <i data-lucide="frown" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i>
-                                        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Fears</span>
-                                    </div>
-                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm">
-                                        <i data-lucide="flame" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i>
-                                        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Desires</span>
-                                    </div>
-                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm">
-                                        <i data-lucide="gem" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i>
-                                        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strengths</span>
-                                    </div>
+                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm"><i data-lucide="frown" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i><span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Fears</span></div>
+                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm"><i data-lucide="flame" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i><span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Desires</span></div>
+                                    <div class="bg-gray-800/60 border border-gray-700 p-4 rounded-lg text-center backdrop-blur-sm"><i data-lucide="gem" class="w-6 h-6 mx-auto mb-2 text-indigo-300"></i><span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strengths</span></div>
                                 </div>
-
-                                <p class="text-center text-gray-400 max-w-md text-sm leading-relaxed relative z-10 italic border-t border-gray-800 pt-6">
-                                    "It does not disappear. It operates beneath the surface, driving your reactions from the dark."
-                                </p>
+                                <p class="text-center text-gray-400 max-w-md text-sm leading-relaxed relative z-10 italic border-t border-gray-800 pt-6">"It does not disappear. It operates beneath the surface, driving your reactions from the dark."</p>
                             </div>
                         </div>
 
-                        <!-- P9: Warning (Poem Update) -->
+                        <!-- P9: Warning -->
                         <div class="page" id="page-9">
                             <div class="max-w-md mx-auto pt-10 px-6">
                                 <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded shadow-sm cursor-pointer hover:bg-red-100 transition-colors" onclick="revealWarning(this)">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h3 class="text-red-700 font-bold">⚠️ Classified Warning</h3>
-                                        <i data-lucide="lock" class="w-4 h-4 text-red-400"></i>
-                                    </div>
+                                    <div class="flex justify-between items-center mb-2"><h3 class="text-red-700 font-bold">⚠️ Classified Warning</h3><i data-lucide="lock" class="w-4 h-4 text-red-400"></i></div>
                                     <p class="text-xs text-red-400 uppercase font-bold tracking-widest">Tap to Decrypt Message</p>
-                                    <div class="hidden mt-4 pt-4 border-t border-red-200">
-                                        <p class="text-sm text-red-800 italic leading-relaxed font-serif">
-                                            To enter the shadow is choosing to see,<br>
-                                            The parts of yourself you’ve been longing to flee.<br><br>
-                                            The start is a mountain that few care to climb,<br>
-                                            And those who find conflict will run every time.<br><br>
-                                            I hope you find victory, Seeker, I do—<br>
-                                            But it’s a mad trek to reveal the real you.
-                                        </p>
-                                    </div>
+                                    <div class="hidden mt-4 pt-4 border-t border-red-200"><p class="text-sm text-red-800 italic leading-relaxed font-serif">To enter the shadow is choosing to see,<br>The parts of yourself you’ve been longing to flee.<br><br>The start is a mountain that few care to climb,<br>And those who find conflict will run every time.<br><br>I hope you find victory, Seeker, I do—<br>But it’s a mad trek to reveal the real you.</p></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- P10: Projection Mirror (ENHANCED) -->
+                        <!-- P10: Projection Mirror -->
                         <div class="page" id="page-10">
                             <div class="max-w-md mx-auto pt-6 px-6 text-center h-full flex flex-col">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4">The Projection Mirror</h2>
-                                
-                                <!-- Emotional Math Equation -->
                                 <div class="bg-white p-4 rounded-xl border-2 border-indigo-100 shadow-sm mb-6">
-                                    <div class="flex items-center justify-center space-x-3 text-sm font-bold text-gray-700">
-                                        <div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🤬</span><span class="text-[10px] uppercase mt-1 text-gray-400">Trigger</span></div>
-                                        <div class="text-indigo-300 font-serif text-xl">+</div>
-                                        <div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🔥</span><span class="text-[10px] uppercase mt-1 text-gray-400">Heat</span></div>
-                                        <div class="text-indigo-300 font-serif text-xl">=</div>
-                                        <div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🌑</span><span class="text-[10px] uppercase mt-1 text-gray-400">Shadow</span></div>
-                                    </div>
+                                    <div class="flex items-center justify-center space-x-3 text-sm font-bold text-gray-700"><div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🤬</span><span class="text-[10px] uppercase mt-1 text-gray-400">Trigger</span></div><div class="text-indigo-300 font-serif text-xl">+</div><div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🔥</span><span class="text-[10px] uppercase mt-1 text-gray-400">Heat</span></div><div class="text-indigo-300 font-serif text-xl">=</div><div class="flex flex-col items-center group"><span class="text-2xl group-hover:scale-110 transition-transform">🌑</span><span class="text-[10px] uppercase mt-1 text-gray-400">Shadow</span></div></div>
                                     <p class="text-xs text-indigo-800 mt-3 font-medium bg-indigo-50 py-1 px-2 rounded-full inline-block">"If it triggers you, it belongs to you."</p>
                                 </div>
-
-                                <!-- 4 Cards Grid -->
                                 <div class="grid grid-cols-2 gap-3 flex-grow pb-4">
-                                    <!-- Card 1: Arrogant -->
-                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()">
-                                        <div class="flip-card-inner">
-                                            <div class="flip-card-front">
-                                                <span class="text-2xl mb-2">😤</span>
-                                                <h3 class="font-bold text-gray-700 text-xs">"They are<br>ARROGANT!"</h3>
-                                            </div>
-                                            <div class="flip-card-back bg-indigo-900 border-indigo-500">
-                                                <i data-lucide="sun" class="w-5 h-5 text-indigo-300 mb-1"></i>
-                                                <h3 class="font-bold text-white text-xs">Suppressed Confidence</h3>
-                                                <p class="text-[10px] text-indigo-200 mt-1 leading-tight">You secretly want to shine but play small.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Card 2: Lazy -->
-                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()">
-                                        <div class="flip-card-inner">
-                                            <div class="flip-card-front">
-                                                <span class="text-2xl mb-2">😴</span>
-                                                <h3 class="font-bold text-gray-700 text-xs">"They are<br>LAZY!"</h3>
-                                            </div>
-                                            <div class="flip-card-back bg-indigo-900 border-indigo-500">
-                                                <i data-lucide="coffee" class="w-5 h-5 text-indigo-300 mb-1"></i>
-                                                <h3 class="font-bold text-white text-xs">Need for Rest</h3>
-                                                <p class="text-[10px] text-indigo-200 mt-1 leading-tight">You overwork and judge those who rest.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Card 3: Selfish -->
-                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()">
-                                        <div class="flip-card-inner">
-                                            <div class="flip-card-front">
-                                                <span class="text-2xl mb-2">😒</span>
-                                                <h3 class="font-bold text-gray-700 text-xs">"They are<br>SELFISH!"</h3>
-                                            </div>
-                                            <div class="flip-card-back bg-indigo-900 border-indigo-500">
-                                                <i data-lucide="shield" class="w-5 h-5 text-indigo-300 mb-1"></i>
-                                                <h3 class="font-bold text-white text-xs">Lack of Boundaries</h3>
-                                                <p class="text-[10px] text-indigo-200 mt-1 leading-tight">You give too much and resent self-care.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Card 4: Dramatic -->
-                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()">
-                                        <div class="flip-card-inner">
-                                            <div class="flip-card-front">
-                                                <span class="text-2xl mb-2">😭</span>
-                                                <h3 class="font-bold text-gray-700 text-xs">"They are<br>DRAMATIC!"</h3>
-                                            </div>
-                                            <div class="flip-card-back bg-indigo-900 border-indigo-500">
-                                                <i data-lucide="cloud-rain" class="w-5 h-5 text-indigo-300 mb-1"></i>
-                                                <h3 class="font-bold text-white text-xs">Repressed Emotion</h3>
-                                                <p class="text-[10px] text-indigo-200 mt-1 leading-tight">You numb your feelings to appear strong.</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()"><div class="flip-card-inner"><div class="flip-card-front"><span class="text-2xl mb-2">😤</span><h3 class="font-bold text-gray-700 text-xs">"They are<br>ARROGANT!"</h3></div><div class="flip-card-back bg-indigo-900 border-indigo-500"><i data-lucide="sun" class="w-5 h-5 text-indigo-300 mb-1"></i><h3 class="font-bold text-white text-xs">Suppressed Confidence</h3><p class="text-[10px] text-indigo-200 mt-1 leading-tight">You secretly want to shine but play small.</p></div></div></div>
+                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()"><div class="flip-card-inner"><div class="flip-card-front"><span class="text-2xl mb-2">😴</span><h3 class="font-bold text-gray-700 text-xs">"They are<br>LAZY!"</h3></div><div class="flip-card-back bg-indigo-900 border-indigo-500"><i data-lucide="coffee" class="w-5 h-5 text-indigo-300 mb-1"></i><h3 class="font-bold text-white text-xs">Need for Rest</h3><p class="text-[10px] text-indigo-200 mt-1 leading-tight">You overwork and judge those who rest.</p></div></div></div>
+                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()"><div class="flip-card-inner"><div class="flip-card-front"><span class="text-2xl mb-2">😒</span><h3 class="font-bold text-gray-700 text-xs">"They are<br>SELFISH!"</h3></div><div class="flip-card-back bg-indigo-900 border-indigo-500"><i data-lucide="shield" class="w-5 h-5 text-indigo-300 mb-1"></i><h3 class="font-bold text-white text-xs">Lack of Boundaries</h3><p class="text-[10px] text-indigo-200 mt-1 leading-tight">You give too much and resent self-care.</p></div></div></div>
+                                    <div class="flip-card h-32" onclick="this.classList.toggle('flipped'); if(window.sfx) window.sfx.tick()"><div class="flip-card-inner"><div class="flip-card-front"><span class="text-2xl mb-2">😭</span><h3 class="font-bold text-gray-700 text-xs">"They are<br>DRAMATIC!"</h3></div><div class="flip-card-back bg-indigo-900 border-indigo-500"><i data-lucide="cloud-rain" class="w-5 h-5 text-indigo-300 mb-1"></i><h3 class="font-bold text-white text-xs">Repressed Emotion</h3><p class="text-[10px] text-indigo-200 mt-1 leading-tight">You numb your feelings to appear strong.</p></div></div></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- P11: Integration (Enhanced Interaction) -->
+                        <!-- P11: Integration -->
                         <div class="page" id="page-11">
                              <div class="max-w-md mx-auto pt-10 px-6 text-center">
                                 <div class="relative w-32 h-32 mx-auto mb-6 cursor-pointer" onclick="integrateCircles(this)">
                                     <div class="absolute inset-0 bg-gray-800 rounded-full opacity-80 transform -translate-x-4 transition-transform duration-1000" id="shadow-circle"></div>
-                                    <div class="absolute inset-0 bg-white border-2 border-gray-800 rounded-full opacity-80 transform translate-x-4 transition-transform duration-1000 flex items-center justify-center" id="light-circle">
-                                        <span class="text-xs font-bold text-gray-800">Tap to Merge</span>
-                                    </div>
+                                    <div class="absolute inset-0 bg-white border-2 border-gray-800 rounded-full opacity-80 transform translate-x-4 transition-transform duration-1000 flex items-center justify-center" id="light-circle"><span class="text-xs font-bold text-gray-800">Tap to Merge</span></div>
                                 </div>
                                 <h2 class="text-xl font-bold text-allgood-dark mb-4">Integration</h2>
                                 <div id="integration-text" class="hidden opacity-0 transition-opacity duration-500">
-                                    <p class="text-gray-600 text-sm leading-relaxed mb-4">
-                                        Psychological growth is not about eliminating the shadow. It is about <strong>integrating</strong> it. It is about looking into the depths of your own unconscious and facing what you have denied.
-                                    </p>
-                                    <p class="text-gray-600 text-sm leading-relaxed">
-                                        The parts of yourself you've suppressed are not your enemies, but the missing pieces of your wholeness.
-                                    </div>
+                                    <p class="text-gray-600 text-sm leading-relaxed mb-4">Psychological growth is not about eliminating the shadow. It is about <strong>integrating</strong> it. It is about looking into the depths of your own unconscious and facing what you have denied.</p>
+                                    <p class="text-gray-600 text-sm leading-relaxed">The parts of yourself you've suppressed are not your enemies, but the missing pieces of your wholeness.</p>
                                 </div>
                             </div>
+                        </div>
 
-                        <!-- P12: Archetypes (CAROUSEL UPGRADE) -->
+                        <!-- P12: Archetypes -->
                         <div class="page" id="page-12">
                             <div class="max-w-md mx-auto pt-6 px-6 text-center h-full flex flex-col">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-2">The Inner Cast</h2>
                                 <p class="text-xs text-gray-500 mb-6">Swipe to meet the characters living in your psyche.</p>
-                                
-                                <!-- Carousel Container -->
                                 <div class="flex-grow flex items-center justify-center relative">
-                                    <!-- Left Arrow -->
-                                    <button onclick="changeArchetype(-1)" class="absolute left-0 z-10 p-3 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 text-gray-600 hover:text-allgood-primary transition-colors active:scale-95">
-                                        <i data-lucide="chevron-left" class="w-6 h-6"></i>
-                                    </button>
-                                    
-                                    <!-- Card -->
-                                    <div id="archetype-card" class="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-xl w-64 h-80 flex flex-col items-center justify-center transition-all duration-300 transform scale-100 opacity-100">
-                                        <!-- Dynamic Content -->
-                                    </div>
-
-                                    <!-- Right Arrow -->
-                                    <button onclick="changeArchetype(1)" class="absolute right-0 z-10 p-3 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 text-gray-600 hover:text-allgood-primary transition-colors active:scale-95">
-                                        <i data-lucide="chevron-right" class="w-6 h-6"></i>
-                                    </button>
+                                    <button onclick="changeArchetype(-1)" class="absolute left-0 z-10 p-3 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 text-gray-600 hover:text-allgood-primary transition-colors active:scale-95"><i data-lucide="chevron-left" class="w-6 h-6"></i></button>
+                                    <div id="archetype-card" class="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-xl w-64 h-80 flex flex-col items-center justify-center transition-all duration-300 transform scale-100 opacity-100"></div>
+                                    <button onclick="changeArchetype(1)" class="absolute right-0 z-10 p-3 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 text-gray-600 hover:text-allgood-primary transition-colors active:scale-95"><i data-lucide="chevron-right" class="w-6 h-6"></i></button>
                                 </div>
-                                
-                                <!-- Indicators -->
-                                <div class="flex justify-center gap-2 mt-6 h-4" id="archetype-dots">
-                                    <!-- Dots injected via JS -->
-                                </div>
+                                <div class="flex justify-center gap-2 mt-6 h-4" id="archetype-dots"></div>
                             </div>
                         </div>
 
@@ -853,10 +684,7 @@
                             <div class="max-w-md mx-auto pt-6 px-6">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4">Dialogue Simulator</h2>
                                 <p class="text-sm text-gray-600 mb-4">Have you ever had a moment when you knew you needed to change, but something inside resisted? That is the battle between the Hero and the Shadow.</p>
-                                <div class="bg-gray-100 p-4 rounded mb-4 border-l-4 border-gray-400">
-                                    <p class="text-xs font-bold text-gray-500 uppercase">Saboteur says:</p>
-                                    <p class="text-sm italic text-gray-800">"Don't speak up in this meeting. You'll sound stupid."</p>
-                                </div>
+                                <div class="bg-gray-100 p-4 rounded mb-4 border-l-4 border-gray-400"><p class="text-xs font-bold text-gray-500 uppercase">Saboteur says:</p><p class="text-sm italic text-gray-800">"Don't speak up in this meeting. You'll sound stupid."</p></div>
                                 <div class="space-y-2">
                                     <button onclick="checkHero(this, false)" class="w-full text-left p-3 bg-white border border-gray-200 rounded text-sm hover:bg-red-50"><strong>Fight:</strong> "Shut up! I'm smart! I'm forcing myself to talk!"</button>
                                     <button onclick="checkHero(this, true)" class="w-full text-left p-3 bg-white border border-gray-200 rounded text-sm hover:bg-green-50"><strong>Integrate:</strong> "I hear your fear. You're trying to protect me. But I'm prepared."</button>
@@ -865,89 +693,47 @@
                             </div>
                         </div>
                         
-                        <!-- P14: Anima/Animus (CONVERGENCE SLIDER - FIXED) -->
+                        <!-- P14: Anima/Animus -->
                         <div class="page" id="page-14">
                             <div class="flex flex-col items-center justify-center min-h-full px-6 pt-6 text-center relative overflow-hidden h-full">
                                 <h2 class="text-xl font-bold text-allgood-dark mb-2 z-20">Anima & Animus</h2>
                                 <p class="text-xs text-gray-500 mb-8 z-20">Slide to merge the Logic (Sun) and Intuition (Moon).</p>
-                                
-                                <!-- Celestial Container -->
                                 <div class="relative w-full max-w-sm h-40 mb-8 flex items-center justify-center">
-                                    <!-- Center Guide -->
                                     <div class="absolute w-px h-full bg-gray-200 z-0"></div>
-                                    
-                                    <!-- Sun (Animus) - Starts Left -->
-                                    <div id="celestial-sun" class="absolute left-0 w-20 h-20 bg-amber-400 rounded-full shadow-[0_0_20px_rgba(251,191,36,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white" style="transform: translateX(0);">
-                                        <i data-lucide="sun" class="w-8 h-8 text-amber-900"></i>
-                                    </div>
-
-                                    <!-- Moon (Anima) - Starts Right -->
-                                    <div id="celestial-moon" class="absolute right-0 w-20 h-20 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white mix-blend-multiply" style="transform: translateX(0);">
-                                        <i data-lucide="moon" class="w-8 h-8 text-white"></i>
-                                    </div>
-                                    
-                                    <!-- Eclipse Glow (Hidden until merge) -->
+                                    <div id="celestial-sun" class="absolute left-0 w-20 h-20 bg-amber-400 rounded-full shadow-[0_0_20px_rgba(251,191,36,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white" style="transform: translateX(0);"><i data-lucide="sun" class="w-8 h-8 text-amber-900"></i></div>
+                                    <div id="celestial-moon" class="absolute right-0 w-20 h-20 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.6)] flex items-center justify-center transition-transform duration-100 z-10 border-4 border-white mix-blend-multiply" style="transform: translateX(0);"><i data-lucide="moon" class="w-8 h-8 text-white"></i></div>
                                     <div id="eclipse-glow" class="absolute w-24 h-24 bg-white rounded-full opacity-0 shadow-[0_0_40px_rgba(255,255,255,0.9)] transition-opacity duration-500 z-0"></div>
                                 </div>
-
-                                <!-- The Slider -->
                                 <div class="w-full max-w-xs z-20">
-                                    <div class="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                                        <span>Separation</span>
-                                        <span>Integration</span>
-                                    </div>
+                                    <div class="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2"><span>Separation</span><span>Integration</span></div>
                                     <input type="range" min="0" max="100" value="0" class="range-slider" oninput="updateEclipse(this.value)">
                                 </div>
-
-                                <!-- Success Text -->
-                                <div id="eclipse-text" class="h-16 mt-6 flex items-center justify-center opacity-0 transition-opacity duration-500">
-                                    <div>
-                                        <h3 class="text-lg font-bold text-allgood-primary">WHOLENESS</h3>
-                                        <p class="text-xs text-gray-500">Conflict ends when the two halves meet.</p>
-                                    </div>
-                                </div>
+                                <div id="eclipse-text" class="h-16 mt-6 flex items-center justify-center opacity-0 transition-opacity duration-500"><div><h3 class="text-lg font-bold text-allgood-primary">WHOLENESS</h3><p class="text-xs text-gray-500">Conflict ends when the two halves meet.</p></div></div>
                             </div>
                         </div>
 
-                        <!-- ACT 3: SYNTHESIS (P15-P25) -->
                         <!-- P15: Balance Slider -->
                         <div class="page" id="page-15">
                             <div class="max-w-md mx-auto pt-10 px-6 text-center">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-6">Find the Center</h2>
                                 <p class="text-sm text-gray-600 mb-6">To find yourself, you must embrace all parts of yourself. The light and the dark. The masculine and the feminine.</p>
-                                <div class="flex justify-between text-xs font-bold text-gray-400 mb-2">
-                                    <span>Rigid Logic</span>
-                                    <span>Chaotic Emotion</span>
-                                </div>
+                                <div class="flex justify-between text-xs font-bold text-gray-400 mb-2"><span>Rigid Logic</span><span>Chaotic Emotion</span></div>
                                 <input type="range" min="0" max="100" value="0" class="range-slider mb-6" oninput="checkBalance(this.value)">
                                 <div id="balance-text" class="text-xl font-bold text-gray-300">Too Rigid...</div>
                             </div>
                         </div>
-
-                        <!-- P16: The Ego (WALL BREAKER - NEW) -->
+                        
+                        <!-- P16: The Ego Wall -->
                         <div class="page" id="page-16">
-                             <div class="flex flex-col h-full relative">
-                                <!-- Background: True Self (Cosmos) -->
-                                <div class="absolute inset-0 bg-gray-900 overflow-hidden z-0">
+                             <div class="flex flex-col items-center justify-center h-full w-full relative min-h-[500px]">
+                                <div class="absolute inset-0 bg-gray-900 overflow-hidden z-0 rounded-lg">
                                     <div class="absolute inset-0 opacity-60" style="background-image: radial-gradient(white 1px, transparent 1px); background-size: 30px 30px;"></div>
                                     <div class="absolute inset-0 flex items-center justify-center">
-                                        <div class="text-center">
-                                            <i data-lucide="infinity" class="w-20 h-20 text-white mx-auto mb-4 animate-pulse"></i>
-                                            <h2 class="text-3xl font-heading font-bold text-white">The True Self</h2>
-                                            <p class="text-indigo-200">Infinite. Limitless. Connected.</p>
-                                        </div>
+                                        <div class="text-center animate-pulse"><i data-lucide="infinity" class="w-24 h-24 text-white mx-auto mb-4"></i><h2 class="text-4xl font-heading font-bold text-white">The True Self</h2><p class="text-indigo-200 text-lg">Infinite. Limitless. Connected.</p></div>
                                     </div>
                                 </div>
-
-                                <!-- Foreground: Ego Wall -->
-                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-3 sm:grid-cols-4 gap-1 p-1 bg-gray-800">
-                                    <!-- Bricks generated via JS -->
-                                </div>
-                                
-                                <!-- UI Layer -->
-                                <div class="absolute top-4 left-0 w-full text-center z-20 pointer-events-none">
-                                    <span class="bg-black/50 text-white px-3 py-1 rounded text-xs font-bold backdrop-blur-sm">Click bricks to dismantle the Ego</span>
-                                </div>
+                                <div id="ego-wall" class="absolute inset-0 z-10 grid grid-cols-4 grid-rows-5 gap-1 p-2 bg-gray-800/50 backdrop-blur-sm rounded-lg"></div>
+                                <div class="absolute top-2 left-0 w-full text-center z-20 pointer-events-none"><span class="bg-black/70 text-white px-4 py-1 rounded-full text-sm font-bold backdrop-blur-md border border-white/10 shadow-lg">Click bricks to dismantle the Ego</span></div>
                             </div>
                         </div>
 
@@ -955,38 +741,38 @@
                         <div class="page" id="page-17">
                             <div class="max-w-md mx-auto pt-6 px-6">
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4">The True Self</h2>
-                                <p class="text-sm text-gray-600 mb-6 leading-relaxed">
-                                    But what if the person you think you are is just a fragment of something larger? Jung believed in the **True Self**—the totality of who you are beyond the illusions of identity.
-                                </p>
-                                <div class="bg-indigo-50 p-6 rounded-lg text-center border border-indigo-100">
-                                    <i data-lucide="infinity" class="w-8 h-8 text-jung-primary mx-auto mb-2"></i>
-                                    <h4 class="font-bold text-jung-primary uppercase tracking-widest text-xs mb-2">The True Self</h4>
-                                    <p class="text-sm text-indigo-900">"You are a vast, interconnected field of consciousness."</p>
-                                </div>
+                                <p class="text-sm text-gray-600 mb-6 leading-relaxed">But what if the person you think you are is just a fragment of something larger? Jung believed in the <strong>True Self</strong>—the totality of who you are beyond the illusions of identity.</p>
+                                <div class="bg-indigo-50 p-6 rounded-lg text-center border border-indigo-100"><i data-lucide="infinity" class="w-8 h-8 text-jung-primary mx-auto mb-2"></i><h4 class="font-bold text-jung-primary uppercase tracking-widest text-xs mb-2">The True Self</h4><p class="text-sm text-indigo-900">"You are a vast, interconnected field of consciousness."</p></div>
                             </div>
                         </div>
                         
-                        <!-- P18: Illusion of Self -->
+                        <!-- P18: The Mirror Shatter -->
                         <div class="page" id="page-18">
-                            <div class="flex flex-col items-center justify-center min-h-full px-6 text-center">
-                                <h2 class="text-2xl font-bold text-allgood-dark mb-4">The Deepest Illusion</h2>
-                                <p class="text-gray-600 leading-relaxed mb-6">
-                                    The moment you stop clinging to the idea of who you *think* you are, you unlock infinite possibilities. This realization is both liberating and terrifying.
-                                </p>
-                                <p class="text-gray-500 italic">"Everything you have believed yourself to be—all the fears, the limitations, the stories—is merely a construct."</p>
+                            <div class="flex flex-col items-center justify-center h-full w-full relative overflow-hidden">
+                                <div id="mirror-cosmos" class="absolute inset-0 cosmos-bg z-0 opacity-0 transition-opacity duration-1000 flex items-center justify-center">
+                                    <div class="absolute inset-0 cosmos-stars"></div>
+                                    <div class="text-center z-10 animate-fade-in delay-700"><i data-lucide="infinity" class="w-24 h-24 text-white mx-auto mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]"></i><h2 class="text-3xl font-heading font-bold text-white mb-2">The Infinite Self</h2><p class="text-indigo-200 text-lg">Beyond the construct.</p></div>
+                                </div>
+                                <div id="mirror-frame" class="relative w-64 h-80 bg-gradient-to-br from-gray-100 to-gray-300 border-8 border-gray-400 rounded-lg shadow-2xl flex items-center justify-center cursor-pointer transition-transform duration-100 z-10 group overflow-hidden" onclick="shatterMirror()">
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent pointer-events-none z-10"></div>
+                                    <div class="text-center opacity-60 group-hover:opacity-80 transition-opacity"><i data-lucide="user" class="w-16 h-16 text-gray-500 mx-auto mb-2"></i><p class="text-xs font-bold text-gray-500 uppercase tracking-widest">The Finite Self</p></div>
+                                    <svg id="mirror-cracks" class="absolute inset-0 w-full h-full pointer-events-none z-20" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                                </div>
+                                <div id="mirror-instruction" class="absolute bottom-10 text-gray-400 text-xs font-bold uppercase tracking-widest animate-pulse z-20 pointer-events-none">Tap to Break the Illusion</div>
                             </div>
                         </div>
 
                         <!-- P19: Tools -->
                         <div class="page" id="page-19">
-                            <div class="max-w-md mx-auto pt-6 px-6">
-                                <h2 class="text-lg font-bold text-allgood-dark mb-4">The Archeologist's Kit</h2>
-                                <p class="text-sm text-gray-600 mb-6">How do we access this deeper self? Jung offered practical tools to bridge the gap between the conscious and unconscious mind.</p>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="cloud-moon" class="w-5 h-5 text-purple-500 mr-3"></i><span class="text-sm font-bold">Dreams</span><span class="text-xs text-gray-400 ml-auto">Messages from the Self</span></div>
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="pen-tool" class="w-5 h-5 text-pink-500 mr-3"></i><span class="text-sm font-bold">Creativity</span><span class="text-xs text-gray-400 ml-auto">Art accesses the unknown</span></div>
-                                    <div class="p-3 bg-white border rounded shadow-sm flex items-center"><i data-lucide="eye" class="w-5 h-5 text-blue-500 mr-3"></i><span class="text-sm font-bold">Introspection</span><span class="text-xs text-gray-400 ml-auto">Question your reactions</span></div>
+                            <div class="max-w-md mx-auto pt-6 px-6 h-full flex flex-col">
+                                <h2 class="text-lg font-bold text-allgood-dark mb-2">The Archeologist's Kit</h2>
+                                <p class="text-xs text-gray-600 mb-6">How do we access the unconscious? Jung offered three primary tools. Click to inspect the Field Guide.</p>
+                                <div class="grid grid-cols-3 gap-3 mb-4">
+                                    <button onclick="openTool('dreams', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 rounded-lg shadow-sm transition-all group active:scale-95"><div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mb-2 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i data-lucide="cloud-moon" class="w-5 h-5"></i></div><span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Dreams</span></button>
+                                    <button onclick="openTool('creativity', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-pink-300 hover:bg-pink-50 rounded-lg shadow-sm transition-all group active:scale-95"><div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center mb-2 text-pink-600 group-hover:bg-pink-600 group-hover:text-white transition-colors"><i data-lucide="pen-tool" class="w-5 h-5"></i></div><span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Creativity</span></button>
+                                    <button onclick="openTool('introspection', this)" class="tool-btn flex flex-col items-center p-3 bg-white border-2 border-transparent hover:border-blue-300 hover:bg-blue-50 rounded-lg shadow-sm transition-all group active:scale-95"><div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors"><i data-lucide="eye" class="w-5 h-5"></i></div><span class="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Insight</span></button>
                                 </div>
+                                <div id="tool-detail" class="flex-grow bg-gray-50 border border-gray-200 rounded-lg p-5 relative overflow-hidden transition-all duration-300 shadow-inner"><div class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none opacity-50"><i data-lucide="search" class="w-8 h-8 mb-2"></i><span class="text-xs uppercase tracking-widest">Select a Tool</span></div></div>
                             </div>
                         </div>
 
@@ -996,45 +782,23 @@
                                 <h2 class="text-lg font-bold text-allgood-dark mb-4">Log a Symbol</h2>
                                 <p class="text-sm text-gray-600 mb-4">The unconscious speaks in symbols. Is there an image or theme that keeps appearing in your life or dreams?</p>
                                 <textarea class="w-full p-3 border border-gray-300 rounded text-sm mb-4 bg-white" placeholder="e.g. Water, Falling, Wolves, Being Chased..."></textarea>
-                                <button onclick="if(window.sfx) window.sfx.success(); this.innerText='Logged'; this.classList.add('bg-green-600');" class="bg-allgood-secondary text-white px-4 py-2 rounded text-sm font-bold w-full">Save Entry</button>
+                                <button onclick="logDream(this)" class="bg-allgood-secondary text-white px-4 py-2 rounded text-sm font-bold w-full transition-colors hover:bg-allgood-accent">Save Entry</button>
                             </div>
                         </div>
 
-                        <!-- P21: Paradigm Shift -->
+                        <!-- P21: The Manifesto (COMBINED 21-23) -->
                         <div class="page" id="page-21">
-                             <div class="flex flex-col items-center justify-center min-h-full px-6 text-center">
-                                <p class="text-xl italic text-gray-700 mb-6">"Life truly begins when you stop running from yourself."</p>
-                                <div class="h-1 w-20 bg-jung-primary rounded-full mb-6"></div>
-                                <p class="text-sm text-gray-500">
-                                    The ultimate realization is that you were never truly lost. The deep, authentic self has always been within you, waiting to be remembered.
-                                </p>
+                             <div class="max-w-2xl mx-auto px-6 pb-20">
+                                <div class="text-center pt-10 mb-16 fade-in"><div class="w-16 h-16 mx-auto bg-allgood-dark text-white rounded-full flex items-center justify-center mb-4 shadow-lg"><i data-lucide="feather" class="w-8 h-8"></i></div><h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">The Realization</h2><p class="text-sm text-gray-500 uppercase tracking-widest">Scroll to internalize the truth</p></div>
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-24 relative" id="man-1"><div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-primary to-transparent opacity-30"></div><h3 class="text-2xl font-bold text-gray-800 mb-4">1. The Paradigm Shift</h3><p class="text-lg text-gray-600 leading-relaxed italic mb-4">"Life truly begins when you stop running from yourself."</p><p class="text-gray-500 text-sm leading-relaxed">The ultimate realization is that you were never truly lost. The deep, authentic self has always been within you, waiting to be remembered. You are not fixing a broken machine; you are uncovering a buried treasure.</p></div>
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-24 relative" id="man-2"><div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-secondary to-transparent opacity-30"></div><h3 class="text-2xl font-bold text-gray-800 mb-4">2. Embrace the Unknown</h3><p class="text-lg text-gray-600 leading-relaxed italic mb-4">"Certainty is the cage. Mystery is the door."</p><p class="text-gray-500 text-sm leading-relaxed">The Ego craves safety and prediction. The Self thrives in the unknown. Growth only happens when you step off the map. Stop asking "What will happen?" and start asking "Who will I become?"</p></div>
+                                <div class="manifesto-section opacity-0 transform translate-y-10 transition-all duration-1000 mb-10 relative" id="man-3"><div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-jung-accent to-transparent opacity-30"></div><h3 class="text-2xl font-bold text-gray-800 mb-4">3. Release the Labels</h3><p class="text-lg text-gray-600 leading-relaxed italic mb-4">"You are the sky, not the weather."</p><p class="text-gray-500 text-sm leading-relaxed">You are not your name. You are not your job, your trauma, or your bank account. These are just costumes you wear. When you strip them away, what remains is the infinite, observing presence. That is You.</p></div>
+                                <div class="text-center pt-10 pb-10 opacity-50"><i data-lucide="arrow-down" class="w-6 h-6 mx-auto animate-bounce text-gray-400"></i></div>
                             </div>
                         </div>
                         
-                        <!-- P22: Embrace Unknown -->
+                        <!-- P22: Contract -->
                         <div class="page" id="page-22">
-                             <div class="max-w-md mx-auto pt-10 px-6 text-center">
-                                <i data-lucide="help-circle" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                                <h2 class="text-lg font-bold text-allgood-dark">Embrace the Unknown</h2>
-                                <p class="text-sm text-gray-600 mt-2 leading-relaxed">
-                                    Most people fear the unknown because it represents uncertainty. But the unknown is where growth happens. It is where transformation occurs.
-                                </p>
-                            </div>
-                        </div>
-                        
-                         <!-- P23: Release Labels -->
-                        <div class="page" id="page-23">
-                             <div class="max-w-md mx-auto pt-10 px-6 text-center">
-                                <i data-lucide="tag" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
-                                <h2 class="text-lg font-bold text-allgood-dark">Release Labels</h2>
-                                <p class="text-sm text-gray-600 mt-2 leading-relaxed">
-                                    You are not just your name. You are not just your job, your past, or your personality. You are something far beyond definition.
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- P24: Contract -->
-                        <div class="page" id="page-24">
                             <div class="max-w-md mx-auto pt-6 px-6">
                                 <div class="bg-white p-6 rounded shadow-lg border-2 border-jung-primary/20 text-center">
                                     <h3 class="font-heading font-bold text-lg mb-4 text-gray-800">Surrender Contract</h3>
@@ -1048,18 +812,44 @@
                             </div>
                         </div>
 
-                        <!-- P25: Certification -->
-                        <div class="page" id="page-25">
-                            <div class="flex flex-col items-center justify-start h-full text-center px-6 pt-10">
-                                <div class="mb-6"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                                <div class="w-24 h-24 bg-gradient-to-br from-jung-primary to-jung-accent rounded-full flex items-center justify-center shadow-xl mb-6 animate-fade-in">
-                                    <i data-lucide="award" class="w-12 h-12 text-white"></i>
+                        <!-- P23: Certification & Feedback -->
+                        <div class="page" id="page-23">
+                            <div class="flex flex-col items-center justify-start h-full text-center px-2 pt-8 overflow-y-auto">
+                                <div class="mb-4 text-allgood-secondary font-bold tracking-widest uppercase text-xs">Mission Accomplished</div>
+                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-6">Certification & Feedback</h2>
+
+                                <!-- Feedback Card -->
+                                <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
+                                    <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this Module</h3>
+                                    <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                        <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                        <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    </div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback improves the Academy. Thoughts?</label>
+                                    <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                    <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Submit Feedback & Unlock Badge</button>
                                 </div>
-                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-2">Architect of Self</h2>
-                                <p class="text-sm text-gray-600 mb-8">You have completed the Archeology of Identity.</p>
-                                <button class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center">
-                                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Badge
-                                </button>
+
+                                <!-- Success State -->
+                                <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-4 rounded-lg shadow-inner border border-green-200 mb-8 text-center animate-fade-in">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                                    <h3 class="font-bold text-green-800 text-sm">Feedback Received.</h3>
+                                </div>
+
+                                <!-- Badge Section (Locked State) -->
+                                <div id="badge-section" class="w-full max-w-md flex flex-col items-center justify-center opacity-50 pointer-events-none transition-all duration-500 filter grayscale">
+                                    <div id="badge-display" class="w-48 h-48 mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-white shadow-xl flex items-center justify-center">
+                                        <i data-lucide="award" class="w-24 h-24 text-gray-300"></i>
+                                    </div>
+                                    <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-1">Architect of Self</h2>
+                                    <p class="text-xs text-gray-500 mb-4">You have completed the Archeology of Identity.</p>
+                                    <button onclick="window.downloadBadge()" id="download-badge-btn" disabled class="bg-gray-300 text-white px-8 py-3 rounded-full font-bold shadow-none flex items-center cursor-not-allowed transition-all">
+                                        <i data-lucide="lock" class="mr-2 w-4 h-4"></i> Badge Locked
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1078,7 +868,27 @@
                     </button>
                 </footer>
 
-                <!-- Login Modal & System Menus (SAME AS FIXED CHASSIS) -->
+                <!-- CONFIRM EXIT MODAL (NEW) -->
+                <div id="exit-modal" class="hidden-modal absolute inset-0 z-[260] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                        <div class="mb-4 text-allgood-primary">
+                            <i data-lucide="log-out" class="w-12 h-12 mx-auto"></i>
+                        </div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Return to Dashboard?</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">You have completed this module. Your progress and badge have been saved.</p>
+                        
+                        <div class="space-y-3">
+                            <button onclick="window.location.href = 'https://allgoodacademy.com'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
+                                Yes, Return Home
+                            </button>
+                            <button onclick="document.getElementById('exit-modal').classList.add('hidden-modal'); document.getElementById('exit-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
+                                Stay Here
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login Modal & System Menus -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
@@ -1112,9 +922,7 @@
                             <span class="font-bold text-allgood-dark font-heading">Journey Map</span>
                             <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
-                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list">
-                            <!-- JS Injected -->
-                        </div>
+                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
                     </div>
                 </div>
 
@@ -1138,10 +946,15 @@
     <!-- LOGIC -->
     <script>
         // --- CONFIG & STATE ---
-        const totalPages = 25;
+        const totalPages = 23; 
         let currentPage = 0;
+        // EXPOSE GLOBALS FOR LOGGER
+        window.currentPageIndex = 0;
+        window.progressPercent = 0;
         let sortedItems = 0;
         let maskClickCount = 0;
+        let mirrorTapCount = 0;
+        let userRating = 0;
 
         // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1221,11 +1034,9 @@
             "Let's break the illusion. You are more than a construct.", // P18
             "I'm giving you the Archeologist's Kit. Dreams and Creativity are your shovels.", // P19
             "What symbols are appearing in your life? Log them. They are messages.", // P20
-            "This is the shift. You aren't fixing yourself. You are remembering yourself.", // P21
-            "Embrace the unknown. That is where the growth happens.", // P22
-            "Release the labels. You are not your past.", // P23
-            "I need a commitment. Sign the contract to drop the mask for just one moment today.", // P24
-            "You have done the work. You are now an Architect of Self. Well done." // P25
+            "This is the Manifesto of the True Self. Read it slowly. Let it sink in.", // P21 (Combined)
+            "I need a commitment. Sign the contract to drop the mask for just one moment today.", // P22 (Contract)
+            "You have done the work. You are now an Architect of Self. Well done." // P23 (Badge)
         ];
 
         window.updateJodi = (idx) => {
@@ -1246,19 +1057,57 @@
             document.getElementById(`page-${idx+1}`).classList.add('active');
             currentPage = idx;
             
+            // UPDATE GLOBALS
+            window.currentPageIndex = idx + 1;
+            window.progressPercent = Math.round(((idx + 1) / totalPages) * 100);
+            
             document.getElementById('header-page-indicator').textContent = `${idx + 1} / ${totalPages}`;
-            document.getElementById('flex-progress-fill').style.width = `${((idx + 1) / totalPages) * 100}%`;
+            document.getElementById('flex-progress-fill').style.width = `${window.progressPercent}%`;
             
             const backBtn = document.getElementById('back-button');
             const nextBtn = document.getElementById('next-button');
+            
             if(backBtn) { backBtn.disabled = (idx === 0); backBtn.classList.toggle('opacity-30', idx === 0); }
-            if(nextBtn) nextBtn.disabled = (idx === totalPages - 1);
+            
+            // NEXT BUTTON LOGIC
+            if(nextBtn) {
+                // Reset to default state first
+                nextBtn.innerHTML = '<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>';
+                nextBtn.onclick = window.nextPage;
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('bg-gray-500', 'hover:bg-gray-600', 'cursor-not-allowed');
+                nextBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+
+                if (idx === totalPages - 1) {
+                    // Final Page: Transform to "Return to Dashboard"
+                    nextBtn.innerHTML = '<span>Dashboard</span><i data-lucide="layout-grid" class="w-4 h-4 ml-1"></i>';
+                    // UPDATED: Trigger Modal instead of direct link
+                    nextBtn.onclick = () => {
+                        const exitModal = document.getElementById('exit-modal');
+                        if(exitModal) {
+                            exitModal.classList.remove('hidden-modal');
+                            exitModal.classList.add('visible-modal');
+                        }
+                    };
+                } else {
+                    // Normal Page: Ensure standard "Next" behavior
+                     nextBtn.onclick = window.nextPage;
+                }
+            }
             
             const scroll = document.getElementById('content-column');
             if(scroll) scroll.scrollTop = 0;
 
             window.updateJodi(idx);
             if(window.sfx) window.sfx.nav();
+
+            // REPLACED: Use SessionManager
+            if(window.SessionManager) {
+                window.SessionManager.log('Page_View', `Mapsd to Page ${idx + 1}`, {
+                    page_title: `Page ${idx + 1}`, // Could add real titles array map here
+                    progress: window.progressPercent
+                });
+            }
 
             // --- Init Special Pages ---
             if(idx === 11) { // Page 12 (0-based 11)
@@ -1269,12 +1118,112 @@
             if(idx === 15) { // Page 16
                  setTimeout(buildEgoWall, 100);
             }
+
+            if (idx === 17) { // Page 18
+                if (typeof window.resetMirror === 'function') window.resetMirror();
+            }
+
+            // Manifesto Scroll Animation (Page 21)
+            if (idx === 20) {
+                setTimeout(initManifesto, 100);
+            }
         }
 
         window.nextPage = () => window.showPage(currentPage + 1);
         window.prevPage = () => window.showPage(currentPage - 1);
 
         // --- INTERACTIONS ---
+        
+        // PAGE 18: MIRROR SHATTER LOGIC
+        window.shatterMirror = () => {
+            const frame = document.getElementById('mirror-frame');
+            const cracks = document.getElementById('mirror-cracks');
+            const cosmos = document.getElementById('mirror-cosmos');
+            const instruction = document.getElementById('mirror-instruction');
+            
+            mirrorTapCount++;
+            
+            // Jolt Animation helper
+            const jolt = () => {
+                frame.style.transform = `scale(${0.98 + Math.random()*0.04}) rotate(${Math.random()*2 - 1}deg)`;
+                setTimeout(() => frame.style.transform = 'scale(1) rotate(0deg)', 100);
+            };
+
+            if (mirrorTapCount === 1) {
+                // First Crack
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", "M50,50 L20,10 M50,50 L80,90");
+                path.setAttribute("stroke", "rgba(0,0,0,0.6)");
+                path.setAttribute("stroke-width", "0.5");
+                path.setAttribute("fill", "none");
+                path.classList.add("crack-path");
+                cracks.appendChild(path);
+                
+                jolt();
+                if(window.sfx) window.sfx.error(); // Sharp sound
+                instruction.innerText = "Strike Harder";
+                
+            } else if (mirrorTapCount === 2) {
+                // Second Crack (More severe)
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", "M50,50 L10,60 M50,50 L90,20 M50,50 L40,95");
+                path.setAttribute("stroke", "rgba(0,0,0,0.7)");
+                path.setAttribute("stroke-width", "0.8");
+                path.setAttribute("fill", "none");
+                path.classList.add("crack-path");
+                cracks.appendChild(path);
+                
+                jolt();
+                if(window.sfx) window.sfx.error();
+                instruction.innerText = "One More Blow";
+
+            } else if (mirrorTapCount >= 3) {
+                // Shatter
+                if(window.sfx) {
+                    window.sfx.error(); // Crack
+                    setTimeout(() => window.sfx.success(), 200); // Reveal sound
+                }
+                
+                frame.classList.add('shattered-glass');
+                instruction.style.opacity = '0';
+                
+                // Reveal Cosmos
+                cosmos.classList.remove('opacity-0');
+                
+                // NEW: Log Breakthrough
+                if(window.SessionManager) {
+                    window.SessionManager.log('Breakthrough', 'Illusion_Shattered', { 
+                        context: 'Page 18 Mirror' 
+                    });
+                }
+                
+                // Update Jodi
+                const bubble = document.getElementById('jodi-bubble');
+                if(bubble) {
+                     bubble.textContent = "The barrier is gone. This... is what you really are.";
+                     bubble.classList.remove('visible');
+                     setTimeout(() => bubble.classList.add('visible'), 100);
+                }
+            }
+        };
+
+        window.resetMirror = () => {
+            const frame = document.getElementById('mirror-frame');
+            const cracks = document.getElementById('mirror-cracks');
+            const cosmos = document.getElementById('mirror-cosmos');
+            const instruction = document.getElementById('mirror-instruction');
+            
+            if(frame) {
+                mirrorTapCount = 0;
+                frame.classList.remove('shattered-glass');
+                frame.style.transform = 'scale(1) rotate(0deg)';
+                cracks.innerHTML = ''; 
+                cosmos.classList.add('opacity-0');
+                instruction.style.opacity = '1';
+                instruction.innerText = "Tap to Break the Illusion";
+            }
+        };
+
         // PAGE 2: RADIO TUNER
         window.updateTuner = (val) => {
             const target = 935; // 93.5
@@ -1284,25 +1233,18 @@
             const display = document.getElementById('freq-display');
             const bar = document.getElementById('tuner-bar');
             
-            // Format display
             display.innerText = `FM ${(val/10).toFixed(1)}`;
-            
-            // Calculate signal strength (0 to 1)
             const diff = Math.abs(val - target);
             let strength = 0;
-            if (diff < range) {
-                strength = 1 - (diff / range);
-            }
+            if (diff < range) { strength = 1 - (diff / range); }
             
-            // Update UI based on strength
-            const blurAmount = 8 - (strength * 8); // 8px blur to 0px
-            const opacity = 0.3 + (strength * 0.7); // 0.3 to 1.0
+            const blurAmount = 8 - (strength * 8); 
+            const opacity = 0.3 + (strength * 0.7); 
             
             content.style.filter = `blur(${blurAmount}px)`;
             content.style.opacity = opacity;
             bar.style.width = `${strength * 100}%`;
             
-            // Audio Feedback (Pseudo)
             if (strength > 0.9) {
                 content.classList.remove('select-none');
                 screen.classList.remove('bg-gray-100', 'border-gray-300');
@@ -1322,18 +1264,10 @@
         window.selectEvidence = (btn) => {
             btn.classList.add('bg-jung-primary', 'text-white', 'border-jung-primary');
             btn.classList.remove('bg-white', 'hover:bg-jung-primary/5');
-            
             const icon = btn.querySelector('svg') || btn.querySelector('i');
-            if (icon) {
-                icon.classList.remove('text-gray-300');
-                icon.classList.add('text-white');
-            }
-            
+            if (icon) { icon.classList.remove('text-gray-300'); icon.classList.add('text-white'); }
             const text = btn.querySelector('p');
-            if (text) {
-                text.classList.remove('text-gray-600');
-                text.classList.add('text-white');
-            }
+            if (text) { text.classList.remove('text-gray-600'); text.classList.add('text-white'); }
             if(window.sfx) window.sfx.tick();
         };
 
@@ -1342,8 +1276,7 @@
             el.style.transition = "transform 0.5s ease, opacity 0.5s ease";
             el.style.transform = "scale(1.2) rotate(20deg) translateY(-50px)";
             el.style.opacity = "0";
-            el.style.pointerEvents = "none"; // prevent double clicks
-            
+            el.style.pointerEvents = "none"; 
             if(window.sfx) window.sfx.tick();
             
             setTimeout(() => {
@@ -1364,7 +1297,6 @@
             const smile = document.getElementById('feature-smile');
             const armor = document.getElementById('feature-armor');
             
-            // Reset styles
             eyes.setAttribute('stroke', '#78350F');
             smile.setAttribute('stroke', '#78350F');
             armor.setAttribute('stroke', 'rgba(255,255,255,0.4)');
@@ -1378,36 +1310,30 @@
                 jodiText = "Ah, the smile. A classic defense. 'If I am nice, you won't hurt me.' Keep digging.";
                 colorClass = "text-jung-accent";
                 borderClass = "border-jung-accent";
-                smile.setAttribute('stroke', '#D97706'); // Gold/Amber highlight
+                smile.setAttribute('stroke', '#D97706'); 
             } else if (feature === 'eyes') {
                 title = "Mechanism: Dissociation";
                 text = "The eyes look outward, scanning for expectations, but never look inward. This prevents you from seeing your own pain.";
                 jodiText = "Notice how it scans the room? It's looking for a script to follow so it doesn't have to improvise.";
                 colorClass = "text-jung-secondary";
                 borderClass = "border-jung-secondary";
-                eyes.setAttribute('stroke', '#10B981'); // Emerald
+                eyes.setAttribute('stroke', '#10B981'); 
             } else if (feature === 'armor') {
                 title = "Mechanism: Intellectualization";
                 text = "The polished forehead represents the 'Perfect Professional.' It uses logic and achievement to shield the soft, vulnerable self.";
                 jodiText = "Thick armor. This one thinks if it's smart enough or successful enough, it will finally be safe.";
                 colorClass = "text-jung-primary";
                 borderClass = "border-jung-primary";
-                armor.setAttribute('stroke', '#4F46E5'); // Indigo
+                armor.setAttribute('stroke', '#4F46E5'); 
             }
 
-            // Update UI
-            panel.innerHTML = `
-                <h4 class="text-xs font-bold ${colorClass} uppercase tracking-widest mb-1">${title}</h4>
-                <p class="text-sm text-gray-800 leading-relaxed animate-fade-in">${text}</p>
-            `;
+            panel.innerHTML = `<h4 class="text-xs font-bold ${colorClass} uppercase tracking-widest mb-1">${title}</h4><p class="text-sm text-gray-800 leading-relaxed animate-fade-in">${text}</p>`;
             panel.classList.add(borderClass, 'bg-gray-50');
             
-            // Update Jodi Bubble manually
             const bubble = document.getElementById('jodi-bubble');
             bubble.textContent = jodiText;
             bubble.classList.remove('visible');
             setTimeout(() => bubble.classList.add('visible'), 100);
-            
             if(window.sfx) window.sfx.tick();
         };
 
@@ -1434,26 +1360,16 @@
             
             shadow.style.transform = 'translateX(0)';
             light.style.transform = 'translateX(0)';
-            light.style.backgroundColor = '#10B981'; // Green mix
+            light.style.backgroundColor = '#10B981'; 
             light.innerHTML = '<span class="text-white font-bold">Integrated</span>';
             
             if(window.sfx) window.sfx.success();
-            
-            setTimeout(() => {
-                text.classList.remove('hidden');
-                void text.offsetWidth;
-                text.classList.remove('opacity-0');
-            }, 600);
+            setTimeout(() => { text.classList.remove('hidden'); void text.offsetWidth; text.classList.remove('opacity-0'); }, 600);
         };
 
         window.shredItem = (btn) => {
             btn.classList.add('burning');
-            
-            if(window.sfx) {
-                 window.sfx.tick();
-                 setTimeout(() => window.sfx.tick(), 100);
-                 setTimeout(() => window.sfx.tick(), 200);
-            }
+            if(window.sfx) { window.sfx.tick(); setTimeout(() => window.sfx.tick(), 100); setTimeout(() => window.sfx.tick(), 200); }
 
             setTimeout(() => {
                 btn.remove();
@@ -1469,27 +1385,27 @@
         };
 
         // Init Drag & Drop (Generic)
-        document.addEventListener('dragstart', (e) => {
-            if(e.target.classList.contains('draggable-item')) {
+        const draggables = document.querySelectorAll('.draggable-item');
+        
+        // MOUSE EVENTS
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text', e.target.id);
-                if(e.target.dataset.wisdom) {
-                    e.dataTransfer.setData('wisdom', e.target.dataset.wisdom);
-                }
+                if(e.target.dataset.wisdom) { e.dataTransfer.setData('wisdom', e.target.dataset.wisdom); }
                 if(window.sfx) window.sfx.tick();
-            }
+                draggable.classList.add('dragging');
+            });
+            draggable.addEventListener('dragend', () => { draggable.classList.remove('dragging'); });
         });
+
+        // DROP ZONES (MOUSE)
         document.addEventListener('dragover', (e) => {
             const zone = e.target.closest('.drop-zone');
-            if(zone) {
-                e.preventDefault();
-                zone.classList.add('drag-over');
-            }
+            if(zone) { e.preventDefault(); zone.classList.add('drag-over'); }
         });
         document.addEventListener('dragleave', (e) => {
             const zone = e.target.closest('.drop-zone');
-            if(zone) {
-                zone.classList.remove('drag-over');
-            }
+            if(zone) { zone.classList.remove('drag-over'); }
         });
         document.addEventListener('drop', (e) => {
             e.preventDefault();
@@ -1499,31 +1415,144 @@
                 const id = e.dataTransfer.getData('text');
                 const wisdom = e.dataTransfer.getData('wisdom'); 
                 const el = document.getElementById(id);
-                
-                if(el && el.dataset.target === zone.id) {
-                    zone.appendChild(el);
-                    el.draggable = false;
-                    el.classList.add('bg-jung-secondary', 'border-green-500', 'text-white');
-                    el.classList.remove('bg-white', 'text-gray-700', 'hover:shadow-md');
-                    
-                    if(window.sfx) window.sfx.success();
-                    
-                    if (wisdom) {
-                        const feedbackEl = document.getElementById('sorter-feedback');
-                        if (feedbackEl) {
-                            if (window.feedbackTimer) clearTimeout(window.feedbackTimer);
-                            feedbackEl.querySelector('p').innerText = wisdom;
-                            feedbackEl.classList.remove('opacity-0', 'translate-y-2');
-                            window.feedbackTimer = setTimeout(() => {
-                                 feedbackEl.classList.add('opacity-0', 'translate-y-2');
-                            }, 8000);
-                        }
-                    }
-                } else {
-                    if(window.sfx) window.sfx.error();
-                }
+                handleItemDrop(zone, el, wisdom);
             }
         });
+
+        // --- MOBILE TOUCH SUPPORT ---
+        let activeTouchItem = null;
+        let initialTouchX = 0;
+        let initialTouchY = 0;
+        let touchXOffset = 0;
+        let touchYOffset = 0;
+
+        function handleTouchStart(e) {
+            const item = e.target.closest('.draggable-item');
+            if (!item || item.getAttribute('draggable') === 'false') return;
+
+            activeTouchItem = item;
+            const touch = e.touches[0];
+            initialTouchX = touch.clientX;
+            initialTouchY = touch.clientY;
+            
+            const rect = item.getBoundingClientRect();
+            touchXOffset = initialTouchX - rect.left;
+            touchYOffset = initialTouchY - rect.top;
+
+            activeTouchItem.classList.add('dragging');
+            activeTouchItem.style.position = 'fixed';
+            activeTouchItem.style.zIndex = '1000';
+            activeTouchItem.style.left = (rect.left) + 'px';
+            activeTouchItem.style.top = (rect.top) + 'px';
+            activeTouchItem.style.width = rect.width + 'px';
+            
+            if(window.sfx) window.sfx.tick();
+        }
+
+        function handleTouchMove(e) {
+            if (!activeTouchItem) return;
+            e.preventDefault(); 
+
+            const touch = e.touches[0];
+            const currentX = touch.clientX;
+            const currentY = touch.clientY;
+
+            activeTouchItem.style.left = (currentX - touchXOffset) + 'px';
+            activeTouchItem.style.top = (currentY - touchYOffset) + 'px';
+            
+            const elemBelow = document.elementFromPoint(currentX, currentY);
+            const dropZone = elemBelow ? elemBelow.closest('.drop-zone') : null;
+            
+            document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+            if (dropZone) { dropZone.classList.add('drag-over'); }
+        }
+
+        function handleTouchEnd(e) {
+            if (!activeTouchItem) return;
+
+            const touch = e.changedTouches[0];
+            const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropZone = elemBelow ? elemBelow.closest('.drop-zone') : null;
+
+            activeTouchItem.classList.remove('dragging');
+            activeTouchItem.style.position = '';
+            activeTouchItem.style.zIndex = '';
+            activeTouchItem.style.left = '';
+            activeTouchItem.style.top = '';
+            activeTouchItem.style.width = '';
+
+            document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+
+            if (dropZone) {
+                const wisdom = activeTouchItem.dataset.wisdom;
+                handleItemDrop(dropZone, activeTouchItem, wisdom);
+            }
+            activeTouchItem = null;
+        }
+
+        // Attach Touch Listeners
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('touchmove', handleTouchMove, {passive: false});
+            item.addEventListener('touchend', handleTouchEnd);
+        });
+
+        // SHARED LOGIC (Extracted for both Mouse & Touch)
+        function handleItemDrop(zone, el, wisdom) {
+            if(el && el.dataset.target === zone.id) {
+                zone.appendChild(el);
+                el.draggable = false;
+                el.classList.add('bg-jung-secondary', 'border-green-500', 'text-white');
+                el.classList.remove('bg-white', 'text-gray-700', 'hover:shadow-md');
+                
+                el.removeEventListener('touchstart', handleTouchStart);
+                el.removeEventListener('touchmove', handleTouchMove);
+                el.removeEventListener('touchend', handleTouchEnd);
+                
+                if(window.sfx) window.sfx.success();
+                
+                sortedItems++; 
+                if(sortedItems === 6) { 
+                    if(window.SessionManager) {
+                        window.SessionManager.log('Artifact_Recovered', 'Role_vs_Soul_Sorted', {
+                             items_sorted: 6 
+                        });
+                    }
+                }
+
+                if (wisdom) {
+                    const feedbackEl = document.getElementById('sorter-feedback');
+                    if (feedbackEl) {
+                        if (window.feedbackTimer) clearTimeout(window.feedbackTimer);
+                        feedbackEl.querySelector('p').innerText = wisdom;
+                        feedbackEl.classList.remove('opacity-0', 'translate-y-2');
+                        window.feedbackTimer = setTimeout(() => {
+                             feedbackEl.classList.add('opacity-0', 'translate-y-2');
+                        }, 8000);
+                    }
+                }
+            } else {
+                if(window.sfx) window.sfx.error();
+            }
+        }
+
+        // PAGE 20: DREAM LOG
+        window.logDream = (btn) => {
+            const textarea = btn.previousElementSibling;
+            const symbol = textarea.value.trim();
+            
+            if(window.sfx) window.sfx.success(); 
+            btn.innerText='Logged'; 
+            btn.classList.add('bg-green-600');
+            btn.disabled = true; 
+            
+            if(symbol && window.SessionManager) {
+                window.SessionManager.log('Dream_Log', 'Symbol_Recorded', {
+                    user_input: symbol,
+                    privacy_level: 'confidential' 
+                });
+            }
+        };
 
         // P8: Shadow Dialogue
         window.checkHero = (btn, isCorrect) => {
@@ -1568,7 +1597,14 @@
                 sig.style.opacity = '1';
                 document.getElementById('contract-feedback').classList.remove('hidden');
                 if(window.sfx) window.sfx.success();
-                // window.logToFirestore('Module_Complete', 'Contract Signed');
+                
+                // REPLACED: Use SessionManager
+                if(window.SessionManager) {
+                    window.SessionManager.log('Contract_Signed', 'Commitment_Made', {
+                        signer_name: window.currentUserName,
+                        timestamp: new Date().toISOString()
+                    });
+                }
             }
         }
 
@@ -1579,34 +1615,16 @@
             const glow = document.getElementById('eclipse-glow');
             const text = document.getElementById('eclipse-text');
             
-            // Calculate Movement (0 to 100)
-            // Ideally, at 100, both transform to the center.
-            // Sun starts at left: 0. Needs to move RIGHT.
-            // Moon starts at right: 0. Needs to move LEFT.
-            // The container is relative.
-            
-            // We can use percentage offsets.
-            // Sun: left-0. transform: translateX(val * X)
-            // Let's assume container width ~300px. Center is 150px.
-            // Item width 80px. Center of item is 40px.
-            // So we need to move them inward.
-            
-            // Simpler approach: Use CSS variables or fixed percentage assumption
-            // Sun moves from 0% left towards 50% left (minus half width)
-            // Moon moves from 0% right towards 50% right (minus half width)
-            
-            // 35% seems like a safe "meet in the middle" distance for this responsive container
-            const moveDistance = val * 1.1; // multiplier to ensure they touch
+            const moveDistance = val * 1.1; 
             
             sun.style.transform = `translateX(${moveDistance}px)`;
             moon.style.transform = `translateX(-${moveDistance}px)`;
             
-            // Check for overlap/completion
             if (val > 95) {
                 if (text.style.opacity !== '1') {
                     text.style.opacity = '1';
                     glow.style.opacity = '1';
-                    sun.classList.add('bg-black', 'border-indigo-500'); // Eclipse Effect
+                    sun.classList.add('bg-black', 'border-indigo-500'); 
                     moon.classList.add('opacity-50');
                     if(window.sfx) window.sfx.success();
                 }
@@ -1618,36 +1636,37 @@
             }
         };
 
-        // REMOVED OLD initDraggables FUNCTION AND LOGIC
-
         // PAGE 16: EGO WALL GENERATOR
         const buildEgoWall = () => {
             const wall = document.getElementById('ego-wall');
             if(!wall || wall.children.length > 0) return;
             
-            const labels = ["My Job", "My Name", "My Past", "Failures", "Success", "Body", "IQ", "Money", "Status", "Fear", "Roles", "Ego"];
+            const labels = [
+                "My Job Title", "My Salary", "My Past", "My Trauma", 
+                "My Gender", "My Age", "My Politics", "My Beliefs",
+                "My Body", "My IQ", "Failures", "Successes",
+                "Reputation", "Social Status", "My Anxiety", "My Pride",
+                "My Shame", "My Habits", "My Plans", "The Ego"
+            ];
             
-            for(let i=0; i<24; i++) {
+            for(let i=0; i<20; i++) {
                 const brick = document.createElement('div');
-                brick.className = "bg-gray-700 hover:bg-gray-600 border border-gray-600 flex items-center justify-center cursor-pointer transition-all duration-300 text-gray-500 font-bold text-xs select-none";
-                brick.innerText = labels[i % labels.length];
-                brick.style.height = "100%";
-                
+                brick.className = "bg-gray-700 hover:bg-gray-600 border-2 border-gray-500 flex items-center justify-center cursor-pointer transition-all duration-200 text-gray-200 font-bold text-xs sm:text-sm md:text-base text-center select-none shadow-md relative overflow-hidden group w-full h-full rounded-sm";
+                brick.innerHTML = `<span class="relative z-10 group-hover:scale-105 transition-transform px-1 leading-tight drop-shadow-md">${labels[i]}</span><div class="absolute inset-0 bg-gradient-to-br from-white/5 to-black/20 pointer-events-none"></div>`;
                 brick.onclick = function() {
-                    this.style.transform = "scale(0.8) rotate(10deg)";
+                    this.style.transform = `scale(0.95) rotate(${Math.random()*6 - 3}deg)`;
                     this.style.opacity = "0";
+                    this.style.filter = "blur(10px)";
+                    this.style.pointerEvents = "none";
                     if(window.sfx) window.sfx.tick();
-                    setTimeout(() => {
-                        this.style.visibility = "hidden";
-                        checkWallCleared();
-                    }, 200);
+                    setTimeout(() => { this.style.visibility = "hidden"; }, 300);
                 };
                 wall.appendChild(brick);
             }
         };
-        
+
         const checkWallCleared = () => {
-            // Optional logic
+            // Optional: trigger something if mostly cleared
         };
 
         // PAGE 12: ARCHETYPE CAROUSEL
@@ -1679,7 +1698,7 @@
                     purple: { bg: 'bg-purple-50', text: 'text-purple-500', border: 'border-purple-200' },
                     gray: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' }
                 };
-                const c = colors[data.color] || colors.blue; // Fallback
+                const c = colors[data.color] || colors.blue; 
 
                 card.innerHTML = `
                     <div class="w-20 h-20 ${c.bg} rounded-full flex items-center justify-center mb-6 ${c.border} border-2 shadow-inner">
@@ -1710,40 +1729,301 @@
             if(window.sfx) window.sfx.tick();
         };
 
+        // PAGE 21: MANIFESTO SCROLL
+        window.initManifesto = () => {
+            const scroller = document.getElementById('content-column');
+            const sects = [document.getElementById('man-1'), document.getElementById('man-2'), document.getElementById('man-3')];
+            
+            checkManifestoScroll();
+            if(scroller) scroller.onscroll = checkManifestoScroll;
+            
+            function checkManifestoScroll() {
+                if(currentPage !== 20) return;
+                sects.forEach((s, i) => {
+                    if(!s) return;
+                    const rect = s.getBoundingClientRect();
+                    const viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+                    if (rect.top <= viewHeight * 0.85) {
+                        s.classList.remove('opacity-0', 'translate-y-10');
+                        s.classList.add('opacity-100', 'translate-y-0');
+                    }
+                });
+            }
+        };
+
+        // --- FEEDBACK & BADGE LOGIC ---
+        window.setRating = function(n) {
+            userRating = n;
+            for (let i = 1; i <= 5; i++) {
+                const star = document.getElementById(`star-${i}`);
+                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
+                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
+            }
+            if(window.sfx) window.sfx.tick();
+        }
+
+        window.submitFeedback = function() {
+            if(userRating === 0) { alert("Please select a star rating first."); return; }
+            const feedbackText = document.getElementById('feedback-text').value;
+            
+            if(window.SessionManager) {
+                window.SessionManager.log('Feedback_Submitted', `Rating: ${userRating} Stars`, { 
+                    rating: userRating, 
+                    comments: feedbackText 
+                });
+            }
+            
+            document.getElementById('feedback-container').classList.add('hidden');
+            const successMsg = document.getElementById('feedback-success');
+            if(successMsg) successMsg.classList.remove('hidden');
+            
+            const badgeSection = document.getElementById('badge-section');
+            if(badgeSection) {
+                badgeSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                badgeSection.classList.add('opacity-100', 'pointer-events-auto');
+            }
+            
+            const badgeIcon = document.querySelector('#badge-display i');
+            const badgeContainer = document.getElementById('badge-display');
+            if(badgeIcon && badgeContainer) {
+                badgeIcon.classList.remove('text-gray-300');
+                badgeIcon.classList.add('text-allgood-primary');
+                badgeContainer.classList.remove('from-gray-100', 'to-gray-200');
+                badgeContainer.classList.add('from-orange-50', 'to-orange-100', 'border-allgood-primary');
+            }
+
+            const badgeBtn = document.getElementById('download-badge-btn');
+            if(badgeBtn) {
+                badgeBtn.disabled = false;
+                badgeBtn.innerHTML = '<i data-lucide="download" class="mr-2 w-4 h-4"></i> Download Badge';
+                badgeBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                badgeBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx) window.sfx.success(); 
+        }
+
+        window.getBadgeSVG = (nameText, dateText) => {
+            return `
+            <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                <defs><pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E0E0E0" stroke-width="2"/></pattern></defs>
+                <rect width="100%" height="100%" fill="#F7F7F7"/>
+                <rect width="100%" height="100%" fill="url(#smallGrid)"/>
+                <rect x="30" y="30" width="1140" height="740" rx="20" ry="20" fill="none" stroke="#D34716" stroke-width="12"/>
+                <text x="600" y="120" font-family="Georgia, serif" font-weight="bold" font-size="48" fill="#357889" text-anchor="middle" letter-spacing="2">ALLGOOD ACADEMY</text>
+                <text x="600" y="170" font-family="Verdana, sans-serif" font-size="20" fill="#4C4C4C" text-anchor="middle" letter-spacing="6">ARCHITECT OF SELF</text>
+                <line x1="300" y1="200" x2="900" y2="200" stroke="#D34716" stroke-width="4"/>
+                <g transform="translate(600, 420)">
+                    <circle cx="0" cy="0" r="160" fill="white" stroke="#357889" stroke-width="6"/>
+                    <g transform="scale(3.5) translate(-12, -12)" stroke="#D34716" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <circle cx="12" cy="12" r="10" />
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                    </g>
+                </g>
+                <g transform="translate(600, 680)">
+                    <text x="0" y="0" font-family="Verdana, sans-serif" font-size="24" fill="#357889" text-anchor="middle" font-weight="bold">${nameText}</text>
+                    <text x="0" y="40" font-family="Verdana, sans-serif" font-size="18" fill="#757575" text-anchor="middle">CERTIFIED: ${dateText}</text>
+                </g>
+                <text x="600" y="760" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#4C4C4C" text-anchor="middle">"Life begins when you stop running from yourself."</text>
+            </svg>`;
+        };
+
+        window.downloadBadge = function() {
+            if (currentPage < totalPages - 1) { alert("You must complete the entire module to unlock this badge."); return; }
+
+            const nameText = (window.currentUserName || "LEARNER").toUpperCase();
+            const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            const badgeSVG = window.getBadgeSVG(nameText, dateText);
+
+            if(window.SessionManager) {
+                // This logs the completion AND updates the session head with the artifact
+                window.SessionManager.log('Mission_Complete', 'Badge_Downloaded', { 
+                    completed: true,
+                    badgeArtifact: badgeSVG,
+                    progress: 100 
+                });
+            }
+
+            const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Allgood-ArchitectOfSelf-${nameText}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            const btn = document.getElementById('download-badge-btn');
+            if(btn) {
+                btn.innerHTML = '<i data-lucide="check" class="mr-2 w-4 h-4"></i> Badge Saved';
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover', 'animate-pulse');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                if(window.lucide) window.lucide.createIcons();
+            }
+            if(window.sfx) window.sfx.success();
+        };
+
+        // --- PAGE 19: TOOLKIT LOGIC ---
+        const toolData = {
+            dreams: {
+                title: "Dreams: The Night Letter",
+                subtitle: "Unedited messages from the Self.",
+                color: "text-purple-600",
+                bg: "bg-purple-50",
+                border: "border-purple-200",
+                icon: "cloud-moon",
+                desc: "Dreams are the most direct door to the unconscious. They balance your conscious attitude. If you are too rigid, you might dream of chaos.",
+                examples: [
+                    { icon: "arrow-down", label: "Falling", text: "Often signals a loss of control or fear of letting go." },
+                    { icon: "footprints", label: "Being Chased", text: "You are running from a Shadow aspect you deny." },
+                    { icon: "user-x", label: "Teeth Falling Out", text: "Anxiety about powerlessness or major life transition." }
+                ]
+            },
+            creativity: {
+                title: "Creativity: Active Imagination",
+                subtitle: "Letting the hand speak for the mind.",
+                color: "text-pink-600",
+                bg: "bg-pink-50",
+                border: "border-pink-200",
+                icon: "pen-tool",
+                desc: "The unconscious is non-verbal. Art, dance, and play allow it to express itself without the censor of logic.",
+                examples: [
+                    { icon: "edit-3", label: "Automatic Writing", text: "Write fast without stopping. Don't think. Just flow." },
+                    { icon: "image", label: "Mandala Drawing", text: "Draw a circle and fill it. It represents the Self seeking order." },
+                    { icon: "music", label: "Play", text: "Do something with no goal. The ego hates it; the soul loves it." }
+                ]
+            },
+            introspection: {
+                title: "Insight: The Sacred Pause",
+                subtitle: "Catching the reaction before it becomes behavior.",
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+                border: "border-blue-200",
+                icon: "eye",
+                desc: "Most people live on autopilot. Introspection is the act of stopping the machine to see who is driving.",
+                examples: [
+                    { icon: "zap", label: "The Trigger", text: "Why did that make me angry? What is it touching in me?" },
+                    { icon: "copy", label: "The Envy", text: "Envy is a map. It shows you what you want but repress." },
+                    { icon: "message-circle", label: "The Complaint", text: "What you complain about in others is often your own shadow." }
+                ]
+            }
+        };
+
+        window.openTool = (type, btn) => {
+            const data = toolData[type];
+            const detail = document.getElementById('tool-detail');
+            
+            // Highlight Button
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                b.classList.remove('ring-2', 'ring-offset-2', 'ring-allgood-primary', 'bg-gray-50');
+                b.classList.add('bg-white');
+            });
+            btn.classList.remove('bg-white');
+            btn.classList.add(data.bg, 'ring-2', 'ring-offset-2', 'ring-allgood-primary');
+
+            // Build Examples HTML
+            const examplesHTML = data.examples.map(ex => `
+                <div class="flex items-start p-2 bg-white rounded border border-gray-100 shadow-sm mb-2">
+                    <div class="p-1.5 bg-gray-100 rounded mr-3 shrink-0 text-gray-500">
+                        <i data-lucide="${ex.icon}" class="w-3 h-3"></i>
+                    </div>
+                    <div>
+                        <strong class="text-xs font-bold text-gray-700 block">${ex.label}</strong>
+                        <p class="text-[10px] text-gray-500 leading-tight">${ex.text}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Content
+            detail.innerHTML = `
+                <div class="animate-fade-in h-full flex flex-col">
+                    <div class="flex items-center mb-3 pb-3 border-b ${data.border}">
+                        <i data-lucide="${data.icon}" class="w-6 h-6 ${data.color} mr-3"></i>
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-800 leading-none">${data.title}</h3>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wide mt-1">${data.subtitle}</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-600 leading-relaxed mb-4 italic">"${data.desc}"</p>
+                    <div class="overflow-y-auto flex-grow pr-1">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Relatable Examples</h4>
+                        ${examplesHTML}
+                    </div>
+                </div>
+            `;
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx) window.sfx.tick();
+        };
+
+        // --- SYSTEM FUNCTIONS ---
+        window.closeSystemMenu = () => {
+             const sysMenu = document.getElementById('system-menu-modal');
+             if(sysMenu) {
+                 sysMenu.classList.add('hidden-modal');
+                 sysMenu.classList.remove('visible-modal');
+             }
+        };
+
+        window.handleLogOut = async () => {
+            if (window.authSignOut) await window.authSignOut();
+            localStorage.removeItem('aa_username');
+            window.currentUser = null;
+            window.currentUserName = "Agent Learner";
+            window.currentUserEmail = "";
+            
+            // Reset inputs if they exist
+            const nameInput = document.getElementById('user-name-input');
+            if(nameInput) nameInput.value = "";
+            const emailInput = document.getElementById('user-email-input');
+            if(emailInput) emailInput.value = "";
+            
+            window.closeSystemMenu();
+            const startup = document.getElementById('startup-screen');
+            if(startup) {
+                startup.style.display = 'flex';
+                setTimeout(() => startup.style.opacity = '1', 10);
+            }
+            window.showPage(0);
+            
+            // Show login modal
+            const login = document.getElementById('login-modal');
+            if(login) {
+                login.classList.remove('hidden-modal');
+                login.classList.add('visible-modal');
+            }
+            
+            // Clear Audio Context on Logout
+            if(window.sfx) window.sfx.nav(); // Just a sound
+        };
+
+        window.handleSystemExit = () => {
+            window.location.href = "https://www.allgoodacademy.com";
+        };
+
         // --- INIT HOOKS ---
-        const originalShowPage = window.showPage;
-        
-        // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
             if(window.lucide) window.lucide.createIcons();
             
-            // Startup Click
             const startup = document.getElementById('startup-screen');
             if(startup) {
                 startup.addEventListener('click', function() {
-                    // Try audio, but don't block interaction if it fails
                     try { if(window.sfx) window.sfx.powerOn(); } catch(e) { console.log("Audio warning", e); }
-                    
-                    // Immediate visual feedback
                     this.style.opacity = '0'; 
-                    this.style.pointerEvents = 'none'; // Allow clicks to pass through immediately
-                    
+                    this.style.pointerEvents = 'none'; 
                     setTimeout(() => { this.style.display = 'none'; }, 700);
-                    
-                    // Show login if not auth
                     if(!window.currentUser) {
                         const login = document.getElementById('login-modal');
-                        if(login && login.classList.contains('visible-modal')) {
-                            // Already visible, do nothing
-                        } else if (login) {
-                            login.classList.remove('hidden-modal');
-                            login.classList.add('visible-modal');
-                        }
+                        if(login) { login.classList.remove('hidden-modal'); login.classList.add('visible-modal'); }
+                    } else {
+                         // IF ALREADY LOGGED IN (Persistence), Start Session Log Here
+                         if(window.SessionManager) window.SessionManager.start(window.currentUserName, window.currentUserEmail);
                     }
                 });
             }
 
-            // Accordion Logic
             document.body.addEventListener('click', (e) => {
                 const accBtn = e.target.closest('.accordion-toggle');
                 if (accBtn) {
@@ -1755,7 +2035,6 @@
                 }
             });
 
-            // Home Button Long Press Logic
             const homeBtn = document.getElementById('home-button');
             let pressTimer;
             let isLongPress = false;
@@ -1770,43 +2049,28 @@
                         if(window.sfx) window.sfx.nav();
                     }, 2000);
                 };
-
-                const endPress = () => {
-                    clearTimeout(pressTimer);
-                };
+                const endPress = () => { clearTimeout(pressTimer); };
 
                 homeBtn.addEventListener('mousedown', startPress);
                 homeBtn.addEventListener('mouseup', endPress);
                 homeBtn.addEventListener('mouseleave', endPress);
-                
-                homeBtn.addEventListener('touchstart', (e) => {
-                    startPress();
-                }, { passive: true });
+                homeBtn.addEventListener('touchstart', (e) => { startPress(); }, { passive: true });
                 homeBtn.addEventListener('touchend', endPress);
                 homeBtn.addEventListener('touchcancel', endPress);
 
                 homeBtn.addEventListener('click', (e) => {
-                    if (isLongPress) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        isLongPress = false;
-                    } else {
-                        window.showPage(0); 
-                    }
+                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); isLongPress = false; } else { window.showPage(0); }
                 });
-                
-                // Prevent context menu
                 homeBtn.addEventListener('contextmenu', e => { e.preventDefault(); return false; });
             }
 
-            // Menu
             document.getElementById('menu-toggle').addEventListener('click', () => {
                 const m = document.getElementById('menu-modal');
                 m.classList.remove('hidden-modal'); m.classList.add('visible-modal');
                 const list = document.getElementById('toc-list');
                 list.innerHTML = '';
                 const titles = [
-                    "Cover", "Signal", "Evidence", "Diagnosis", "Persona", "Shred", "Sort", "Shadow", "Warning", "Mirror", "Integration", "Archetypes", "Dialogue", "Anima", "Balance", "Ego", "True Self", "Illusion", "Tools", "Log", "Shift", "Unknown", "Labels", "Contract", "Badge"];
+                    "Cover", "Signal", "Evidence", "Diagnosis", "Persona", "Shred", "Sort", "Shadow", "Warning", "Mirror", "Integration", "Archetypes", "Dialogue", "Anima", "Balance", "Ego", "True Self", "Mirror", "Tools", "Log", "Manifesto", "Contract", "Badge"];
                 titles.forEach((t, i) => {
                     list.innerHTML += `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded text-xs font-bold transition-colors" onclick="window.showPage(${i}); document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');">${i+1}. ${t}</button>`;
                 });
@@ -1816,7 +2080,6 @@
                 document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');
             });
             
-            // Fullscreen
             const fsBtn = document.getElementById('fullscreen-toggle');
             if(fsBtn) {
                 fsBtn.addEventListener('click', () => {
@@ -1825,7 +2088,6 @@
                 });
             }
             
-            // Blueprint
             const bpBtn = document.getElementById('blueprint-toggle');
             if(bpBtn) {
                 bpBtn.addEventListener('click', () => {
