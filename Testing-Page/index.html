@@ -12,7 +12,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko", authDomain: "allgood-academy.firebaseapp.com", projectId: "allgood-academy" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
@@ -27,6 +27,7 @@
 
         window.currentUser = null;
         window.currentUserName = "Agent Learner";
+        window.currentUserEmail = "";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
         onAuthStateChanged(auth, async (user) => {
@@ -42,6 +43,7 @@
                 }
                 
                 window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
                 const welcomeText = document.getElementById('header-welcome-text');
                 if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
                 
@@ -49,6 +51,8 @@
                 if (loginModal && !loginModal.classList.contains('hidden-modal')) {
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
+                    // Auto-start session log if we just auto-logged in
+                    if(window.SessionManager) window.SessionManager.start(finalName, user.email);
                 }
             } else {
                 window.currentUser = null;
@@ -62,14 +66,53 @@
              } catch (e) { console.error(e); }
         }
 
-        window.logFinalScoreToFirestore = async (data) => {
+        // --- SESSION + STREAM LOGGING ARCHITECTURE ---
+        window.logToFirestore = async (action, detail, payload = {}) => {
             const user = auth.currentUser;
             if (!user) return;
+            
+            // 1. Session Reference (The "Head" - Latest Status)
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
+            
+            // 2. Logs Collection (The "Stream" - History)
+            const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
+
+            // WRITE 1: Update Session Head
+            const sessionData = {
+                gameName: document.title,
+                lastUpdated: serverTimestamp(),
+                user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
+                last_action: action,
+                current_page: window.currentPageIndex || 0, 
+                percent_complete: window.progressPercent || 0
+            };
+            
+            if (payload.completed) sessionData.completed = true;
+            if (payload.badgeArtifact) sessionData.badgeArtifact = payload.badgeArtifact;
+
             try {
-                await setDoc(sessionRef, { gameName: document.title, ...data, lastUpdated: serverTimestamp(), user: { uid: user.uid, displayName: window.currentUserName } }, { merge: true });
-            } catch (e) { console.error(e); }
+                await setDoc(sessionRef, sessionData, { merge: true });
+                
+                // WRITE 2: Append to Log Stream
+                await addDoc(logsRef, {
+                    action: action,
+                    detail: detail,
+                    payload: payload,
+                    timestamp: serverTimestamp(),
+                    page_context: window.currentPageIndex || 0
+                });
+            } catch (e) { console.error("[DB] Error:", e); }
         }
+
+        // --- SESSION MANAGER WRAPPER ---
+        window.SessionManager = {
+            log: function(action, detail, payload = {}) {
+                window.logToFirestore(action, detail, payload);
+            },
+            start: function(name, email) { 
+                this.log("System", "Session Started", { startTime: new Date().toISOString() }); 
+            }
+        };
 
         window.handleGuestLogin = async () => {
             const nameInput = document.getElementById('user-name-input');
@@ -89,8 +132,10 @@
                     await updateProfile(user, { displayName: name });
                     await window.ensureUserContainer(user, name, email);
                     window.currentUserName = name;
+                    window.currentUserEmail = email;
                     localStorage.setItem('aa_username', name);
-                    window.logFinalScoreToFirestore({ rank: "Journey Started", sessionId: window.sessionId });
+                    
+                    window.SessionManager.start(name, email);
                     
                     const welcomeText = document.getElementById('header-welcome-text');
                     if(welcomeText) welcomeText.textContent = `Welcome: ${name}`;
@@ -119,8 +164,11 @@
                 const finalName = user.displayName || "Agent Learner";
                 await window.ensureUserContainer(user, finalName, user.email);
                 window.currentUserName = finalName;
+                window.currentUserEmail = user.email;
                 localStorage.setItem('aa_username', finalName);
                 
+                window.SessionManager.start(finalName, user.email);
+
                 const welcomeText = document.getElementById('header-welcome-text');
                 if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
                 
@@ -264,10 +312,9 @@
                 background-color: white; 
                 border-top: 1px solid #e5e7eb; 
             }
-            /* Smaller buttons on mobile */
             footer.footer-content button {
                 padding-top: 0.5rem; padding-bottom: 0.5rem;
-                font-size: 0.75rem; /* Smaller text */
+                font-size: 0.75rem; 
             }
             .content-column { padding-bottom: 100px !important; }
         }
@@ -881,6 +928,9 @@
         // --- CONFIG & STATE ---
         const totalPages = 23; 
         let currentPage = 0;
+        // EXPOSE GLOBALS FOR LOGGER
+        window.currentPageIndex = 0;
+        window.progressPercent = 0;
         let sortedItems = 0;
         let maskClickCount = 0;
         let mirrorTapCount = 0;
@@ -987,8 +1037,12 @@
             document.getElementById(`page-${idx+1}`).classList.add('active');
             currentPage = idx;
             
+            // UPDATE GLOBALS
+            window.currentPageIndex = idx + 1;
+            window.progressPercent = Math.round(((idx + 1) / totalPages) * 100);
+            
             document.getElementById('header-page-indicator').textContent = `${idx + 1} / ${totalPages}`;
-            document.getElementById('flex-progress-fill').style.width = `${((idx + 1) / totalPages) * 100}%`;
+            document.getElementById('flex-progress-fill').style.width = `${window.progressPercent}%`;
             
             const backBtn = document.getElementById('back-button');
             const nextBtn = document.getElementById('next-button');
@@ -1001,16 +1055,11 @@
             window.updateJodi(idx);
             if(window.sfx) window.sfx.nav();
 
-            // NEW: Log Page View & Progress
-            if(window.logFinalScoreToFirestore) {
-                // Calculate completion percentage based on highest page visited vs total
-                const progressPercent = Math.round(((idx + 1) / totalPages) * 100);
-                
-                window.logFinalScoreToFirestore({ 
-                    action: 'Page_View',
-                    detail: `Page_${idx + 1}`,
-                    page_number: idx + 1,
-                    progress: progressPercent
+            // REPLACED: Use SessionManager
+            if(window.SessionManager) {
+                window.SessionManager.log('Page_View', `Mapsd to Page ${idx + 1}`, {
+                    page_title: `Page ${idx + 1}`, // Could add real titles array map here
+                    progress: window.progressPercent
                 });
             }
 
@@ -1048,12 +1097,14 @@
             
             mirrorTapCount++;
             
+            // Jolt Animation helper
             const jolt = () => {
                 frame.style.transform = `scale(${0.98 + Math.random()*0.04}) rotate(${Math.random()*2 - 1}deg)`;
                 setTimeout(() => frame.style.transform = 'scale(1) rotate(0deg)', 100);
             };
 
             if (mirrorTapCount === 1) {
+                // First Crack
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("d", "M50,50 L20,10 M50,50 L80,90");
                 path.setAttribute("stroke", "rgba(0,0,0,0.6)");
@@ -1061,11 +1112,13 @@
                 path.setAttribute("fill", "none");
                 path.classList.add("crack-path");
                 cracks.appendChild(path);
+                
                 jolt();
-                if(window.sfx) window.sfx.error(); 
+                if(window.sfx) window.sfx.error(); // Sharp sound
                 instruction.innerText = "Strike Harder";
                 
             } else if (mirrorTapCount === 2) {
+                // Second Crack (More severe)
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("d", "M50,50 L10,60 M50,50 L90,20 M50,50 L40,95");
                 path.setAttribute("stroke", "rgba(0,0,0,0.7)");
@@ -1073,28 +1126,32 @@
                 path.setAttribute("fill", "none");
                 path.classList.add("crack-path");
                 cracks.appendChild(path);
+                
                 jolt();
                 if(window.sfx) window.sfx.error();
                 instruction.innerText = "One More Blow";
 
             } else if (mirrorTapCount >= 3) {
+                // Shatter
                 if(window.sfx) {
-                    window.sfx.error(); 
-                    setTimeout(() => window.sfx.success(), 200); 
+                    window.sfx.error(); // Crack
+                    setTimeout(() => window.sfx.success(), 200); // Reveal sound
                 }
                 
                 frame.classList.add('shattered-glass');
                 instruction.style.opacity = '0';
+                
+                // Reveal Cosmos
                 cosmos.classList.remove('opacity-0');
                 
                 // NEW: Log Breakthrough
-                if(window.logFinalScoreToFirestore) {
-                    window.logFinalScoreToFirestore({ 
-                        action: 'Breakthrough',
-                        detail: 'Illusion_Shattered'
+                if(window.SessionManager) {
+                    window.SessionManager.log('Breakthrough', 'Illusion_Shattered', { 
+                        context: 'Page 18 Mirror' 
                     });
                 }
                 
+                // Update Jodi
                 const bubble = document.getElementById('jodi-bubble');
                 if(bubble) {
                      bubble.textContent = "The barrier is gone. This... is what you really are.";
@@ -1410,10 +1467,9 @@
                 
                 sortedItems++; 
                 if(sortedItems === 6) { 
-                    if(window.logFinalScoreToFirestore) {
-                        window.logFinalScoreToFirestore({ 
-                            action: 'Artifact_Recovered',
-                            detail: 'Role_vs_Soul_Sorted'
+                    if(window.SessionManager) {
+                        window.SessionManager.log('Artifact_Recovered', 'Role_vs_Soul_Sorted', {
+                             items_sorted: 6 
                         });
                     }
                 }
@@ -1434,7 +1490,7 @@
             }
         }
 
-        // PAGE 20: DREAM LOG (New Function)
+        // PAGE 20: DREAM LOG
         window.logDream = (btn) => {
             const textarea = btn.previousElementSibling;
             const symbol = textarea.value.trim();
@@ -1442,14 +1498,12 @@
             if(window.sfx) window.sfx.success(); 
             btn.innerText='Logged'; 
             btn.classList.add('bg-green-600');
-            btn.disabled = true; // Prevent double submission
+            btn.disabled = true; 
             
-            // NEW: Log User Input
-            if(symbol && window.logFinalScoreToFirestore) {
-                window.logFinalScoreToFirestore({ 
-                    action: 'Dream_Log',
-                    detail: 'Symbol_Recorded',
-                    user_input: symbol
+            if(symbol && window.SessionManager) {
+                window.SessionManager.log('Dream_Log', 'Symbol_Recorded', {
+                    user_input: symbol,
+                    privacy_level: 'confidential' 
                 });
             }
         };
@@ -1498,11 +1552,11 @@
                 document.getElementById('contract-feedback').classList.remove('hidden');
                 if(window.sfx) window.sfx.success();
                 
-                // NEW: Log Commitment
-                if(window.logFinalScoreToFirestore) {
-                    window.logFinalScoreToFirestore({ 
-                        action: 'Contract_Signed',
-                        detail: 'Commitment_Made'
+                // REPLACED: Use SessionManager
+                if(window.SessionManager) {
+                    window.SessionManager.log('Contract_Signed', 'Commitment_Made', {
+                        signer_name: window.currentUserName,
+                        timestamp: new Date().toISOString()
                     });
                 }
             }
@@ -1563,6 +1617,10 @@
                 };
                 wall.appendChild(brick);
             }
+        };
+
+        const checkWallCleared = () => {
+            // Optional: trigger something if mostly cleared
         };
 
         // PAGE 12: ARCHETYPE CAROUSEL
@@ -1662,11 +1720,10 @@
             if(userRating === 0) { alert("Please select a star rating first."); return; }
             const feedbackText = document.getElementById('feedback-text').value;
             
-            if(window.logFinalScoreToFirestore) {
-                window.logFinalScoreToFirestore({ 
-                    action: 'Feedback_Submitted',
+            if(window.SessionManager) {
+                window.SessionManager.log('Feedback_Submitted', `Rating: ${userRating} Stars`, { 
                     rating: userRating, 
-                    comments: feedbackText
+                    comments: feedbackText 
                 });
             }
             
@@ -1733,8 +1790,9 @@
             const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
             const badgeSVG = window.getBadgeSVG(nameText, dateText);
 
-            if(window.logFinalScoreToFirestore) {
-                window.logFinalScoreToFirestore({ 
+            if(window.SessionManager) {
+                // This logs the completion AND updates the session head with the artifact
+                window.SessionManager.log('Mission_Complete', 'Badge_Downloaded', { 
                     completed: true,
                     badgeArtifact: badgeSVG,
                     progress: 100 
@@ -1761,6 +1819,144 @@
             if(window.sfx) window.sfx.success();
         };
 
+        // --- PAGE 19: TOOLKIT LOGIC ---
+        const toolData = {
+            dreams: {
+                title: "Dreams: The Night Letter",
+                subtitle: "Unedited messages from the Self.",
+                color: "text-purple-600",
+                bg: "bg-purple-50",
+                border: "border-purple-200",
+                icon: "cloud-moon",
+                desc: "Dreams are the most direct door to the unconscious. They balance your conscious attitude. If you are too rigid, you might dream of chaos.",
+                examples: [
+                    { icon: "arrow-down", label: "Falling", text: "Often signals a loss of control or fear of letting go." },
+                    { icon: "footprints", label: "Being Chased", text: "You are running from a Shadow aspect you deny." },
+                    { icon: "user-x", label: "Teeth Falling Out", text: "Anxiety about powerlessness or major life transition." }
+                ]
+            },
+            creativity: {
+                title: "Creativity: Active Imagination",
+                subtitle: "Letting the hand speak for the mind.",
+                color: "text-pink-600",
+                bg: "bg-pink-50",
+                border: "border-pink-200",
+                icon: "pen-tool",
+                desc: "The unconscious is non-verbal. Art, dance, and play allow it to express itself without the censor of logic.",
+                examples: [
+                    { icon: "edit-3", label: "Automatic Writing", text: "Write fast without stopping. Don't think. Just flow." },
+                    { icon: "image", label: "Mandala Drawing", text: "Draw a circle and fill it. It represents the Self seeking order." },
+                    { icon: "music", label: "Play", text: "Do something with no goal. The ego hates it; the soul loves it." }
+                ]
+            },
+            introspection: {
+                title: "Insight: The Sacred Pause",
+                subtitle: "Catching the reaction before it becomes behavior.",
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+                border: "border-blue-200",
+                icon: "eye",
+                desc: "Most people live on autopilot. Introspection is the act of stopping the machine to see who is driving.",
+                examples: [
+                    { icon: "zap", label: "The Trigger", text: "Why did that make me angry? What is it touching in me?" },
+                    { icon: "copy", label: "The Envy", text: "Envy is a map. It shows you what you want but repress." },
+                    { icon: "message-circle", label: "The Complaint", text: "What you complain about in others is often your own shadow." }
+                ]
+            }
+        };
+
+        window.openTool = (type, btn) => {
+            const data = toolData[type];
+            const detail = document.getElementById('tool-detail');
+            
+            // Highlight Button
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                b.classList.remove('ring-2', 'ring-offset-2', 'ring-allgood-primary', 'bg-gray-50');
+                b.classList.add('bg-white');
+            });
+            btn.classList.remove('bg-white');
+            btn.classList.add(data.bg, 'ring-2', 'ring-offset-2', 'ring-allgood-primary');
+
+            // Build Examples HTML
+            const examplesHTML = data.examples.map(ex => `
+                <div class="flex items-start p-2 bg-white rounded border border-gray-100 shadow-sm mb-2">
+                    <div class="p-1.5 bg-gray-100 rounded mr-3 shrink-0 text-gray-500">
+                        <i data-lucide="${ex.icon}" class="w-3 h-3"></i>
+                    </div>
+                    <div>
+                        <strong class="text-xs font-bold text-gray-700 block">${ex.label}</strong>
+                        <p class="text-[10px] text-gray-500 leading-tight">${ex.text}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Content
+            detail.innerHTML = `
+                <div class="animate-fade-in h-full flex flex-col">
+                    <div class="flex items-center mb-3 pb-3 border-b ${data.border}">
+                        <i data-lucide="${data.icon}" class="w-6 h-6 ${data.color} mr-3"></i>
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-800 leading-none">${data.title}</h3>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wide mt-1">${data.subtitle}</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-600 leading-relaxed mb-4 italic">"${data.desc}"</p>
+                    <div class="overflow-y-auto flex-grow pr-1">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Relatable Examples</h4>
+                        ${examplesHTML}
+                    </div>
+                </div>
+            `;
+            
+            if(window.lucide) window.lucide.createIcons();
+            if(window.sfx) window.sfx.tick();
+        };
+
+        // --- SYSTEM FUNCTIONS ---
+        window.closeSystemMenu = () => {
+             const sysMenu = document.getElementById('system-menu-modal');
+             if(sysMenu) {
+                 sysMenu.classList.add('hidden-modal');
+                 sysMenu.classList.remove('visible-modal');
+             }
+        };
+
+        window.handleLogOut = async () => {
+            if (window.authSignOut) await window.authSignOut();
+            localStorage.removeItem('aa_username');
+            window.currentUser = null;
+            window.currentUserName = "Agent Learner";
+            window.currentUserEmail = "";
+            
+            // Reset inputs if they exist
+            const nameInput = document.getElementById('user-name-input');
+            if(nameInput) nameInput.value = "";
+            const emailInput = document.getElementById('user-email-input');
+            if(emailInput) emailInput.value = "";
+            
+            window.closeSystemMenu();
+            const startup = document.getElementById('startup-screen');
+            if(startup) {
+                startup.style.display = 'flex';
+                setTimeout(() => startup.style.opacity = '1', 10);
+            }
+            window.showPage(0);
+            
+            // Show login modal
+            const login = document.getElementById('login-modal');
+            if(login) {
+                login.classList.remove('hidden-modal');
+                login.classList.add('visible-modal');
+            }
+            
+            // Clear Audio Context on Logout
+            if(window.sfx) window.sfx.nav(); // Just a sound
+        };
+
+        window.handleSystemExit = () => {
+            window.location.href = "https://www.allgoodacademy.com";
+        };
+
         // --- INIT HOOKS ---
         document.addEventListener('DOMContentLoaded', () => {
             if(window.lucide) window.lucide.createIcons();
@@ -1775,6 +1971,9 @@
                     if(!window.currentUser) {
                         const login = document.getElementById('login-modal');
                         if(login) { login.classList.remove('hidden-modal'); login.classList.add('visible-modal'); }
+                    } else {
+                         // IF ALREADY LOGGED IN (Persistence), Start Session Log Here
+                         if(window.SessionManager) window.SessionManager.start(window.currentUserName, window.currentUserEmail);
                     }
                 });
             }
