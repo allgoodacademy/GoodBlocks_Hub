@@ -159,29 +159,6 @@
             box-shadow: 0 0 10px #D34716;
         }
         
-        /* New Flash Message Style */
-        .flash-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
-            color: #4ade80; /* Green-400 */
-            padding: 16px 32px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 14px;
-            letter-spacing: 2px;
-            border: 1px solid #4ade80;
-            box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
-            pointer-events: none;
-            opacity: 0;
-            z-index: 50;
-            text-align: center;
-            white-space: nowrap;
-        }
-        
         /* Updated Draggables for Touch/Pointer Events */
         .draggable-orb {
             cursor: grab; 
@@ -220,6 +197,29 @@
         .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
         .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
+
+        /* New Flash Message Style */
+        .flash-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #4ade80; /* Green-400 */
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 2px;
+            border: 1px solid #4ade80;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 50;
+            text-align: center;
+            white-space: nowrap;
+        }
 
     </style>
 </head>
@@ -810,9 +810,13 @@
             // Store original position to snap back
             const originalTransform = element.style.transform;
             
+            // DESKTOP: Pointer Events
             element.addEventListener('pointerdown', startDrag);
             
             function startDrag(e) {
+                // Ignore if it's a touch event (handled separately below)
+                if (e.pointerType === 'touch') return;
+                
                 e.preventDefault();
                 isDragging = true;
                 
@@ -884,6 +888,106 @@
             }
         }
         
+        // --- NEW: MOBILE TOUCH HANDLER FOR DRAG & DROP (Copied from AI Copilot) ---
+        let activeTouchItem = null;
+        let initialTouchX = 0, initialTouchY = 0;
+        let touchXOffset = 0, touchYOffset = 0;
+
+        function handleTouchStart(e) {
+            // Find parent draggable if clicked on child
+            const target = e.target.closest('.draggable-orb') || e.target.closest('.fear-item');
+            if (!target) return;
+            
+            activeTouchItem = target;
+            const touch = e.touches[0];
+            initialTouchX = touch.clientX;
+            initialTouchY = touch.clientY;
+            
+            // Get current transform if any
+            const style = window.getComputedStyle(activeTouchItem);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            touchXOffset = matrix.m41;
+            touchYOffset = matrix.m42;
+            
+            activeTouchItem.classList.add('dragging');
+            activeTouchItem.style.position = 'relative'; 
+            activeTouchItem.style.zIndex = '1000';
+            sfx.click();
+        }
+
+        function handleTouchMove(e) {
+            if (!activeTouchItem) return;
+            e.preventDefault(); // Prevent scrolling while dragging
+
+            const touch = e.touches[0];
+            const currentX = touch.clientX - initialTouchX;
+            const currentY = touch.clientY - initialTouchY;
+
+            activeTouchItem.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.1)`;
+            
+            // Visual Feedback for Drop Zone
+            const draggableRect = activeTouchItem.getBoundingClientRect();
+            // Determine relevant drop zone based on item type
+            let zone;
+            if (activeTouchItem.classList.contains('fear-item')) {
+                zone = document.getElementById('backpack-zone');
+            } else {
+                zone = document.getElementById('input-slot');
+            }
+            
+            if (zone) {
+                const zoneRect = zone.getBoundingClientRect();
+                if (isOverlapping(draggableRect, zoneRect)) {
+                    zone.classList.add('drag-over');
+                } else {
+                    zone.classList.remove('drag-over');
+                }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!activeTouchItem) return;
+            
+            activeTouchItem.classList.remove('dragging');
+            activeTouchItem.style.zIndex = '';
+            
+            // Determine Drop Logic
+            const draggableRect = activeTouchItem.getBoundingClientRect();
+            let zone, successCallback, failCallback;
+            
+            if (activeTouchItem.classList.contains('fear-item')) {
+                zone = document.getElementById('backpack-zone');
+                successCallback = handleFearDrop;
+                failCallback = () => { document.getElementById('fear-feedback').innerText = ""; };
+            } else {
+                zone = document.getElementById('input-slot');
+                successCallback = handleCircuitDrop;
+                failCallback = null;
+            }
+
+            if (zone) {
+                const zoneRect = zone.getBoundingClientRect();
+                zone.classList.remove('drag-over');
+                
+                if (isOverlapping(draggableRect, zoneRect)) {
+                    // Reset transform before callback logic might move it
+                    activeTouchItem.style.transform = 'none'; 
+                    activeTouchItem.style.position = '';
+                    successCallback(activeTouchItem);
+                } else {
+                    // Snap Back
+                    activeTouchItem.style.transition = 'transform 0.3s ease-out';
+                    activeTouchItem.style.transform = 'translate(0, 0)';
+                    setTimeout(() => {
+                        activeTouchItem.style.transition = '';
+                    }, 300);
+                    if(failCallback) failCallback();
+                }
+            }
+
+            activeTouchItem = null;
+        }
+        
         function isOverlapping(rect1, rect2) {
             return !(rect1.right < rect2.left || 
                      rect1.left > rect2.right || 
@@ -891,8 +995,8 @@
                      rect1.top > rect2.bottom);
         }
 
-        // --- PAGE 4 SETUP ---
-        const draggables = document.querySelectorAll('.draggable-orb');
+        // --- PAGE 4 LOGIC: Circuit Breaker ---
+        const circuitDraggables = document.querySelectorAll('.draggable-orb');
         const inputSlot = document.getElementById('input-slot');
         const beam = document.getElementById('power-beam');
         const gauge = document.getElementById('output-gauge');
@@ -902,110 +1006,101 @@
         const feedback = document.getElementById('circuit-feedback');
         const flashMsg = document.getElementById('flash-message');
 
-        draggables.forEach(d => {
-            enableDrag(d, inputSlot, 
-                // Success Callback
-                (element) => {
-                    const type = element.dataset.type;
-                    
-                    if (type === 'thought') {
-                        sfx.error();
-                        // Snap to slot center visually
-                        element.style.transform = 'translate(0,0)'; 
-                        
-                        beam.style.width = '10%';
-                        beam.style.background = '#94a3b8'; // Gray
-                        beam.style.animation = 'none'; // No surge for error
-                        
-                        gauge.style.borderColor = '#94a3b8';
-                        gaugeVal.innerText = '0%';
-                        gaugeVal.classList.remove('text-allgood-primary', 'text-green-500');
-                        
-                        // UPDATED CONTEXTUAL FEEDBACK - No longer absolute positioning
-                        systemStatus.innerText = "Error: Low Voltage";
-                        systemStatus.className = "mt-2 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors duration-300 h-4";
+        // Logic refactored for both Mouse and Touch
+        function handleCircuitDrop(element) {
+            const type = element.dataset.type;
+            
+            if (type === 'thought') {
+                sfx.error();
+                element.style.transform = 'translate(0,0)'; 
+                
+                beam.style.width = '10%';
+                beam.style.background = '#94a3b8'; 
+                beam.style.animation = 'none'; 
+                
+                gauge.style.borderColor = '#94a3b8';
+                gaugeVal.innerText = '0%';
+                gaugeVal.classList.remove('text-allgood-primary', 'text-green-500');
+                
+                systemStatus.innerText = "Error: Low Voltage";
+                systemStatus.className = "mt-2 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors duration-300 h-4";
 
-                        feedback.innerHTML = "<strong>System Error:</strong> Thoughts are not fuel.<br>The engine requires <span class='text-red-600'>kinetic action</span>.";
-                        feedback.className = "text-sm text-center mt-4 text-red-500 font-medium animate-pulse h-10 flex items-center justify-center";
-                    } else {
-                        sfx.success();
-                        
-                        // 1. Success Animation on Orb
-                        element.style.transform = 'translate(0,0)';
-                        element.style.animation = 'pulse-success 0.5s ease-out';
-                        element.classList.add('border-green-500', 'border-2');
-                        
-                        // 2. Immediate Gauge Snap
-                        gauge.style.borderColor = '#D34716'; // Allgood Orange for Gauge Ring
-                        gauge.style.transition = 'border-color 0.2s ease-out';
-                        
-                        gaugeVal.innerText = '100%';
-                        gaugeVal.classList.add('text-allgood-primary'); // Orange Text
-                        
-                        gaugeLabel.classList.remove('text-gray-400');
-                        gaugeLabel.classList.add('text-allgood-primary');
+                feedback.innerHTML = "<strong>System Error:</strong> Thoughts are not fuel.<br>The engine requires <span class='text-red-600'>kinetic action</span>.";
+                feedback.className = "text-sm text-center mt-4 text-red-500 font-medium animate-pulse h-10 flex items-center justify-center";
+            } else {
+                sfx.success();
+                
+                element.style.transform = 'translate(0,0)';
+                element.style.animation = 'pulse-success 0.5s ease-out';
+                element.classList.add('border-green-500', 'border-2');
+                
+                gauge.style.borderColor = '#D34716'; 
+                gauge.style.transition = 'border-color 0.2s ease-out';
+                
+                gaugeVal.innerText = '100%';
+                gaugeVal.classList.add('text-allgood-primary'); 
+                
+                gaugeLabel.classList.remove('text-gray-400');
+                gaugeLabel.classList.add('text-allgood-primary');
 
-                        // 3. Status Text Update - No longer absolute positioning
-                        systemStatus.innerHTML = "<span class='text-green-600'>SYSTEM ONLINE</span>";
-                        systemStatus.className = "mt-2 text-center text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 h-4";
+                systemStatus.innerHTML = "<span class='text-green-600'>SYSTEM ONLINE</span>";
+                systemStatus.className = "mt-2 text-center text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 h-4";
 
-                        // 4. Flash Message
-                        flashMsg.innerText = "KINETIC ENERGY RECEIVED"; // More technical/contextual
-                        flashMsg.style.animation = 'flash-fade 2s ease-out forwards';
-                        
-                        // 5. Beam Surge
-                        beam.style.background = 'linear-gradient(90deg, #D34716, #fb923c)';
-                        beam.style.animation = 'surge-beam 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards';
-                        
-                        // UPDATED CONTEXTUAL FEEDBACK
-                        feedback.innerHTML = "<strong>Output Generated.</strong><br>Action creates the feeling.";
-                        feedback.className = "text-sm text-center mt-4 text-allgood-primary font-bold h-10 flex items-center justify-center";
-                        
-                        // 6. Hide Orb after effect
-                        setTimeout(() => {
-                            element.style.opacity = '0';
-                            element.style.pointerEvents = 'none';
-                        }, 600);
-                    }
-                },
-                // Fail Callback
-                null
-            );
+                flashMsg.innerText = "KINETIC ENERGY RECEIVED"; 
+                flashMsg.style.animation = 'flash-fade 2s ease-out forwards';
+                
+                beam.style.background = 'linear-gradient(90deg, #D34716, #fb923c)';
+                beam.style.animation = 'surge-beam 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards';
+                
+                feedback.innerHTML = "<strong>Output Generated.</strong><br>Action creates the feeling.";
+                feedback.className = "text-sm text-center mt-4 text-allgood-primary font-bold h-10 flex items-center justify-center";
+                
+                setTimeout(() => {
+                    element.style.opacity = '0';
+                    element.style.pointerEvents = 'none';
+                }, 600);
+            }
+        }
+
+        // Attach Mouse Drag
+        circuitDraggables.forEach(d => {
+            enableDrag(d, inputSlot, handleCircuitDrop, null);
         });
 
-        // --- PAGE 6 SETUP ---
+        // --- PAGE 6 LOGIC: Fear Loadout ---
         const fearBlob = document.getElementById('fear-blob');
         const backpackZone = document.getElementById('backpack-zone');
         const fearFeedback = document.getElementById('fear-feedback');
         
-        enableDrag(fearBlob, backpackZone,
-            // Success
-            (element) => {
-                sfx.success();
-                
-                // Physically move DOM element to backpack to lock it
-                backpackZone.innerHTML = '';
-                // Clone needed because event listeners might be weird if moved directly during pointer up
-                const clone = element.cloneNode(true);
-                clone.style.transform = 'scale(0.8)';
-                clone.style.position = 'static';
-                clone.classList.remove('absolute');
-                backpackZone.appendChild(clone);
-                
-                // Hide original container content
-                document.getElementById('fear-zone').innerHTML = '<p class="text-xs text-gray-300 italic">Empty</p>';
-                
-                fearFeedback.innerText = "Fear packed. You are ready to move.";
-                fearFeedback.classList.remove('text-red-500');
-                fearFeedback.classList.add('text-green-600');
-                
-                document.getElementById('go-overlay').classList.remove('hidden');
-            },
-            // Fail (used for initial clear)
-            () => {
-               fearFeedback.innerText = "";
-            }
-        );
+        function handleFearDrop(element) {
+            sfx.success();
+            
+            backpackZone.innerHTML = '';
+            const clone = element.cloneNode(true);
+            clone.style.transform = 'scale(0.8)';
+            clone.style.position = 'static';
+            clone.classList.remove('absolute');
+            backpackZone.appendChild(clone);
+            
+            document.getElementById('fear-zone').innerHTML = '<p class="text-xs text-gray-300 italic">Empty</p>';
+            
+            fearFeedback.innerText = "Fear packed. You are ready to move.";
+            fearFeedback.classList.remove('text-red-500');
+            fearFeedback.classList.add('text-green-600');
+            
+            document.getElementById('go-overlay').classList.remove('hidden');
+        }
+        
+        // Attach Mouse Drag
+        enableDrag(fearBlob, backpackZone, handleFearDrop, () => { fearFeedback.innerText = ""; });
+
+        // ATTACH TOUCH HANDLERS (Shared for all draggables)
+        const allDraggables = [...circuitDraggables, fearBlob];
+        allDraggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('touchmove', handleTouchMove, {passive: false});
+            item.addEventListener('touchend', handleTouchEnd, {passive: false});
+        });
 
         function tryDeleteFear() {
             sfx.error();
