@@ -195,6 +195,8 @@
                 padding-bottom: max(env(safe-area-inset-bottom), 20px); padding-top: 12px; height: auto; min-height: 80px;
                 z-index: 100; background-color: white; border-top: 1px solid #e5e7eb;
             }
+            /* UPDATED: Increased padding to clear mobile footer */
+            .page { padding-bottom: 200px !important; } 
         }
 
         .tablet-frame.focus-mode { 
@@ -344,8 +346,8 @@
                     </div>
                 </div>
 
-                <!-- SCROLLABLE CONTENT AREA -->
-                <div id="main-scroll-view" class="flex-1 min-h-0 overflow-y-auto w-full relative bg-[#F7F7F7] flex flex-col">
+                <!-- SCROLLABLE CONTENT AREA (UPDATED PADDING) -->
+                <div id="main-scroll-view" class="flex-1 min-h-0 overflow-y-auto w-full relative bg-[#F7F7F7] flex flex-col pb-20 md:pb-0">
                     
                     <!-- MENTOR BAR -->
                     <div id="mentor-bar" class="w-full bg-blue-50 border-b border-blue-100 px-6 py-4 flex items-start gap-4 sticky top-0 z-30 shadow-sm transition-colors duration-300">
@@ -792,17 +794,23 @@
                             
                             <!-- FEEDBACK -->
                             <div id="feedback-container" class="w-full max-w-md mx-auto bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8 text-left relative">
-                                <h3 class="font-bold text-gray-400 text-xs uppercase tracking-widest mb-4 text-center">Rate this Lab</h3>
-                                <div class="flex justify-center space-x-3 mb-4">
-                                    <button onclick="window.setRating(1)" class="star-btn transition-transform hover:scale-110"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                    <button onclick="window.setRating(2)" class="star-btn transition-transform hover:scale-110"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                    <button onclick="window.setRating(3)" class="star-btn transition-transform hover:scale-110"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                    <button onclick="window.setRating(4)" class="star-btn transition-transform hover:scale-110"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                    <button onclick="window.setRating(5)" class="star-btn transition-transform hover:scale-110"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Rate this Lab</h3>
+                                <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
+                                    <button onclick="window.setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
+                                    <button onclick="window.setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
                                 </div>
-                                <button onclick="window.submitFeedback()" class="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded text-sm transition-colors">Submit</button>
+                                <label class="block text-xs font-bold text-gray-500 mb-2">Your feedback sharpens our tools. What worked? What didn't?</label>
+                                <textarea id="feedback-text" rows="3" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Share your thoughts..."></textarea>
+                                <button onclick="window.submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-2 rounded transition-colors text-sm">Send Feedback</button>
                             </div>
-                            <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 text-center p-4 rounded border border-green-200 text-green-700 font-bold mb-8">Feedback Received</div>
+                            <div id="feedback-success" class="hidden w-full max-w-md mx-auto bg-green-50 p-6 rounded-lg shadow-inner border border-green-200 mb-12 text-center">
+                                <i data-lucide="check-circle" class="w-12 h-12 text-green-600 mx-auto mb-2"></i>
+                                <h3 class="font-bold text-green-800">Feedback Received.</h3>
+                                <p class="text-xs text-green-700 mt-1">Thank you for helping us improve.</p>
+                            </div>
 
                             <div id="badge-container" class="mb-8 transform transition-all duration-700 scale-90 hover:scale-100"></div>
                             <a href="#" onclick="downloadBadge()" class="w-full max-w-xs bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-4 px-6 rounded-full shadow-lg transition-all transform active:scale-95 flex items-center justify-center mb-12 group">
