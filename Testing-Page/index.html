@@ -26,6 +26,7 @@
 
         window.auth = auth;
         window.db = db;
+        // Expose signOut for Hard Reset
         window.authSignOut = () => signOut(auth);
 
         window.currentUser = null;
@@ -73,18 +74,26 @@
             } catch (e) { console.error(e); }
         }
 
+        // TEMPLATE LOGIN HANDLER
         window.handleGuestLogin = async () => {
             const name = document.getElementById('user-name-input').value.trim() || "Learner";
+            const email = document.getElementById('user-email-input').value.trim();
             const btn = document.getElementById('btn-guest-login');
-            btn.innerText = "Connecting..."; btn.disabled = true;
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Connecting..."; 
+            btn.disabled = true;
+            
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else if (!auth.currentUser) await signInAnonymously(auth);
                 
                 const user = auth.currentUser;
                 await updateProfile(user, { displayName: name });
-                await window.ensureUserContainer(user, name);
+                await window.ensureUserContainer(user, name, email);
                 window.currentUserName = name;
+                
+                localStorage.setItem('aa_username', name);
                 
                 document.getElementById('header-welcome-text').textContent = `Welcome: ${name}`;
                 document.getElementById('login-modal').classList.add('hidden-modal');
@@ -92,11 +101,43 @@
                 window.logFinalScoreToFirestore({ rank: "Session Started", sessionId: window.sessionId });
                 if(window.showPage) window.showPage(0);
                 if(window.sfx) window.sfx.nav();
-            } catch (e) { console.error(e); alert("Login failed."); } 
-            finally { btn.innerText = "Start Mission"; btn.disabled = false; }
+            } catch (e) { 
+                console.error(e); 
+                alert("Login failed."); 
+            } finally { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            }
         };
-        
-        window.handleGoogleLogin = window.handleGuestLogin; // Fallback for simplicity in sandbox
+
+        // TEMPLATE GOOGLE LOGIN
+        window.handleGoogleLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            const btnContainer = document.getElementById('google-icon-container');
+            if(btnContainer) btnContainer.classList.add('opacity-50', 'pointer-events-none');
+            
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user; 
+                const finalName = user.displayName || "Learner";
+                
+                await window.ensureUserContainer(user, finalName, user.email);
+                window.currentUserName = finalName;
+                localStorage.setItem('aa_username', finalName);
+
+                document.getElementById('header-welcome-text').textContent = `Welcome: ${finalName}`;
+                document.getElementById('login-modal').classList.add('hidden-modal');
+                document.getElementById('login-modal').classList.remove('visible-modal');
+                
+                if(window.showPage) window.showPage(0);
+                if(window.sfx) window.sfx.nav();
+            } catch (error) {
+                console.error("Google Sign-In Error", error);
+                alert("Google Sign-In failed. Please try again.");
+            } finally {
+                 if(btnContainer) btnContainer.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        };
     </script>
     
     <script>
@@ -136,6 +177,22 @@
         .page { flex: 1 1 auto; overflow-y: auto; padding: 20px; position: relative; display: none; width: 100%; }
         .page.active { display: block; }
         .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
+
+        /* Focus Mode - Strict Match to Template */
+        .tablet-frame.focus-mode { 
+            position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; 
+            width: 100% !important; height: 100% !important;
+            aspect-ratio: auto !important; max-width: none !important; max-height: none !important; 
+            min-height: 0 !important;
+            margin: 0 !important; padding: 0 !important; 
+            background: #F7F7F7 !important; border: none !important; border-radius: 0 !important; 
+            box-shadow: none !important; z-index: 99999 !important; 
+            background-image: none !important;
+        }
+        .tablet-frame.focus-mode::before { display: none; }
+        .tablet-frame.focus-mode .screen-container { border-radius: 0; box-shadow: none; height: 100%; }
+        .tablet-frame.focus-mode .footer-content { padding-bottom: 0; }
+        body.is-focused main { padding: 0 !important; }
 
         /* MODULE SPECIFIC STYLES */
         .blur-text { color: transparent; text-shadow: 0 0 8px rgba(0,0,0,0.5); user-select: none; transition: all 1s ease; }
@@ -199,10 +256,11 @@
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 shrink-0">
-                            <button id="home-button" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10"><i data-lucide="home" class="w-6 h-6"></i></button>
+                            <button id="home-button" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10" title="Home"><i data-lucide="home" class="w-6 h-6"></i></button>
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 p-2 rounded-full hover:bg-white/10"><i data-lucide="moon" class="w-5 h-5"></i></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-7 h-7"></i></button>
+                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 p-2 rounded-full hover:bg-white/10" title="Blueprint Mode"><i data-lucide="moon" class="w-5 h-5"></i></button>
+                            <button id="fullscreen-toggle" class="text-gray-200 hover:text-green-300 p-2 rounded-full hover:bg-white/10" title="Focus Mode"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            <button id="menu-toggle" class="text-gray-200 hover:text-white p-2 rounded-full hover:bg-white/10" title="Menu"><i data-lucide="menu" class="w-7 h-7"></i></button>
                         </div>
                     </div>
                 </header>
@@ -473,12 +531,40 @@
                 </footer>
 
                 <!-- SYSTEM MODALS -->
+                <!-- Login Modal (TEMPLATE STANDARD V3) -->
                 <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
                         <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
-                        <input type="text" id="user-name-input" placeholder="Your Name" class="w-full border border-gray-300 rounded p-3 mb-3 font-body">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md font-body uppercase">Start Mission</button>
+                        
+                        <!-- Tooltip Container -->
+                        <div class="flex items-center justify-center gap-2 mb-6 relative">
+                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
+                            <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
+                                <i data-lucide="help-circle" class="w-4 h-4 mr-1"></i>
+                                <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
+                                <!-- Hover Content -->
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 w-64 p-3 bg-gray-800 text-white text-xs text-left rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all duration-200 z-50 font-body leading-relaxed border border-gray-700 pointer-events-none">
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
+                                    <strong class="block text-allgood-primary mb-1 uppercase tracking-wide text-[10px]">Why do we ask?</strong>
+                                    <p class="mb-2 text-gray-300">We use your name to personalize your badge. Performance data is logged in real-time to improve the GoodBlock experience. All personal data is kept confidential and never sold.</p>
+                                    <div class="border-t border-gray-700 my-1 pt-1"></div>
+                                    <p class="text-gray-300"><strong>Email (Optional):</strong> Enter to join the Allgood Academy community.</p>
+                                </div>
+                            </button>
+                        </div>
+                        
+                        <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
+                        
+                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start GoodBlock</button>
+                        
+                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
+                        
+                        <!-- Google Button -->
+                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        </button>
                     </div>
                 </div>
                 
@@ -486,6 +572,24 @@
                     <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
                         <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50"><span class="font-bold text-allgood-dark font-heading">Menu</span><button onclick="document.getElementById('menu-modal').classList.add('hidden-modal');document.getElementById('menu-modal').classList.remove('visible-modal');"><i data-lucide="x" class="w-6 h-6"></i></button></div>
                         <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
+                    </div>
+                </div>
+                
+                <!-- System Menu Modal (TEMPLATE STANDARD V3) -->
+                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
+                        <div class="mb-4"><i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i></div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
+                        <p class="text-sm text-gray-500 mb-6 font-body">Select an option to proceed.</p>
+                        <div class="space-y-3">
+                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
+                            </button>
+                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center">
+                                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard
+                            </button>
+                            <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Cancel</button>
+                        </div>
                     </div>
                 </div>
 
@@ -710,6 +814,31 @@
             toc.innerHTML += `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600 rounded" onclick="showPage(${i});document.getElementById('menu-modal').classList.add('hidden-modal');document.getElementById('menu-modal').classList.remove('visible-modal');">${i+1}. ${n}</button>`;
         });
 
+        // SYSTEM FUNCTIONS (TEMPLATE STANDARD)
+        window.closeSystemMenu = () => { 
+            document.getElementById('system-menu-modal').classList.add('hidden-modal'); 
+            document.getElementById('system-menu-modal').classList.remove('visible-modal'); 
+        };
+
+        window.handleSystemExit = () => { 
+            window.location.href = "https://www.allgoodacademy.com"; 
+        };
+
+        window.handleLogOut = async () => {
+             if (window.authSignOut) await window.authSignOut();
+             localStorage.clear();
+             window.currentUserName = "Learner";
+             window.closeSystemMenu();
+             // Reset UI
+             document.getElementById('startup-screen').style.display = 'flex';
+             setTimeout(() => document.getElementById('startup-screen').style.opacity = '1', 10);
+             window.showPage(0);
+             
+             // Show Login again
+             document.getElementById('login-modal').classList.remove('hidden-modal');
+             document.getElementById('login-modal').classList.add('visible-modal');
+        };
+
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
             if(window.lucide) window.lucide.createIcons();
@@ -734,6 +863,33 @@
                     m.classList.remove('hidden-modal'); m.classList.add('visible-modal');
                 }
             });
+
+            // Focus Mode Toggle (TEMPLATE MATCH)
+            document.getElementById('fullscreen-toggle').addEventListener('click', function() {
+                const f = document.querySelector('.tablet-frame');
+                f.classList.toggle('focus-mode');
+                document.body.classList.toggle('is-focused');
+                this.classList.toggle('text-green-300');
+                sfx.tick();
+            });
+
+            // Home Long Press (System Menu)
+            const hBtn = document.getElementById('home-button');
+            let pressTimer;
+            const startPress = () => { 
+                pressTimer = setTimeout(() => { 
+                    document.getElementById('system-menu-modal').classList.remove('hidden-modal'); 
+                    document.getElementById('system-menu-modal').classList.add('visible-modal'); 
+                    sfx.nav(); 
+                }, 2000); 
+            };
+            const endPress = () => clearTimeout(pressTimer);
+            
+            hBtn.addEventListener('mousedown', startPress);
+            hBtn.addEventListener('touchstart', (e) => { startPress(); }, {passive: true});
+            hBtn.addEventListener('mouseup', endPress);
+            hBtn.addEventListener('mouseleave', endPress);
+            hBtn.addEventListener('touchend', endPress);
         });
     </script>
 </body>
