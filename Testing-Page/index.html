@@ -12,7 +12,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko", authDomain: "allgood-academy.firebaseapp.com", projectId: "allgood-academy" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
@@ -55,11 +55,37 @@
              try { await setDoc(userRef, { displayName: name, email: email || null, lastLogin: serverTimestamp(), lastActiveModule: document.title }, { merge: true }); } catch (e) {}
         }
 
+        // UPDATED: Robust Session Logging
         window.logFinalScoreToFirestore = async (data) => {
             const user = auth.currentUser;
             if (!user) return;
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            try { await setDoc(sessionRef, { gameName: document.title, ...data, lastUpdated: serverTimestamp(), user: { uid: user.uid, displayName: window.currentUserName } }, { merge: true }); } catch (e) {}
+            try { 
+                await setDoc(sessionRef, { 
+                    gameName: document.title, 
+                    ...data, 
+                    lastUpdated: serverTimestamp(), 
+                    user: { uid: user.uid, displayName: window.currentUserName } 
+                }, { merge: true }); 
+                console.log("[DB] Session Data Updated:", data);
+            } catch (e) { console.error("Session Log Failed", e); }
+        }
+
+        // NEW: Event Logging for Granular Tracking (Personas, Clicks)
+        window.logEvent = async (action, detail, payload = {}) => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
+            try {
+                await addDoc(logsRef, {
+                    action: action,
+                    detail: detail,
+                    payload: payload,
+                    timestamp: serverTimestamp()
+                });
+                console.log(`[DB] Event Logged: ${action} - ${detail}`);
+            } catch (e) { console.error("Event Log Failed", e); }
         }
 
         window.handleGuestLogin = async () => {
@@ -82,6 +108,9 @@
                     document.getElementById('login-modal').classList.remove('visible-modal');
                     if(window.showPage) window.showPage(0);
                     if(window.sfx) window.sfx.nav();
+                    
+                    // Log Session Start
+                    window.logFinalScoreToFirestore({ rank: "Session Started", module: "CogAT Logic Lab" });
                 }
             } catch (error) { alert("Connection failed."); } finally { btn.innerText = "Enter Lab"; btn.disabled = false; }
         };
@@ -99,6 +128,9 @@
                 document.getElementById('login-modal').classList.remove('visible-modal');
                 if(window.showPage) window.showPage(0);
                 if(window.sfx) window.sfx.nav();
+                
+                // Log Session Start
+                window.logFinalScoreToFirestore({ rank: "Session Started", module: "CogAT Logic Lab" });
             } catch (error) { alert("Google Sign-In failed."); }
         };
     </script>
@@ -369,6 +401,24 @@
                                 <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> Restart GoodBlock
                             </button>
                             <button onclick="window.closeSystemMenu()" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW: Next Steps Modal -->
+                <div id="next-steps-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
+                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
+                        <div class="mb-4"><i data-lucide="map" class="w-12 h-12 mx-auto text-allgood-primary"></i></div>
+                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">What's Next?</h2>
+                        <p class="text-sm text-gray-600 mb-6">Continue your training or return to base.</p>
+                        <div class="space-y-3">
+                            <button onclick="window.location.href='https://www.allgoodacademy.com/goodblocks/cogat-verbal-practice'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body flex items-center justify-center btn-tactile">
+                                <i data-lucide="play-circle" class="w-4 h-4 mr-2"></i> Start Verbal Practice
+                            </button>
+                            <button onclick="window.location.href='https://www.allgoodacademy.com'" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm transition-colors flex items-center justify-center btn-tactile">
+                                <i data-lucide="layout-grid" class="w-4 h-4 mr-2"></i> Dashboard
+                            </button>
+                            <button onclick="document.getElementById('next-steps-modal').classList.add('hidden-modal'); document.getElementById('next-steps-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Stay Here</button>
                         </div>
                     </div>
                 </div>
@@ -762,25 +812,25 @@
                         <div id="gauntlet-q1" class="gauntlet-q">
                             <p class="text-sm font-bold mb-4 bg-white p-4 border rounded shadow-sm">1. PUPPY : DOG :: KITTEN : ?</p>
                             <div class="space-y-3">
-                                <button onclick="gauntletNext(1)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. Fur</button>
-                                <button onclick="gauntletNext(1)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. Cat</button>
-                                <button onclick="gauntletNext(1)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. Meow</button>
+                                <button onclick="handleGauntletAnswer(1, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. Fur</button>
+                                <button onclick="handleGauntletAnswer(1, true)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. Cat</button>
+                                <button onclick="handleGauntletAnswer(1, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. Meow</button>
                             </div>
                         </div>
                         <div id="gauntlet-q2" class="gauntlet-q hidden">
                             <p class="text-sm font-bold mb-4 bg-white p-4 border rounded shadow-sm">2. 10, 13, 16, 19, ?</p>
                             <div class="space-y-3">
-                                <button onclick="gauntletNext(2)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. 21</button>
-                                <button onclick="gauntletNext(2)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. 22</button>
-                                <button onclick="gauntletNext(2)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. 23</button>
+                                <button onclick="handleGauntletAnswer(2, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. 21</button>
+                                <button onclick="handleGauntletAnswer(2, true)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. 22</button>
+                                <button onclick="handleGauntletAnswer(2, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. 23</button>
                             </div>
                         </div>
                         <div id="gauntlet-q3" class="gauntlet-q hidden">
                             <p class="text-sm font-bold mb-4 bg-white p-4 border rounded shadow-sm">3. If all BLOOPS are ZORPS, and Tim is a BLOOP...</p>
                             <div class="space-y-3">
-                                <button onclick="gauntletNext(3)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. Tim is a ZORP</button>
-                                <button onclick="gauntletNext(3)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. Tim is not a ZORP</button>
-                                <button onclick="gauntletNext(3)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. ZORPS are BLOOPS</button>
+                                <button onclick="handleGauntletAnswer(3, true)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">A. Tim is a ZORP</button>
+                                <button onclick="handleGauntletAnswer(3, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">B. Tim is not a ZORP</button>
+                                <button onclick="handleGauntletAnswer(3, false)" class="w-full text-left p-4 border border-gray-300 rounded bg-white hover:border-allgood-primary hover:shadow-md transition-all font-bold text-gray-600 btn-tactile">C. ZORPS are BLOOPS</button>
                             </div>
                         </div>
                         <div id="gauntlet-done" class="hidden text-center py-12">
@@ -940,7 +990,17 @@
 
             backBtn.disabled = idx === 0;
             backBtn.classList.toggle('opacity-0', idx === 0);
-            nextBtn.style.display = (idx === totalPages - 1) ? 'none' : 'flex';
+            
+            // Handle Next Button State - UPDATED LOGIC
+            if (idx === totalPages - 1) {
+                // Show "Next Lesson" button on final page
+                nextBtn.style.display = 'flex';
+                nextBtn.innerHTML = `<span>Next Lesson</span><i data-lucide="external-link" class="w-4 h-4 ml-1"></i>`;
+            } else {
+                nextBtn.style.display = 'flex';
+                nextBtn.innerHTML = `<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>`;
+            }
+            if(window.lucide) window.lucide.createIcons();
             
             // Scroll to top
             document.getElementById('main-scroll-view').scrollTop = 0;
@@ -948,7 +1008,20 @@
             sfx.nav();
         }
 
-        nextBtn.addEventListener('click', () => showPage(currentPage + 1));
+        // UPDATED Event Listener for Redirection
+        nextBtn.addEventListener('click', () => {
+            if (currentPage === totalPages - 1) {
+                if(window.logEvent) window.logEvent('Navigation', 'Final Page Next Clicked');
+                // Open Custom Modal
+                const modal = document.getElementById('next-steps-modal');
+                modal.classList.remove('hidden-modal');
+                modal.classList.add('visible-modal');
+                sfx.nav();
+            } else {
+                showPage(currentPage + 1);
+            }
+        });
+        
         backBtn.addEventListener('click', () => showPage(currentPage - 1));
         
         // New Restart Logic
@@ -1046,7 +1119,7 @@
             }
         };
         
-        // --- REALITY GAMES: VERBAL ---
+        // --- REALITY GAMES: VERBAL (WITH LOGGING) ---
         window.playLawyer = () => {
             const area = document.getElementById('verbal-game-area');
             area.classList.remove('hidden');
@@ -1060,6 +1133,7 @@
                 <button onclick="this.innerText='OBJECTION SUSTAINED (Won)'; this.classList.add('bg-green-600','text-white'); sfx.success();" class="w-full bg-allgood-dark text-white text-xs font-bold py-2 rounded">Argue Precedent</button>
             `;
             sfx.tick();
+            if(window.logEvent) window.logEvent('Persona_Select', 'Verbal', { role: 'Lawyer' });
         };
         window.playCoder = () => {
             const area = document.getElementById('verbal-game-area');
@@ -1075,6 +1149,7 @@
                 <button onclick="this.innerText='PATCH APPLIED (System Secure)'; this.classList.add('bg-green-600','text-white'); sfx.success();" class="w-full bg-allgood-dark text-white text-xs font-bold py-2 rounded">Patch Bug Pattern</button>
             `;
             sfx.tick();
+            if(window.logEvent) window.logEvent('Persona_Select', 'Verbal', { role: 'Coder' });
         };
 
         // Quant Pattern
@@ -1097,21 +1172,23 @@
             }
         };
         
-        // --- REALITY GAME: QUANT ---
+        // --- REALITY GAME: QUANT (WITH LOGGING) ---
         window.playMarket = (isBuy) => {
             if(isBuy) {
                 document.getElementById('market-bar').classList.add('h-[160%]'); // Grow
                 document.getElementById('quant-game-feedback').innerText = "PROFIT SECURED: +200% Growth Pattern Matched.";
                 document.getElementById('quant-game-feedback').className = "mt-2 text-center font-bold text-sm min-h-[20px] text-green-600";
                 sfx.success();
+                if(window.logEvent) window.logEvent('Persona_Select', 'Quant', { action: 'Buy' });
             } else {
                 document.getElementById('quant-game-feedback').innerText = "Missed Opportunity. The pattern was growth.";
                 document.getElementById('quant-game-feedback').className = "mt-2 text-center font-bold text-sm min-h-[20px] text-red-500";
                 sfx.error();
+                if(window.logEvent) window.logEvent('Persona_Select', 'Quant', { action: 'Sell' });
             }
         };
         
-        // --- REALITY GAME: SPATIAL ---
+        // --- REALITY GAME: SPATIAL (WITH LOGGING) ---
         window.playEngineer = () => {
             const k = document.getElementById('keystone');
             k.style.transform = "rotate(0deg)";
@@ -1120,6 +1197,7 @@
                 document.getElementById('spatial-game-feedback').innerText = "BRIDGE SECURE. Structural Integrity: 100%";
                 document.getElementById('spatial-game-feedback').className = "mt-2 text-center font-bold text-sm min-h-[20px] text-green-600";
                 sfx.success();
+                if(window.logEvent) window.logEvent('Persona_Select', 'Spatial', { action: 'Rotate' });
             }, 600);
         };
 
@@ -1150,13 +1228,25 @@
             }
         };
 
-        // Gauntlet
+        // Gauntlet Logic (UPDATED SCORING)
         let gauntletActive = false;
+        window.gauntletScore = 0; // NEW: Track score
+
         window.startGauntletTimer = () => {
             if(gauntletActive) return;
             gauntletActive = true;
             document.getElementById('gauntlet-timer').style.width = '0%';
         };
+
+        // NEW: Answer Handler
+        window.handleGauntletAnswer = (qNum, isCorrect) => {
+            if (isCorrect) {
+                window.gauntletScore++;
+                // Visual feedback could be added here, but gauntlet moves fast
+            }
+            window.gauntletNext(qNum);
+        };
+
         window.gauntletNext = (qNum) => {
             document.getElementById(`gauntlet-q${qNum}`).classList.add('hidden');
             if (qNum < 3) {
@@ -1164,6 +1254,13 @@
             } else {
                 document.getElementById('gauntlet-done').classList.remove('hidden');
                 sfx.success();
+                // LOG FINAL SCORE
+                if(window.logFinalScoreToFirestore) {
+                    window.logFinalScoreToFirestore({ 
+                        gauntletScore: window.gauntletScore,
+                        rank: "Gauntlet Complete" 
+                    });
+                }
             }
             sfx.tick();
         };
@@ -1173,7 +1270,7 @@
             sig.innerText = window.currentUserName || "Detective";
             sig.style.opacity = '1';
             sfx.success();
-            window.logFinalScoreToFirestore({ rank: "Contract Signed", sessionId: window.sessionId });
+            window.logFinalScoreToFirestore({ rank: "Contract Signed" });
         };
 
         function generateBadge() {
@@ -1188,7 +1285,7 @@
               <path d="M150 50 L170 90 L220 90 L180 120 L195 160 L150 135 L105 160 L120 120 L80 90 L130 90 Z" fill="none" stroke="white" stroke-width="2" transform="scale(0.3) translate(350, 180)"/>
             </svg>`;
             document.getElementById('badge-container').innerHTML = svg;
-            window.logFinalScoreToFirestore({ rank: "Certified Detective", sessionId: window.sessionId });
+            window.logFinalScoreToFirestore({ rank: "Certified Detective", badgeSVG: svg }); // Log SVG too
         }
         
         window.downloadBadge = () => {
@@ -1218,7 +1315,10 @@
              document.getElementById('login-modal').classList.add('visible-modal');
         }
 
+        // NEW: Feedback Logic
+        let currentStarRating = 0;
         window.setRating = (n) => {
+            currentStarRating = n;
             for (let i = 1; i <= 5; i++) {
                 const star = document.getElementById(`star-${i}`);
                 star.classList.toggle('text-yellow-400', i <= n);
@@ -1226,7 +1326,18 @@
             }
             sfx.tick();
         }
+        
         window.submitFeedback = () => {
+            const text = document.getElementById('feedback-text').value;
+            // Write to DB
+            if(window.logFinalScoreToFirestore) {
+                window.logFinalScoreToFirestore({ 
+                    rating: currentStarRating, 
+                    feedback: text,
+                    rank: "Feedback Submitted" 
+                });
+            }
+            
             document.getElementById('feedback-container').classList.add('hidden');
             document.getElementById('feedback-success').classList.remove('hidden');
             sfx.nav();
