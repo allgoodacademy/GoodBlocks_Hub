@@ -57,7 +57,15 @@
             const user = auth.currentUser;
             if (!user) return;
             const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            try { await setDoc(sessionRef, { gameName: document.title, ...data, lastUpdated: serverTimestamp(), user: { uid: user.uid, displayName: window.currentUserName } }, { merge: true }); } catch (e) {}
+            try { 
+                await setDoc(sessionRef, { 
+                    gameName: document.title, 
+                    ...data, 
+                    lastUpdated: serverTimestamp(), 
+                    user: { uid: user.uid, displayName: window.currentUserName } 
+                }, { merge: true }); 
+                console.log("Data logged:", data);
+            } catch (e) { console.error("Logging error", e); }
         }
 
         window.handleGuestLogin = async () => {
@@ -652,7 +660,17 @@
                 document.getElementById('final-total').innerText = `${total} / 30`;
                 let rank = total > 25 ? "Lead Director" : (total > 15 ? "Senior Associate" : "Junior Analyst");
                 document.getElementById('final-rank').innerText = rank;
-                window.logFinalScoreToFirestore({ score: total, rank: rank });
+                
+                // Enhanced Logging
+                window.logFinalScoreToFirestore({ 
+                    score: total, 
+                    rank: rank,
+                    stageScores: {
+                        junior: stageScores[0],
+                        senior: stageScores[1],
+                        director: stageScores[2]
+                    }
+                });
             }
             if (idx === 8) { 
                 generateBadge();
@@ -700,7 +718,10 @@
              document.getElementById('login-modal').classList.add('visible-modal');
         }
 
+        let currentStarRating = 0; // Initialize variable
+
         window.setRating = (n) => {
+            currentStarRating = n; // Capture value
             for (let i = 1; i <= 5; i++) {
                 const star = document.getElementById(`star-${i}`);
                 if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
@@ -710,7 +731,12 @@
         }
         window.submitFeedback = () => {
             const text = document.getElementById('feedback-text').value;
-            window.logFinalScoreToFirestore({ feedback: text, rank: "Feedback Submitted", sessionId: window.sessionId });
+            window.logFinalScoreToFirestore({ 
+                feedback: text, 
+                rating: currentStarRating, // Send value
+                rank: "Feedback Submitted", 
+                sessionId: window.sessionId 
+            });
             document.getElementById('feedback-container').classList.add('hidden');
             document.getElementById('feedback-success').classList.remove('hidden');
             sfx.nav();
