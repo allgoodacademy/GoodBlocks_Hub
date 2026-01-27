@@ -473,7 +473,7 @@
     </main>
 
     <script>
-        const totalPages = 9; // UPDATED to 9 pages (0-8)
+        const totalPages = 9; 
         let currentPageIndex = 0;
         let stageScores = [0, 0, 0];
         let currentLevelIndices = [0, 0, 0];
@@ -666,9 +666,8 @@
             sfx.nav();
         }
 
-        nextBtn.addEventListener('click', () => {
-             if(currentPageIndex < totalPages - 1) showPage(currentPageIndex + 1);
-        });
+        // REMOVED DUPLICATE LISTENER HERE - FIXED DOUBLE CLICK ISSUE
+        
         backBtn.addEventListener('click', () => showPage(currentPageIndex - 1));
 
         window.closeHomePrompt = () => { document.getElementById('home-prompt-modal').classList.add('hidden-modal'); }
