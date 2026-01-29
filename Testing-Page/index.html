@@ -21,7 +21,9 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // EXPOSE SIGNOUT GLOBALLY
         window.authSignOut = () => signOut(auth);
+        
         window.currentUser = null;
         window.currentUserName = "Analyst";
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
@@ -45,7 +47,7 @@
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
                 }
-                // CRITICAL FIX: Force engine start on auto-login
+                // CRITICAL FIX: Force engine start on auto-login if logic loaded
                 if (window.showPage) {
                     window.showPage(0);
                     window.logFinalScoreToFirestore({ rank: "Session Resumed", sessionId: window.sessionId });
@@ -664,6 +666,7 @@
                 loadQuestion(stageNum);
             } else {
                 document.getElementById(`s${stageNum}-score-display`).innerText = `${stageScores[stageNum - 1]} / 10`;
+                // FIX: Auto-advance stage 3 like the others
                 window.showPage(currentPageIndex + 1);
             }
             sfx.nav();
