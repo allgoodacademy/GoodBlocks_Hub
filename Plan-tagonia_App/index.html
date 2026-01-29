@@ -1,391 +1,460 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patagonia Trip 2026</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React and Babel for JSX -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { font-family: 'Verdana', sans-serif; background-color: #F7F7F7; color: #4C4C4C; }
-        h1, h2, h3, h4 { font-family: 'Georgia', serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .weather-gradient { background: linear-gradient(135deg, #357889 0%, #2D6473 100%); }
-        .fade-in { animation: fadeIn 0.8s ease-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+import React, { useState, useEffect } from 'react';
+import { 
+  ArrowLeft, 
+  ChevronRight, 
+  Calendar, 
+  Wind, 
+  Sun, 
+  Cloud, 
+  CloudRain, 
+  Snowflake, 
+  Plane, 
+  MapPin, 
+  Camera, 
+  Coffee, 
+  Car, 
+  Navigation, 
+  Footprints, 
+  Home, 
+  Ship, 
+  ExternalLink, 
+  Info,
+  Loader,
+  Lightbulb // Added Lightbulb icon
+} from 'lucide-react';
+
+const itinerary = [
+    {
+        date: 'Jan 30', day: 'Vie', fullDay: 'Viernes',
+        location: 'Santiago de Chile',
+        lat: -33.4489, lon: -70.6693,
+        accommodation: { 
+            name: 'Airbnb Santiago', 
+            link: 'https://www.airbnb.com/rooms/765625248677366834' 
+        },
+        activities: [
+            { type: 'arrival', text: 'Arrive in Chile (7:00 AM - 8:15 AM)', icon: Plane },
+            { type: 'leisure', text: 'Fantisilandia Theme Park', icon: MapPin },
+            { type: 'view', text: 'Cerro San Cristobal View', icon: Camera },
+            { type: 'social', text: 'Lunch/Shower at Keith\'s', icon: Coffee }
+        ],
+        funFacts: [
+            "Santiago is located in a central valley surrounded by the snow-capped Andes.",
+            "The Gran Torre Santiago is the tallest building in Latin America.",
+            "Chile is the longest country in the world from north to south.",
+            "You can ski in the Andes and surf in the Pacific Ocean on the same day.",
+            "The Costanera Center has a 360-degree observation deck.",
+            "Santiago was founded in 1541 by Spanish conquistador Pedro de Valdivia.",
+            "The city is home to the 'Palacio de la Moneda', the presidential palace."
+        ]
+    },
+    {
+        date: 'Jan 31', day: 'Sáb', fullDay: 'Sábado',
+        location: 'Punta Arenas → Puerto Natales',
+        lat: -51.7269, lon: -72.5060,
+        transport: [
+            { type: 'flight', text: 'Santiago to Punta Arenas (3.5hr)', icon: Plane },
+            { type: 'car', text: 'Pick up Kia Grand Carnival', icon: Car },
+            { type: 'drive', text: 'Drive to Puerto Natales (3.5hr)', icon: Navigation }
+        ],
+        accommodation: { name: 'Puerto Natales Water Nook', price: '$559.87' },
+        activities: [{ type: 'info', text: 'Check-in at Water Nook', icon: Home }],
+        funFacts: [
+            "Punta Arenas is the southernmost city of its size in the world.",
+            "The region receives nearly 18 hours of daylight during the summer.",
+            "Ferdinand Magellan passed through the nearby strait in 1520.",
+            "Winds in this region can regularly exceed 80 mph.",
+            "Puerto Natales is the primary gateway to Torres del Paine National Park.",
+            "You might see Rheas (large flightless birds) along the roadside.",
+            "Punta Arenas was a major global port before the Panama Canal opened."
+        ]
+    },
+    {
+        date: 'Feb 1', day: 'Dom', fullDay: 'Domingo',
+        location: 'Torres del Paine (East)',
+        lat: -50.9964, lon: -72.8519,
+        transport: [{ type: 'drive', text: 'Drive to Welcome Center (1.75hr)', icon: Car }],
+        accommodation: { name: 'Puerto Natales Water Nook' },
+        activities: [
+            { type: 'hike', text: 'Base Torres Hike (10h - Hard)', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-torres-del-paine-via-sendero-las-torres-a-chileno', icon: Footprints },
+            { type: 'hike', text: 'Optional: Mirador Cuernos', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-cuernos', icon: Footprints }
+        ],
+        funFacts: [
+            "The 'Towers of Blue' (Torres del Paine) are three distinct granite peaks.",
+            "Guanacos, relatives of the llama, roam freely throughout the park.",
+            "The park was designated a UNESCO Biosphere Reserve in 1978.",
+            "Lakes here are bright turquoise due to 'rock flour' from glaciers.",
+            "Andean Condors, the largest flying land birds, nest in the cliffs here.",
+            "The weather is famous for experiencing four seasons in a single day.",
+            "Pumas are the top predators here and are occasionally spotted by hikers."
+        ]
+    },
+    {
+        date: 'Feb 2', day: 'Lun', fullDay: 'Lunes',
+        location: 'Puerto Natales → El Chaltén',
+        lat: -49.3333, lon: -72.8833,
+        transport: [
+            { type: 'drive', text: 'To El Calafate (3.75hr)', icon: Car },
+            { type: 'drive', text: 'To El Chaltén (2.5hr)', icon: Car }
+        ],
+        accommodation: { 
+            name: 'El Chaltén Base',
+            address: 'Los Charitos 129, El Chaltén, Santa Cruz Province Z9301'
+        },
+        activities: [
+            { type: 'hike', text: 'Perito Moreno Glacier Walks', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/sendero-glaciar-perito-moreno', icon: Footprints },
+            { type: 'tour', text: 'Moreno Spirit Boat Tour', link: 'https://en.patagoniachic.com/el-calafate/tours/moreno-spirit-short-boat-tour_85.html', icon: Ship }
+        ],
+        funFacts: [
+            "Perito Moreno is one of the few glaciers in the world that is actually advancing.",
+            "The glacier covers an area of 250 square kilometers (97 sq mi).",
+            "It is the world's third-largest reserve of fresh water.",
+            "El Chaltén was only founded in 1985 due to a border dispute with Chile.",
+            "The glacier makes loud cracking sounds like thunder as ice calves into the lake.",
+            "El Chaltén is known as the 'Trekking Capital of Argentina'.",
+            "The town is located within Los Glaciares National Park."
+        ]
+    },
+    {
+        date: 'Feb 3', day: 'Mar', fullDay: 'Martes',
+        location: 'El Chaltén → El Calafate',
+        lat: -50.3380, lon: -72.2648,
+        transport: [
+            { type: 'drive', text: 'Drive to Los Huemules (0.5hr)', icon: Car },
+            { type: 'drive', text: 'Back to El Calafate (2.5hr)', icon: Car }
+        ],
+        accommodation: { 
+            name: 'El Calafate Airbnb',
+            address: 'Calle 202, El Calafate, Santa Cruz Province Z9405'
+        },
+        activities: [
+            { type: 'hike', text: 'Laguna de los Tres / Fitz Roy', icon: Footprints },
+            { type: 'hike', text: 'Cerro Torre / Laguna Capri', icon: Footprints }
+        ],
+        funFacts: [
+            "Mount Fitz Roy was the inspiration for the Patagonia clothing brand logo.",
+            "Tehuelche people called the mountain 'Chaltén', meaning 'Smoking Mountain'.",
+            "There is almost no cell service on the trails around Fitz Roy.",
+            "El Calafate is named after a berry bush common in Patagonia.",
+            "Legend says if you eat a Calafate berry, you will return to Patagonia one day.",
+            "Cerro Torre is considered one of the most difficult climbs in the world.",
+            "Lago Argentino is the biggest freshwater lake in Argentina."
+        ]
+    },
+    {
+        date: 'Feb 4', day: 'Mié', fullDay: 'Miércoles',
+        location: 'El Calafate → Punta Arenas',
+        lat: -53.1638, lon: -70.9171,
+        transport: [
+            { type: 'drive', text: 'Drive to Rio Gallegos (3hr)', icon: Car },
+            { type: 'drive', text: 'Drive to Punta Arenas (3hr)', icon: Car }
+        ],
+        accommodation: { 
+            name: 'Punta Arenas Airbnb', 
+            link: 'http://airbnb.com/I/FN57d86a',
+            address: 'Monseñor José Fagnano 187, Punta Arenas, Chile'
+        },
+        activities: [
+            { type: 'leisure', text: 'Lunch in Rio Gallegos', icon: Coffee },
+            { type: 'hike', text: 'Cabo Virgenes Penguin Hike', icon: Footprints }
+        ],
+        funFacts: [
+            "Rio Gallegos is a common stopover for trips to Antarctica.",
+            "Cabo Virgenes is home to a colony of over 100,000 Magellanic penguins.",
+            "The drive involves crossing the Strait of Magellan by ferry.",
+            "Patagonia has its own distinct flag, though it's not official.",
+            "The region is known for 'Estancias', massive sheep ranches.",
+            "The horizon here seems endless due to the flat steppe landscape.",
+            "You are driving through some of the most remote inhabited land on Earth."
+        ]
+    },
+    {
+        date: 'Feb 5', day: 'Jue', fullDay: 'Jueves',
+        location: 'Punta Arenas → Santiago',
+        lat: -33.4489, lon: -70.6693,
+        transport: [{ type: 'flight', text: 'Fly to Santiago (3.5hr)', icon: Plane }],
+        accommodation: { name: 'Santiago Return' },
+        activities: [
+            { type: 'tour', text: 'Isla Magdalena Penguins', icon: Ship },
+            { type: 'flight', text: 'Red-eye home', icon: Plane }
+        ],
+        funFacts: [
+            "Isla Magdalena is a designated national monument.",
+            "It is home to one of Chile's largest Magellanic penguin colonies.",
+            "Penguins here are used to human presence but should not be touched.",
+            "The lighthouse on the island dates back to 1902.",
+            "Santiago has a Mediterranean climate, similar to California.",
+            "The city's subway system carries over 2.5 million people daily.",
+            "You've just completed a trip to the 'End of the World'!"
+        ]
+    }
+];
+
+const FunFactCard = ({ facts }) => {
+    const [displayFact, setDisplayFact] = useState("Click for a new fun fact.");
+    
+    // Reset to default when facts change (new day selected)
+    useEffect(() => {
+        setDisplayFact("Click for a new fun fact.");
+    }, [facts]);
+
+    const showRandomFact = () => {
+        if (!facts || facts.length === 0) return;
+        let randomIndex;
+        let newFact;
+        
+        // Simple retry logic to ensure we don't show the exact same fact twice in a row immediately
+        // (unless there's only 1 fact)
+        do {
+            randomIndex = Math.floor(Math.random() * facts.length);
+            newFact = facts[randomIndex];
+        } while (newFact === displayFact && facts.length > 1);
+        
+        setDisplayFact(newFact);
+    };
+
+    return (
+        <button 
+            onClick={showRandomFact}
+            className="w-full text-left bg-white border-2 border-dashed border-[#D34716]/30 p-4 rounded-xl hover:border-[#D34716] hover:bg-[#D34716]/5 transition-all group active:scale-[0.99] flex items-start gap-3"
+        >
+            <div className="bg-[#D34716]/10 p-2 rounded-full text-[#D34716] group-hover:bg-[#D34716] group-hover:text-white transition-colors flex-shrink-0">
+                <Lightbulb size={20} />
+            </div>
+            <div>
+                <h4 className="text-[10px] uppercase tracking-wider font-bold text-[#D34716] mb-1">
+                    Did you know?
+                </h4>
+                <p className="text-sm font-medium text-[#4C4C4C] italic leading-relaxed">
+                    {displayFact}
+                </p>
+            </div>
+        </button>
+    );
+};
+
+const App = () => {
+    const [showDashboard, setShowDashboard] = useState(false);
+    const [activeDay, setActiveDay] = useState(0);
+    const [weather, setWeather] = useState(null);
+    const [loadingWeather, setLoadingWeather] = useState(false);
+
+    const fetchWeather = async (lat, lon) => {
+        setLoadingWeather(true);
+        try {
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`);
+            const data = await response.json();
+            setWeather(data.current);
+        } catch (error) {
+            console.error("Weather fetch failed");
+        } finally {
+            setLoadingWeather(false);
         }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+    };
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    useEffect(() => {
+        if (showDashboard) {
+            const day = itinerary[activeDay];
+            fetchWeather(day.lat, day.lon);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [activeDay, showDashboard]);
 
-        // Optimized Icon component to prevent "removeChild" errors
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const ref = useRef(null);
-            
-            useEffect(() => {
-                if (window.lucide && ref.current) {
-                    ref.current.innerHTML = `<i data-lucide="${name}"></i>`;
-                    lucide.createIcons({
-                        root: ref.current,
-                        attrs: {
-                            width: size,
-                            height: size,
-                            class: className
-                        }
-                    });
-                }
-            }, [name, size, className]);
+    const WeatherIcon = ({ code }) => {
+        if (code === 0) return <Sun size={28} />;
+        if (code <= 3) return <Cloud size={28} />;
+        if (code >= 51 && code <= 67) return <CloudRain size={28} />;
+        if (code >= 71 && code <= 77) return <Snowflake size={28} />;
+        return <Cloud size={28} />;
+    };
 
-            return <span ref={ref} className="inline-flex items-center justify-center leading-none"></span>;
-        };
-
-        const App = () => {
-            const [showDashboard, setShowDashboard] = useState(false);
-            const [activeDay, setActiveDay] = useState(0);
-            const [weather, setWeather] = useState(null);
-            const [loadingWeather, setLoadingWeather] = useState(false);
-
-            const itinerary = [
-                {
-                    date: 'Jan 30', day: 'Vie', fullDay: 'Viernes',
-                    location: 'Santiago de Chile',
-                    lat: -33.4489, lon: -70.6693,
-                    accommodation: { 
-                        name: 'Airbnb Santiago', 
-                        link: 'https://www.airbnb.com/rooms/765625248677366834' 
-                    },
-                    activities: [
-                        { type: 'arrival', text: 'Arrive in Chile (7:00 AM - 8:15 AM)', icon: 'plane' },
-                        { type: 'leisure', text: 'Fantisilandia Theme Park', icon: 'map-pin' },
-                        { type: 'view', text: 'Cerro San Cristobal View', icon: 'camera' },
-                        { type: 'social', text: 'Lunch/Shower at Keith\'s', icon: 'coffee' }
-                    ]
-                },
-                {
-                    date: 'Jan 31', day: 'Sáb', fullDay: 'Sábado',
-                    location: 'Punta Arenas → Puerto Natales',
-                    lat: -51.7269, lon: -72.5060,
-                    transport: [
-                        { type: 'flight', text: 'Santiago to Punta Arenas (3.5hr)', icon: 'plane' },
-                        { type: 'car', text: 'Pick up Kia Grand Carnival', icon: 'car' },
-                        { type: 'drive', text: 'Drive to Puerto Natales (3.5hr)', icon: 'navigation' }
-                    ],
-                    accommodation: { name: 'Puerto Natales Water Nook', price: '$559.87' },
-                    activities: [{ type: 'info', text: 'Check-in at Water Nook', icon: 'home' }]
-                },
-                {
-                    date: 'Feb 1', day: 'Dom', fullDay: 'Domingo',
-                    location: 'Torres del Paine (East)',
-                    lat: -50.9964, lon: -72.8519,
-                    transport: [{ type: 'drive', text: 'Drive to Welcome Center (1.75hr)', icon: 'car' }],
-                    accommodation: { name: 'Puerto Natales Water Nook' },
-                    activities: [
-                        { type: 'hike', text: 'Base Torres Hike (10h - Hard)', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-torres-del-paine-via-sendero-las-torres-a-chileno', icon: 'footprints' },
-                        { type: 'hike', text: 'Optional: Mirador Cuernos', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-cuernos', icon: 'footprints' }
-                    ]
-                },
-                {
-                    date: 'Feb 2', day: 'Lun', fullDay: 'Lunes',
-                    location: 'Puerto Natales → El Chaltén',
-                    lat: -49.3333, lon: -72.8833,
-                    transport: [
-                        { type: 'drive', text: 'To El Calafate (3.75hr)', icon: 'car' },
-                        { type: 'drive', text: 'To El Chaltén (2.5hr)', icon: 'car' }
-                    ],
-                    accommodation: { 
-                        name: 'El Chaltén Base',
-                        address: 'Los Charitos 129, El Chaltén, Santa Cruz Province Z9301'
-                    },
-                    activities: [
-                        { type: 'hike', text: 'Perito Moreno Glacier Walks', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/sendero-glaciar-perito-moreno', icon: 'footprints' },
-                        { type: 'tour', text: 'Moreno Spirit Boat Tour', link: 'https://en.patagoniachic.com/el-calafate/tours/moreno-spirit-short-boat-tour_85.html', icon: 'ship' }
-                    ]
-                },
-                {
-                    date: 'Feb 3', day: 'Mar', fullDay: 'Martes',
-                    location: 'El Chaltén → El Calafate',
-                    lat: -50.3380, lon: -72.2648,
-                    transport: [
-                        { type: 'drive', text: 'Drive to Los Huemules (0.5hr)', icon: 'car' },
-                        { type: 'drive', text: 'Back to El Calafate (2.5hr)', icon: 'car' }
-                    ],
-                    accommodation: { 
-                        name: 'El Calafate Airbnb',
-                        address: 'Calle 202, El Calafate, Santa Cruz Province Z9405'
-                    },
-                    activities: [
-                        { type: 'hike', text: 'Laguna de los Tres / Fitz Roy', icon: 'footprints' },
-                        { type: 'hike', text: 'Cerro Torre / Laguna Capri', icon: 'footprints' }
-                    ]
-                },
-                {
-                    date: 'Feb 4', day: 'Mié', fullDay: 'Miércoles',
-                    location: 'El Calafate → Punta Arenas',
-                    lat: -53.1638, lon: -70.9171,
-                    transport: [
-                        { type: 'drive', text: 'Drive to Rio Gallegos (3hr)', icon: 'car' },
-                        { type: 'drive', text: 'Drive to Punta Arenas (3hr)', icon: 'car' }
-                    ],
-                    accommodation: { 
-                        name: 'Punta Arenas Airbnb', 
-                        link: 'http://airbnb.com/I/FN57d86a',
-                        address: 'Monseñor José Fagnano 187, Punta Arenas, Chile'
-                    },
-                    activities: [
-                        { type: 'leisure', text: 'Lunch in Rio Gallegos', icon: 'coffee' },
-                        { type: 'hike', text: 'Cabo Virgenes Penguin Hike', icon: 'footprints' }
-                    ]
-                },
-                {
-                    date: 'Feb 5', day: 'Jue', fullDay: 'Jueves',
-                    location: 'Punta Arenas → Santiago',
-                    lat: -33.4489, lon: -70.6693,
-                    transport: [{ type: 'flight', text: 'Fly to Santiago (3.5hr)', icon: 'plane' }],
-                    accommodation: { name: 'Santiago Return' },
-                    activities: [
-                        { type: 'tour', text: 'Isla Magdalena Penguins', icon: 'ship' },
-                        { type: 'flight', text: 'Red-eye home', icon: 'plane' }
-                    ]
-                }
-            ];
-
-            const fetchWeather = async (lat, lon) => {
-                setLoadingWeather(true);
-                try {
-                    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`);
-                    const data = await response.json();
-                    setWeather(data.current);
-                } catch (error) {
-                    console.error("Weather fetch failed");
-                } finally {
-                    setLoadingWeather(false);
-                }
-            };
-
-            useEffect(() => {
-                if (showDashboard) {
-                    const day = itinerary[activeDay];
-                    fetchWeather(day.lat, day.lon);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            }, [activeDay, showDashboard]);
-
-            const getWeatherIcon = (code) => {
-                if (code === 0) return "sun";
-                if (code <= 3) return "cloud";
-                if (code >= 51 && code <= 67) return "cloud-rain";
-                if (code >= 71 && code <= 77) return "snowflake";
-                return "cloud";
-            };
-
-            if (!showDashboard) {
-                return (
-                    <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-6 text-center fade-in">
-                        <div className="max-w-md w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-[#D1D5DB]">
-                            <h1 className="text-3xl md:text-4xl font-bold text-[#D34716] mb-6">Patagonia 2026 Dashboard</h1>
-                            
-                            <div className="mb-8 relative group">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                                <div className="relative overflow-hidden rounded-2xl border-4 border-white shadow-lg">
-                                    <img 
-                                        src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/Christian_AI.JPG?raw=true" 
-                                        alt="Christian" 
-                                        className="w-full h-auto object-cover transform hover:scale-105 transition duration-500"
-                                        onError={(e) => { e.target.src = 'https://via.placeholder.com/400x400?text=Patagonia+Expedition'; }}
-                                    />
-                                </div>
-                            </div>
-
-                            <p className="text-[#757575] font-medium mb-8 leading-relaxed">
-                                Experience the rugged beauty of the south. Real-time weather, addresses, and itinerary details for your upcoming expedition.
-                            </p>
-
-                            <button 
-                                onClick={() => setShowDashboard(true)}
-                                className="w-full bg-[#357889] hover:bg-[#2D6473] text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 group"
-                            >
-                                Boop Christian to Enter 
-                                <Icon name="chevron-right" className="group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        </div>
-                        
-                        <div className="mt-8 text-[10px] uppercase tracking-[0.3em] font-bold text-[#757575] opacity-50">
-                            Pragmatic Action • 2026
+    if (!showDashboard) {
+        return (
+            <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-6 text-center animate-[fadeIn_0.8s_ease-out] font-sans">
+                <div className="max-w-md w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-[#D1D5DB]">
+                    <h1 className="text-3xl md:text-4xl font-bold text-[#D34716] mb-6 font-serif">Patagonia 2026 Dashboard</h1>
+                    
+                    <div className="mb-8 relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                        <div className="relative overflow-hidden rounded-2xl border-4 border-white shadow-lg">
+                            <img 
+                                src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/Christian_AI.JPG?raw=true" 
+                                alt="Christian" 
+                                className="w-full h-auto object-cover transform hover:scale-105 transition duration-500"
+                                onError={(e) => { e.target.src = 'https://via.placeholder.com/400x400?text=Patagonia+Expedition'; }}
+                            />
                         </div>
                     </div>
-                );
-            }
 
-            return (
-                <div className="flex flex-col min-h-screen bg-[#F7F7F7] text-[#4C4C4C] antialiased">
-                    <header className="sticky top-0 z-50 bg-[#4C4C4C] text-white shadow-md">
-                        <div className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto w-full">
-                            <div className="flex items-center gap-4">
-                                <button onClick={() => setShowDashboard(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                                    <Icon name="arrow-left" size={20} />
-                                </button>
-                                <h1 className="text-2xl md:text-3xl font-bold text-[#D34716]">Patagonia 2026</h1>
-                            </div>
-                            <div className="hidden md:flex bg-[#357889] px-4 py-2 rounded text-[10px] font-bold uppercase tracking-widest items-center">
-                                <Icon name="calendar" size={14} className="mr-2" /> Jan 30 - Feb 5
-                            </div>
-                        </div>
-                        <div className="bg-white/10 border-t border-white/5 overflow-x-auto no-scrollbar flex px-4 gap-2 py-3 md:justify-center">
-                            {itinerary.map((day, idx) => (
-                                <button key={idx} onClick={() => setActiveDay(idx)}
-                                    className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border ${
-                                        activeDay === idx ? 'bg-[#D34716] border-[#D34716] text-white shadow-lg' : 'bg-transparent border-white/20 text-white/70'
-                                    }`}>
-                                    {day.date} • {day.day}
-                                </button>
-                            ))}
-                        </div>
-                    </header>
+                    <p className="text-[#757575] font-medium mb-8 leading-relaxed">
+                        Experience the rugged beauty of the south. Real-time weather, addresses, and itinerary details for your upcoming expedition.
+                    </p>
 
-                    <main className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-6">
-                        <section className="bg-white rounded-3xl shadow-xl border border-[#D1D5DB] overflow-hidden">
-                            <div className="bg-[#F7F7F7] p-6 md:p-10 border-b border-gray-100 relative">
-                                <div className="flex flex-col items-center text-center">
-                                    <div className="inline-flex items-center gap-2 text-[#D34716] font-bold text-[10px] mb-3 bg-[#F2DDCB] px-3 py-1 rounded-full uppercase tracking-wider">
-                                        <Icon name="calendar" size={12} /> {itinerary[activeDay].fullDay} {itinerary[activeDay].date}
+                    <button 
+                        onClick={() => setShowDashboard(true)}
+                        className="w-full bg-[#357889] hover:bg-[#2D6473] text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 group"
+                    >
+                        Boop Christian to Enter 
+                        <ChevronRight className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col min-h-screen bg-[#F7F7F7] text-[#4C4C4C] antialiased font-sans">
+            <header className="sticky top-0 z-50 bg-[#4C4C4C] text-white shadow-md">
+                <div className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto w-full">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setShowDashboard(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <ArrowLeft size={20} />
+                        </button>
+                        <h1 className="text-2xl md:text-3xl font-bold text-[#D34716] font-serif">Patagonia 2026</h1>
+                    </div>
+                    <div className="hidden md:flex bg-[#357889] px-4 py-2 rounded text-[10px] font-bold uppercase tracking-widest items-center">
+                        <Calendar size={14} className="mr-2" /> Jan 30 - Feb 5
+                    </div>
+                </div>
+                <div className="bg-white/10 border-t border-white/5 overflow-x-auto no-scrollbar flex px-4 gap-2 py-3 md:justify-center scrollbar-hide">
+                    {itinerary.map((day, idx) => (
+                        <button key={idx} onClick={() => setActiveDay(idx)}
+                            className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border ${
+                                activeDay === idx ? 'bg-[#D34716] border-[#D34716] text-white shadow-lg' : 'bg-transparent border-white/20 text-white/70'
+                            }`}>
+                            {day.date} • {day.day}
+                        </button>
+                    ))}
+                </div>
+            </header>
+
+            <main className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-6">
+                <section className="bg-white rounded-3xl shadow-xl border border-[#D1D5DB] overflow-hidden">
+                    <div className="bg-[#F7F7F7] p-6 md:p-10 border-b border-gray-100 relative">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="inline-flex items-center gap-2 text-[#D34716] font-bold text-[10px] mb-3 bg-[#F2DDCB] px-3 py-1 rounded-full uppercase tracking-wider">
+                                <Calendar size={12} /> {itinerary[activeDay].fullDay} {itinerary[activeDay].date}
+                            </div>
+                            <h2 className="text-3xl md:text-5xl text-[#4C4C4C] leading-tight mb-4 font-serif">{itinerary[activeDay].location}</h2>
+                            
+                            <div className="bg-gradient-to-br from-[#357889] to-[#2D6473] text-white rounded-2xl p-4 flex items-center gap-6 shadow-inner w-full max-w-xs mt-2 transition-opacity duration-300">
+                                {loadingWeather ? (
+                                    <div className="flex items-center gap-2 text-xs font-bold opacity-70 animate-pulse mx-auto">
+                                        <Loader size={16} className="animate-spin" /> FETCHING CONDITIONS...
                                     </div>
-                                    <h2 className="text-3xl md:text-5xl text-[#4C4C4C] leading-tight mb-4">{itinerary[activeDay].location}</h2>
-                                    
-                                    <div className="weather-gradient text-white rounded-2xl p-4 flex items-center gap-6 shadow-inner w-full max-w-xs mt-2 transition-opacity duration-300">
-                                        {loadingWeather ? (
-                                            <div className="flex items-center gap-2 text-xs font-bold opacity-70 animate-pulse mx-auto">
-                                                <Icon name="loader" size={16} /> FETCHING CONDITIONS...
+                                ) : weather ? (
+                                    <div className="flex justify-between w-full px-2">
+                                        <div className="flex items-center gap-3">
+                                            <WeatherIcon code={weather.weather_code} />
+                                            <span className="text-2xl font-bold">{Math.round(weather.temperature_2m)}°F</span>
+                                        </div>
+                                        <div className="text-right flex flex-col justify-center">
+                                            <div className="flex items-center justify-end gap-1 text-[10px] font-bold uppercase opacity-80">
+                                                <Wind size={12} /> Wind
                                             </div>
-                                        ) : weather ? (
-                                            <div className="flex justify-between w-full px-2">
-                                                <div className="flex items-center gap-3">
-                                                    <Icon name={getWeatherIcon(weather.weather_code)} size={28} />
-                                                    <span className="text-2xl font-bold">{Math.round(weather.temperature_2m)}°C</span>
-                                                </div>
-                                                <div className="text-right flex flex-col justify-center">
-                                                    <div className="flex items-center justify-end gap-1 text-[10px] font-bold uppercase opacity-80">
-                                                        <Icon name="wind" size={12} /> Wind
-                                                    </div>
-                                                    <span className="text-sm font-bold leading-none">{weather.wind_speed_10m} <small className="text-[10px] opacity-70">km/h</small></span>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <span className="text-[10px] mx-auto opacity-50 uppercase font-bold tracking-widest">Weather Offline</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="p-5 md:p-10 space-y-10">
-                                {itinerary[activeDay].transport && (
-                                    <div className="bg-[#357889]/5 p-5 rounded-2xl border border-[#357889]/10">
-                                        <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#357889] mb-4 flex items-center">
-                                            <Icon name="car" size={16} className="mr-2" /> Transit & Arrival
-                                        </h3>
-                                        <div className="space-y-4">
-                                            {itinerary[activeDay].transport.map((t, i) => (
-                                                <div key={i} className="flex items-start gap-4">
-                                                    <div className="mt-1 p-2 bg-white rounded-lg shadow-sm text-[#357889]"><Icon name={t.icon} size={18} /></div>
-                                                    <p className="text-sm md:text-base leading-snug font-medium pt-1">{t.text}</p>
-                                                </div>
-                                            ))}
+                                            <span className="text-sm font-bold leading-none">{weather.wind_speed_10m} <small className="text-[10px] opacity-70">mph</small></span>
                                         </div>
                                     </div>
+                                ) : (
+                                    <span className="text-[10px] mx-auto opacity-50 uppercase font-bold tracking-widest">Weather Offline</span>
                                 )}
+                            </div>
+                        </div>
+                    </div>
 
-                                <div>
-                                    <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
-                                        <Icon name="home" size={16} className="mr-2" /> Basecamp
-                                    </h3>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl opacity-10 group-hover:opacity-20 transition duration-300"></div>
-                                        <div className="relative flex flex-col p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-grow pr-4">
-                                                    <p className="font-bold text-lg">{itinerary[activeDay].accommodation.name}</p>
-                                                    {itinerary[activeDay].accommodation.price && (
-                                                        <p className="text-xs text-[#757575] mt-1 font-medium italic">{itinerary[activeDay].accommodation.price}</p>
-                                                    )}
-                                                </div>
-                                                {itinerary[activeDay].accommodation.link && (
-                                                    <a href={itinerary[activeDay].accommodation.link} target="_blank" className="flex-shrink-0 w-12 h-12 bg-[#357889] text-white rounded-xl flex items-center justify-center shadow-md hover:bg-[#2D6473] transition-all">
-                                                        <Icon name="external-link" size={20} />
-                                                    </a>
-                                                )}
+                    <div className="p-5 md:p-10 space-y-10">
+                        {/* New Fun Fact Component Placed Here */}
+                        <FunFactCard facts={itinerary[activeDay].funFacts} />
+
+                        {itinerary[activeDay].transport && (
+                            <div className="bg-[#357889]/5 p-5 rounded-2xl border border-[#357889]/10">
+                                <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#357889] mb-4 flex items-center">
+                                    <Car size={16} className="mr-2" /> Transit & Arrival
+                                </h3>
+                                <div className="space-y-4">
+                                    {itinerary[activeDay].transport.map((t, i) => (
+                                        <div key={i} className="flex items-start gap-4">
+                                            <div className="mt-1 p-2 bg-white rounded-lg shadow-sm text-[#357889]">
+                                                {React.createElement(t.icon, { size: 18 })}
                                             </div>
-                                            
-                                            {itinerary[activeDay].accommodation.address && (
-                                                <div className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3">
-                                                    <Icon name="map-pin" size={14} className="mt-1 text-[#357889]" />
-                                                    <p className="text-xs md:text-sm font-medium text-[#4C4C4C] leading-relaxed">
-                                                        {itinerary[activeDay].accommodation.address}
-                                                    </p>
-                                                </div>
+                                            <p className="text-sm md:text-base leading-snug font-medium pt-1">{t.text}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                                <Home size={16} className="mr-2" /> Basecamp
+                            </h3>
+                            <div className="relative group">
+                                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl opacity-10 group-hover:opacity-20 transition duration-300"></div>
+                                <div className="relative flex flex-col p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-grow pr-4">
+                                            <p className="font-bold text-lg">{itinerary[activeDay].accommodation.name}</p>
+                                            {itinerary[activeDay].accommodation.price && (
+                                                <p className="text-xs text-[#757575] mt-1 font-medium italic">{itinerary[activeDay].accommodation.price}</p>
                                             )}
                                         </div>
+                                        {itinerary[activeDay].accommodation.link && (
+                                            <a href={itinerary[activeDay].accommodation.link} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 w-12 h-12 bg-[#357889] text-white rounded-xl flex items-center justify-center shadow-md hover:bg-[#2D6473] transition-all">
+                                                <ExternalLink size={20} />
+                                            </a>
+                                        )}
                                     </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
-                                        <Icon name="footprints" size={16} className="mr-2" /> Daily Itinerary
-                                    </h3>
-                                    <div className="grid gap-3">
-                                        {itinerary[activeDay].activities.map((a, i) => (
-                                            <div key={i} className="flex items-center justify-between p-4 border border-[#D1D5DB] rounded-2xl hover:bg-gray-50 active:bg-[#F2DDCB] transition-all">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-[#D34716]">
-                                                        <Icon name={a.icon || 'chevron-right'} size={20} />
-                                                    </div>
-                                                    <p className="font-semibold text-sm md:text-lg">{a.text}</p>
-                                                </div>
-                                                {a.link && (
-                                                    <a href={a.link} target="_blank" className="p-2 text-[#357889] hover:bg-[#357889]/10 rounded-full transition-colors">
-                                                        <Icon name="chevron-right" size={24} />
-                                                    </a>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="bg-[#D34716] p-6 rounded-2xl text-white shadow-lg flex items-start gap-4">
-                                    <Icon name="info" size={24} className="flex-shrink-0" />
-                                    <div>
-                                        <h4 className="font-bold text-sm mb-1 uppercase tracking-wider">Patagonia Advice</h4>
-                                        <p className="text-xs md:text-sm opacity-90 leading-relaxed font-medium">
-                                            {weather?.wind_speed_10m > 40 ? "Winds are high today. Secure your pack covers and use trekking poles." : "Check your layers before heading out. Conditions at elevation change rapidly."}
-                                        </p>
-                                    </div>
+                                    
+                                    {itinerary[activeDay].accommodation.address && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3">
+                                            <MapPin size={14} className="mt-1 text-[#357889]" />
+                                            <p className="text-xs md:text-sm font-medium text-[#4C4C4C] leading-relaxed">
+                                                {itinerary[activeDay].accommodation.address}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="p-6 bg-gray-50 text-center border-t border-gray-100">
-                                <p className="text-[9px] uppercase tracking-[0.3em] text-[#757575] font-bold tracking-widest">
-                                    LIVE DATA INTEGRATION • 2026 EXPEDITION
+                        </div>
+
+                        <div>
+                            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                                <Footprints size={16} className="mr-2" /> Daily Itinerary
+                            </h3>
+                            <div className="grid gap-3">
+                                {itinerary[activeDay].activities.map((a, i) => (
+                                    <div key={i} className="flex items-center justify-between p-4 border border-[#D1D5DB] rounded-2xl hover:bg-gray-50 active:bg-[#F2DDCB] transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-[#D34716]">
+                                                {React.createElement(a.icon || ChevronRight, { size: 20 })}
+                                            </div>
+                                            <p className="font-semibold text-sm md:text-lg">{a.text}</p>
+                                        </div>
+                                        {a.link && (
+                                            <a href={a.link} target="_blank" rel="noopener noreferrer" className="p-2 text-[#357889] hover:bg-[#357889]/10 rounded-full transition-colors">
+                                                <ChevronRight size={24} />
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-[#D34716] p-6 rounded-2xl text-white shadow-lg flex items-start gap-4">
+                            <Info size={24} className="flex-shrink-0" />
+                            <div>
+                                <h4 className="font-bold text-sm mb-1 uppercase tracking-wider">Patagonia Advice</h4>
+                                <p className="text-xs md:text-sm opacity-90 leading-relaxed font-medium">
+                                    {weather?.wind_speed_10m > 25 ? "Winds are high today. Secure your pack covers and use trekking poles." : "Check your layers before heading out. Conditions at elevation change rapidly."}
                                 </p>
                             </div>
-                        </section>
-                    </main>
-                    <div className="h-10 md:hidden" />
-                </div>
-            );
-        };
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <div className="h-10 md:hidden" />
+        </div>
+    );
+};
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+export default App;
