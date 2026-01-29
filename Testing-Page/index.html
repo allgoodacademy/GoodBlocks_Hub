@@ -47,7 +47,7 @@
                     loginModal.classList.add('hidden-modal');
                     loginModal.classList.remove('visible-modal');
                 }
-                // CRITICAL FIX: Force engine start on auto-login
+                // CRITICAL FIX: Force engine start on auto-login if logic loaded
                 if (window.showPage) {
                     window.showPage(0);
                     window.logFinalScoreToFirestore({ rank: "Session Resumed", sessionId: window.sessionId });
@@ -141,11 +141,11 @@
     <style>
         body {
             font-family: Verdana, sans-serif;
-            /* UPDATED: High-Fidelity Mahogany Desk (Clean Radial) */
-            background-color: #2A1B17; /* Deep base brown */
-            background-image: radial-gradient(circle at 50% 50%, #4E342E 0%, #2A1B17 100%);
+            /* EXACT MAHOGANY BACKGROUND FROM EXAMPLE */
+            background-color: #3E2723; 
+            background-image: radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0.6) 90%), repeating-linear-gradient(90deg, #3E2723 0px, #4E342E 2px, #3E2723 6px, #3E2723 12px, #2D1F1B 16px, #3E2723 24px);
             background-attachment: fixed;
-            background-size: cover;
+            
             min-height: 100vh; margin: 0; padding: 0;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
         }
@@ -760,30 +760,12 @@
         window.handleLogOut = async () => {
              if (window.authSignOut) await window.authSignOut();
              localStorage.clear();
-             
-             // Safely close modals
-             ['menu-modal', 'home-prompt-modal', 'next-steps-modal', 'login-modal'].forEach(id => {
-                 const el = document.getElementById(id);
-                 if(el) {
-                     el.classList.add('hidden-modal');
-                     el.classList.remove('visible-modal');
-                 }
-             });
-
-             window.currentUserName = "Analyst"; // Reset name
-             
+             window.closeSystemMenu();
              document.getElementById('startup-screen').style.display = 'flex';
              setTimeout(() => document.getElementById('startup-screen').style.opacity = '1', 10);
-             
-             // Reset page to 0 (which is underneath startup screen)
-             if(window.showPage) window.showPage(0);
-             
-             // Show login modal
-             const loginModal = document.getElementById('login-modal');
-             if(loginModal) {
-                 loginModal.classList.remove('hidden-modal');
-                 loginModal.classList.add('visible-modal');
-             }
+             window.showPage(0);
+             document.getElementById('login-modal').classList.remove('hidden-modal');
+             document.getElementById('login-modal').classList.add('visible-modal');
         }
 
         let currentStarRating = 0; // Initialize variable
