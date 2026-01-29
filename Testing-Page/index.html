@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   MapPin, 
@@ -11,27 +11,25 @@ import {
   Info,
   Footprints,
   Ship,
-  Anchor
+  Menu,
+  X
 } from 'lucide-react';
 
 const App = () => {
   const [activeDay, setActiveDay] = useState(0);
 
-  // Brand colors & typography constants
-  const brand = {
-    primary: '#D34716', // Burnt Orange
-    secondary: '#357889', // Deep Cyan
-    text: '#4C4C4C', // Dark Gray
-    lightText: '#757575', // Medium Gray
-    bg: '#F7F7F7', // Very Light Gray
-    white: '#FFFFFF'
-  };
+  // Auto-scroll to top when day changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeDay]);
 
   const itinerary = [
     {
       date: 'Jan 30',
-      day: 'Viernes',
+      day: 'Vie',
+      fullDay: 'Viernes',
       location: 'Santiago de Chile',
+      shortLoc: 'Santiago',
       accommodation: {
         name: 'Airbnb Santiago',
         link: 'https://www.airbnb.com/rooms/765625248677366834'
@@ -45,8 +43,10 @@ const App = () => {
     },
     {
       date: 'Jan 31',
-      day: 'Sábado',
+      day: 'Sáb',
+      fullDay: 'Sábado',
       location: 'Punta Arenas → Puerto Natales',
+      shortLoc: 'Natales',
       accommodation: {
         name: 'Puerto Natales Water Nook',
         price: '$559.87 (Total for stay)'
@@ -62,8 +62,10 @@ const App = () => {
     },
     {
       date: 'Feb 1',
-      day: 'Domingo',
+      day: 'Dom',
+      fullDay: 'Domingo',
       location: 'Torres del Paine (East)',
+      shortLoc: 'TDP East',
       accommodation: { name: 'Puerto Natales Water Nook' },
       transport: [
         { type: 'drive', text: 'Drive to Welcome Center (1.75hr)' }
@@ -75,8 +77,10 @@ const App = () => {
     },
     {
       date: 'Feb 2',
-      day: 'Lunes',
+      day: 'Lun',
+      fullDay: 'Lunes',
       location: 'Puerto Natales → El Chaltén',
+      shortLoc: 'El Chaltén',
       accommodation: { name: 'El Chaltén' },
       transport: [
         { type: 'drive', text: 'Puerto Natales to El Calafate (3.75hr)' },
@@ -90,8 +94,10 @@ const App = () => {
     },
     {
       date: 'Feb 3',
-      day: 'Martes',
+      day: 'Mar',
+      fullDay: 'Martes',
       location: 'El Chaltén → El Calafate',
+      shortLoc: 'Calafate',
       accommodation: { name: 'El Calafate Airbnb' },
       transport: [
         { type: 'drive', text: 'Drive to Los Huemules (0.5hr)' },
@@ -104,8 +110,10 @@ const App = () => {
     },
     {
       date: 'Feb 4',
-      day: 'Miércoles',
+      day: 'Mié',
+      fullDay: 'Miércoles',
       location: 'El Calafate → Punta Arenas',
+      shortLoc: 'Arenas',
       accommodation: { 
         name: 'Punta Arenas Airbnb',
         link: 'http://airbnb.com/I/FN57d86a'
@@ -122,8 +130,10 @@ const App = () => {
     },
     {
       date: 'Feb 5',
-      day: 'Jueves',
+      day: 'Jue',
+      fullDay: 'Jueves',
       location: 'Punta Arenas → Santiago',
+      shortLoc: 'Santiago',
       accommodation: { name: 'Santiago' },
       transport: [
         { type: 'flight', text: 'Fly to Santiago (3.5hr)' }
@@ -137,157 +147,172 @@ const App = () => {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F7F7F7] font-sans text-[#4C4C4C]" style={{ fontFamily: 'Verdana, sans-serif' }}>
-      {/* Header */}
-      <header className="bg-[#4C4C4C] text-white p-6 md:p-10 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div>
-          <h1 className="text-3xl md:text-5xl mb-2 text-[#D34716]" style={{ fontFamily: 'Georgia, serif' }}>Patagonia Trip Plan</h1>
-          <p className="text-xs md:text-sm opacity-80 uppercase tracking-widest">January - February 2026</p>
+    <div className="flex flex-col min-h-screen bg-[#F7F7F7] text-[#4C4C4C] antialiased" style={{ fontFamily: 'Verdana, sans-serif' }}>
+      
+      {/* Fixed Navigation for Mobile/Desktop */}
+      <header className="sticky top-0 z-50 bg-[#4C4C4C] text-white shadow-md">
+        <div className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full">
+          <div className="text-center md:text-left mb-4 md:mb-0">
+            <h1 className="text-2xl md:text-3xl font-bold text-[#D34716]" style={{ fontFamily: 'Georgia, serif' }}>
+              Patagonia 2026
+            </h1>
+          </div>
+          <div className="hidden md:flex bg-[#357889] px-4 py-2 rounded text-xs font-bold uppercase tracking-widest items-center">
+            <Calendar className="mr-2 w-4 h-4" /> JAN 30 - FEB 5
+          </div>
         </div>
-        <div className="mt-4 md:mt-0 bg-[#357889] px-4 py-2 rounded shadow-inner text-sm font-bold flex items-center">
-          <Calendar className="mr-2 w-4 h-4" /> 7 DAYS • CHILE & ARGENTINA
+
+        {/* Horizontal Day Scroller */}
+        <div className="bg-white/10 border-t border-white/5 overflow-x-auto no-scrollbar flex px-4 gap-2 py-3 md:justify-center">
+          {itinerary.map((day, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveDay(idx)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border ${
+                activeDay === idx 
+                ? 'bg-[#D34716] border-[#D34716] text-white shadow-lg scale-105' 
+                : 'bg-transparent border-white/20 text-white/70 hover:text-white hover:border-white'
+              }`}
+            >
+              {day.date} • {day.day}
+            </button>
+          ))}
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col md:flex-row p-4 md:p-8 gap-6 max-w-7xl mx-auto w-full">
-        {/* Day Selector (Sidebar) */}
-        <aside className="w-full md:w-1/3 flex flex-col gap-3">
-          <h2 className="text-xl border-b border-gray-300 pb-2 mb-2 flex items-center" style={{ fontFamily: 'Georgia, serif' }}>
-             <Clock className="mr-2 text-[#D34716]" /> Timeline
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
-            {itinerary.map((day, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveDay(idx)}
-                className={`flex flex-col p-4 rounded-lg transition-all border-l-4 text-left shadow-sm ${
-                  activeDay === idx 
-                  ? 'bg-white border-[#D34716] ring-1 ring-gray-200' 
-                  : 'bg-white/50 border-gray-300 hover:bg-white hover:border-[#357889]'
-                }`}
-              >
-                <span className="text-[10px] font-bold text-[#757575] uppercase tracking-tighter">{day.date} • {day.day}</span>
-                <span className={`text-sm font-semibold truncate ${activeDay === idx ? 'text-[#357889]' : ''}`}>
-                  {day.location}
-                </span>
-              </button>
-            ))}
+      <main className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-6">
+        
+        {/* Active Day View */}
+        <section className="bg-white rounded-3xl shadow-xl border border-[#D1D5DB] overflow-hidden">
+          
+          {/* Hero Section */}
+          <div className="bg-[#F7F7F7] p-6 md:p-10 border-b border-gray-100 flex flex-col items-center text-center">
+            <div className="inline-flex items-center gap-2 text-[#D34716] font-bold text-xs mb-3 bg-[#F2DDCB] px-3 py-1 rounded-full">
+              <Calendar className="w-3 h-3" />
+              {itinerary[activeDay].fullDay.toUpperCase()} {itinerary[activeDay].date}
+            </div>
+            <h2 className="text-3xl md:text-5xl text-[#4C4C4C] leading-tight" style={{ fontFamily: 'Georgia, serif' }}>
+              {itinerary[activeDay].location}
+            </h2>
           </div>
 
-          <div className="mt-6 p-5 bg-[#357889] text-white rounded-xl shadow-md border-t-4 border-[#D34716]">
-            <h3 className="text-lg mb-2 flex items-center" style={{ fontFamily: 'Georgia, serif' }}>
-              <Info className="mr-2 w-5 h-5" /> Travel Logistics
-            </h3>
-            <p className="text-xs leading-relaxed opacity-90 italic">
-              Weather in the south is highly variable. Keep gear accessible for quick changes between wind, rain, and sun.
-            </p>
-          </div>
-        </aside>
-
-        {/* Details View */}
-        <section className="flex-grow bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col border border-gray-200">
-          {/* Day Header */}
-          <div className="bg-[#F7F7F7] p-6 md:p-8 border-b border-gray-100 flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2 text-[#D34716] font-bold text-xs mb-1">
-                <Calendar className="w-3 h-3" />
-                {itinerary[activeDay].date} • {itinerary[activeDay].day.toUpperCase()}
-              </div>
-              <h2 className="text-3xl md:text-4xl text-[#4C4C4C]" style={{ fontFamily: 'Georgia, serif' }}>{itinerary[activeDay].location}</h2>
-            </div>
-            <div className="hidden md:block">
-              <div className="w-14 h-14 bg-[#F2DDCB] rounded-full flex items-center justify-center text-[#D34716]">
-                <MapPin size={28} />
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 md:p-10 space-y-8">
-            {/* Accommodation */}
-            <div>
-              <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
-                <Home className="mr-2 w-4 h-4" /> Basecamp
-              </h3>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-[#357889] transition-colors group">
-                <div>
-                  <p className="font-semibold text-base">{itinerary[activeDay].accommodation.name}</p>
-                  {itinerary[activeDay].accommodation.price && (
-                    <p className="text-xs text-[#757575] mt-1">{itinerary[activeDay].accommodation.price}</p>
-                  )}
-                </div>
-                {itinerary[activeDay].accommodation.link && (
-                  <a 
-                    href={itinerary[activeDay].accommodation.link} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-[#357889] hover:text-[#D34716] flex items-center font-bold text-xs underline underline-offset-4 decoration-2"
-                  >
-                    View Listing <ExternalLink className="ml-1 w-3 h-3" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Transport (If any) */}
+          <div className="p-5 md:p-10 space-y-10">
+            
+            {/* Transit Section */}
             {itinerary[activeDay].transport && (
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+              <div className="bg-[#357889]/5 p-5 rounded-2xl border border-[#357889]/10">
+                <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#357889] mb-4 flex items-center">
                   <Car className="mr-2 w-4 h-4" /> Transit & Arrival
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {itinerary[activeDay].transport.map((t, i) => (
-                    <div key={i} className="flex items-start gap-4 p-3 bg-white border border-gray-50 rounded-lg hover:border-gray-200 transition-all">
-                      <div className="p-2 bg-[#F2DDCB] rounded text-[#D34716]">
-                        {t.type === 'flight' ? <Plane size={16} /> : <Car size={16} />}
+                    <div key={i} className="flex items-start gap-4">
+                      <div className="mt-1 p-2 bg-white rounded-lg shadow-sm text-[#357889]">
+                        {t.type === 'flight' ? <Plane size={18} /> : <Car size={18} />}
                       </div>
-                      <p className="text-sm pt-1 leading-snug">{t.text}</p>
+                      <p className="text-sm md:text-base leading-snug font-medium text-[#4C4C4C]">{t.text}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Activities */}
+            {/* Basecamp Section */}
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                <Home className="mr-2 w-4 h-4" /> Basecamp
+              </h3>
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl opacity-10 group-hover:opacity-20 transition duration-300"></div>
+                <div className="relative flex items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                  <div className="flex-grow pr-4">
+                    <p className="font-bold text-lg text-[#4C4C4C]">{itinerary[activeDay].accommodation.name}</p>
+                    {itinerary[activeDay].accommodation.price && (
+                      <p className="text-xs text-[#757575] mt-1 font-medium italic">{itinerary[activeDay].accommodation.price}</p>
+                    )}
+                  </div>
+                  {itinerary[activeDay].accommodation.link && (
+                    <a 
+                      href={itinerary[activeDay].accommodation.link} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex-shrink-0 w-12 h-12 bg-[#357889] hover:bg-[#2D6473] text-white rounded-xl flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 shadow-md"
+                    >
+                      <ExternalLink size={20} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Itinerary Section */}
             <div>
               <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
                 <Footprints className="mr-2 w-4 h-4" /> Daily Itinerary
               </h3>
-              <div className="space-y-3">
+              <div className="grid gap-3">
                 {itinerary[activeDay].activities.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div key={i} className="flex items-center justify-between p-4 border border-[#D1D5DB] rounded-2xl hover:bg-[#F7F7F7] transition-all group active:bg-[#F2DDCB]">
                     <div className="flex items-center gap-4">
-                      <div className="p-2 bg-gray-100 rounded text-[#357889]">
-                        {a.type === 'hike' ? <Footprints size={18} /> : 
-                         a.type === 'tour' ? <Ship size={18} /> : 
-                         a.type === 'arrival' ? <Plane size={18} /> :
-                         <ChevronRight size={18} />}
+                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-[#D34716]">
+                        {a.type === 'hike' ? <Footprints size={20} /> : 
+                         a.type === 'tour' ? <Ship size={20} /> : 
+                         a.type === 'arrival' ? <Plane size={20} /> :
+                         <MapPin size={20} />}
                       </div>
-                      <p className="font-medium text-sm md:text-base">{a.text}</p>
+                      <p className="font-semibold text-sm md:text-lg text-[#4C4C4C]">{a.text}</p>
                     </div>
                     {a.link && (
                       <a 
                         href={a.link} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-[#357889] hover:text-[#D34716] text-xs font-bold underline underline-offset-2"
+                        className="p-2 text-[#357889] hover:bg-[#357889]/10 rounded-full transition-colors"
                       >
-                        Details
+                        <ChevronRight size={24} />
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Contextual Tip */}
+            <div className="bg-[#D34716] p-6 rounded-2xl text-white shadow-lg flex items-start gap-4">
+              <Info className="flex-shrink-0 w-6 h-6" />
+              <div>
+                <h4 className="font-bold text-sm mb-1 uppercase tracking-wider" style={{ fontFamily: 'Georgia, serif' }}>Logistics Tip</h4>
+                <p className="text-xs md:text-sm opacity-90 leading-relaxed font-medium">
+                  Patagonia travel is 90% preparation. Ensure your rental docs and digital maps (Offline) are ready for this segment.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Footer Branding */}
-          <div className="mt-auto p-4 bg-gray-50 text-center border-t border-gray-100">
-            <p className="text-[9px] uppercase tracking-widest text-[#757575] font-bold">
-              Expedition Data Summary • 2026
-            </p>
+          {/* Footer Metadata */}
+          <div className="p-6 bg-gray-50 text-center border-t border-gray-100 flex flex-col items-center gap-2">
+             <div className="flex gap-4 opacity-30 grayscale mb-2">
+                <MapPin size={16} /> <Car size={16} /> <Footprints size={16} />
+             </div>
+             <p className="text-[9px] uppercase tracking-[0.3em] text-[#757575] font-bold">
+               2026 TRIP SUMMARY • UPDATED JAN 2026
+             </p>
           </div>
         </section>
       </main>
+
+      {/* Mobile-Only Spacer */}
+      <div className="h-10 md:hidden" />
+      
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
