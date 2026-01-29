@@ -1,1065 +1,295 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Allgood Academy | Insider</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-        
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko",
-            authDomain: "allgood-academy.firebaseapp.com",
-            projectId: "allgood-academy",
-            storageBucket: "allgood-academy.firebasestorage.app",
-            messagingSenderId: "978829044870",
-            appId: "1:978829044870:web:6c780f64230a77ad0ab507"
-        };
-        
-        const appId = 'allgood-academy'; 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // GLOBAL DATA STORE
-        window.insiderData = {
-            allAgents: [],
-            activeAgents: [],
-            emailAgents: [],
-            intel: [],
-            currentFilter: 'all',
-            searchQuery: ''
-        };
-
-        // --- AUTHENTICATION LOGIC ---
-        window.handleLogin = async () => {
-            const provider = new GoogleAuthProvider();
-            const btn = document.getElementById('btn-verify');
-            const SUPER_ADMINS = ['learning@allgoodacademy.com', 'balgood93@gmail.com'];
-            
-            try {
-                if(btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Checking Clearance...`;
-                    lucide.createIcons();
-                }
-
-                const result = await signInWithPopup(auth, provider);
-                const user = result.user;
-                
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                const userSnap = await getDoc(userRef);
-
-                let isAuthorized = false;
-                if (userSnap.exists() && userSnap.data().isInsider === true) isAuthorized = true;
-                
-                if (!isAuthorized && SUPER_ADMINS.includes(user.email)) {
-                    await setDoc(userRef, { 
-                        displayName: user.displayName || 'Director',
-                        email: user.email,
-                        isInsider: true,
-                        lastLogin: new Date()
-                    }, { merge: true });
-                    isAuthorized = true;
-                }
-
-                if (isAuthorized) {
-                    showStatus("Identity Verified. Welcome, Director.", "success");
-                    const modal = document.getElementById('login-modal');
-                    modal.classList.add('opacity-0', 'pointer-events-none');
-                    setTimeout(() => { modal.style.display = 'none'; }, 500);
-                    loadDashboardData();
-                } else {
-                    await signOut(auth);
-                    showStatus("ACCESS DENIED: Insufficient Clearance.", "error");
-                    if(btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = `<span>Verify Credentials</span>`;
-                    }
-                }
-            } catch (error) {
-                console.error("Auth Error:", error);
-                showStatus("Authentication Failed: " + error.message, "error");
-                if(btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = `<span>Verify Credentials</span>`;
-                }
-            }
-        };
-
-        window.handleLogout = async () => {
-            await signOut(auth);
-            location.reload();
-        };
-
-        // --- DATA ENGINE ---
-        async function loadDashboardData() {
-            document.getElementById('dashboard-view').classList.remove('hidden');
-            document.getElementById('dashboard-view').classList.add('animate-fade-in');
-            
-            const statsContainer = document.getElementById('stats-loading');
-            if(statsContainer) statsContainer.innerHTML = 'Syncing Ecosystem...';
-
-            try {
-                const usersRef = collection(db, 'artifacts', appId, 'users');
-                const querySnapshot = await getDocs(usersRef);
-                
-                const now = new Date();
-                const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-                
-                // RESET STORE
-                window.insiderData.allAgents = [];
-                window.insiderData.activeAgents = [];
-                window.insiderData.emailAgents = [];
-
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    let lastLoginDate = null;
-                    if(data.lastLogin && data.lastLogin.toDate) {
-                        lastLoginDate = data.lastLogin.toDate();
-                    }
-
-                    // Strict Email Check: Must exist, not be 'N/A', and contain '@'
-                    const hasValidEmail = data.email && data.email !== 'N/A' && data.email.includes('@');
-
-                    const agent = {
-                        id: doc.id,
-                        name: data.displayName || 'Unknown Agent',
-                        email: hasValidEmail ? data.email : 'Guest',
-                        isGuest: data.isGuest || !hasValidEmail,
-                        joined: data.joined ? data.joined.toDate() : (data.lastLogin ? data.lastLogin.toDate() : new Date()), 
-                        lastLogin: lastLoginDate,
-                        isActive24h: lastLoginDate && lastLoginDate > oneDayAgo
-                    };
-
-                    window.insiderData.allAgents.push(agent);
-                    if(agent.isActive24h) window.insiderData.activeAgents.push(agent);
-                    if(!agent.isGuest) window.insiderData.emailAgents.push(agent);
-                });
-
-                // Update Widget Counts
-                updateStat('stat-total-agents', window.insiderData.emailAgents.length);
-                updateStat('stat-active-24h', window.insiderData.activeAgents.length);
-                updateStat('stat-ecosystem', window.insiderData.allAgents.length);
-                updateStat('stat-intel', '-');
-
-                // Initial State: Show Home
-                window.switchView('home'); 
-                
-                if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
-
-            } catch (e) {
-                console.warn("Full Roster Access Denied.", e);
-                if(statsContainer) statsContainer.innerHTML = 'CONNECTION ERROR';
-                showStatus("Database Connection Restricted.", "error"); 
-            }
-        }
-
-        // --- INTEL ENGINE ---
-        window.loadIntel = async () => {
-            const statsContainer = document.getElementById('stats-loading');
-            if(statsContainer) statsContainer.innerHTML = 'Decrypting Comms...';
-            
-            window.insiderData.intel = []; 
-            
-            try {
-                const promises = window.insiderData.allAgents.map(async (agent) => {
-                    const inboxRef = collection(db, 'artifacts', appId, 'users', agent.id, 'feedback_inbox');
-                    const q = query(inboxRef, orderBy('timestamp', 'desc'), limit(5)); 
-                    const snap = await getDocs(q);
-                    
-                    snap.forEach(doc => {
-                        const d = doc.data();
-                        window.insiderData.intel.push({
-                            id: doc.id,
-                            agentId: agent.id,
-                            agentName: agent.name,
-                            agentEmail: agent.email,
-                            message: d.message,
-                            timestamp: d.timestamp ? d.timestamp.toDate() : new Date(),
-                            courseName: d.courseName || null,
-                            rating: d.rating || null,
-                            type: (d.courseName || d.rating) ? 'review' : 'dm'
-                        });
-                    });
-                });
-
-                await Promise.all(promises);
-                window.insiderData.intel.sort((a,b) => b.timestamp - a.timestamp);
-                
-                updateStat('stat-intel', window.insiderData.intel.length);
-                if(statsContainer) statsContainer.innerHTML = 'Live Feed Active';
-                window.switchView('intel');
-
-            } catch(e) {
-                console.error("Intel Fetch Error", e);
-                showStatus("Comms Encrypted. Access Denied.", "error");
-            }
-        };
-        
-        // --- EDIT AGENT LOGIC ---
-        let currentEditingAgentId = null;
-
-        window.openEditAgentModal = (agentId) => {
-            const agent = window.insiderData.allAgents.find(a => a.id === agentId);
-            if (!agent) return;
-
-            currentEditingAgentId = agentId;
-            
-            // Populate Modal
-            document.getElementById('edit-agent-name').value = agent.name;
-            document.getElementById('edit-agent-email').value = agent.email !== 'Guest' ? agent.email : '';
-            
-            // Show Modal
-            const modal = document.getElementById('edit-agent-modal');
-            modal.classList.remove('hidden-modal');
-            modal.style.display = 'flex';
-            setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        };
-
-        window.closeEditAgentModal = () => {
-            const modal = document.getElementById('edit-agent-modal');
-            modal.classList.add('opacity-0');
-            setTimeout(() => { 
-                modal.style.display = 'none'; 
-                modal.classList.add('hidden-modal');
-            }, 300);
-            currentEditingAgentId = null;
-        };
-
-        window.saveAgentChanges = async () => {
-            if (!currentEditingAgentId) return;
-
-            const newName = document.getElementById('edit-agent-name').value.trim();
-            const newEmail = document.getElementById('edit-agent-email').value.trim();
-            const btn = document.getElementById('btn-save-changes');
-
-            if (!newName) {
-                alert("Agent Name is required.");
-                return;
-            }
-
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...`;
-            lucide.createIcons();
-
-            try {
-                const agentRef = doc(db, 'artifacts', appId, 'users', currentEditingAgentId);
-                const updateData = { displayName: newName };
-                if (newEmail) updateData.email = newEmail;
-
-                await updateDoc(agentRef, updateData);
-                showStatus("Agent Profile Updated", "success");
-                window.closeEditAgentModal();
-                loadDashboardData(); 
-
-            } catch (error) {
-                console.error("Update failed:", error);
-                showStatus("Failed to update profile.", "error");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        };
-
-        // --- VIEW CONTROLLER ---
-        window.switchView = (viewName, filterType = null, agentId = null) => {
-            const viewHome = document.getElementById('view-home');
-            const viewList = document.getElementById('view-list');
-            const viewDossier = document.getElementById('view-dossier');
-            const viewIntel = document.getElementById('view-intel');
-            
-            viewHome.classList.add('hidden');
-            viewList.classList.add('hidden');
-            viewDossier.classList.add('hidden');
-            viewIntel.classList.add('hidden');
-            
-            if (viewName === 'home') {
-                viewHome.classList.remove('hidden');
-                viewHome.classList.add('animate-fade-in');
-            } 
-            else if (viewName === 'list') {
-                viewList.classList.remove('hidden');
-                viewList.classList.add('animate-fade-in');
-                if (filterType) window.insiderData.currentFilter = filterType;
-                renderListView();
-            } 
-            else if (viewName === 'dossier') {
-                viewDossier.classList.remove('hidden');
-                viewDossier.classList.add('animate-fade-in');
-                loadAgentDossier(agentId);
-            } 
-            else if (viewName === 'intel') {
-                viewIntel.classList.remove('hidden');
-                viewIntel.classList.add('animate-fade-in');
-                renderIntelView();
-            }
-            lucide.createIcons();
-        }
-
-        // --- FILTER LOGIC ---
-        window.filterRoster = () => {
-            const searchInput = document.getElementById('agent-search');
-            window.insiderData.searchQuery = searchInput.value.toLowerCase().trim();
-            renderListView();
-        };
-
-        // --- RENDER LIST ---
-        function renderListView() {
-            const tbody = document.getElementById('roster-body');
-            const listTitle = document.getElementById('list-view-title');
-            tbody.innerHTML = '';
-
-            const filterType = window.insiderData.currentFilter;
-            const searchQ = window.insiderData.searchQuery;
-            let dataSet = [];
-            
-            if (filterType === 'all_sso') {
-                dataSet = window.insiderData.emailAgents; 
-                listTitle.textContent = "Registered Agents (SSO)";
-            } else if (filterType === 'active') {
-                dataSet = window.insiderData.activeAgents;
-                listTitle.textContent = "Active Personnel (24h)";
-            } else {
-                dataSet = window.insiderData.allAgents;
-                listTitle.textContent = "Total Ecosystem";
-            }
-
-            if (searchQ) {
-                dataSet = dataSet.filter(agent => 
-                    agent.name.toLowerCase().includes(searchQ) || 
-                    agent.email.toLowerCase().includes(searchQ)
-                );
-            }
-
-            dataSet.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
-
-            if (dataSet.length === 0) {
-                 tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400 text-xs italic">No matching records found.</td></tr>`;
-                 return;
-            }
-
-            dataSet.forEach(agent => {
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-700/50 hover:bg-white/5 transition-all group cursor-pointer";
-                
-                const initials = agent.name.substring(0,2).toUpperCase();
-                const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
-                const createdStr = agent.joined ? agent.joined.toLocaleDateString() : 'Unknown';
-                
-                let statusBadge = `<span class="bg-slate-700/50 text-slate-300 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-slate-600">Idle</span>`;
-                if(agent.isActive24h) statusBadge = `<span class="bg-emerald-900/30 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">Active</span>`;
-
-                tr.innerHTML = `
-                    <td class="px-6 py-4" onclick="window.switchView('dossier', null, '${agent.id}')">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-600 flex items-center justify-center font-bold text-xs shadow-md">
-                                ${initials}
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-slate-200 group-hover:text-white transition-colors">${agent.name}</p>
-                                <p class="text-[9px] text-slate-400 font-mono">${agent.email}</p>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4" onclick="window.switchView('dossier', null, '${agent.id}')">${statusBadge}</td>
-                    <td class="px-6 py-4 text-[10px] text-slate-400 font-mono" onclick="window.switchView('dossier', null, '${agent.id}')">${createdStr}</td>
-                    <td class="px-6 py-4 text-[10px] text-slate-400 font-mono text-right" onclick="window.switchView('dossier', null, '${agent.id}')">${dateStr}</td>
-                    <td class="px-6 py-4 text-right" onclick="window.switchView('dossier', null, '${agent.id}')"><i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-white"></i></td>
-                    <td class="px-2 py-4 w-10 text-center">
-                        <button onclick="event.stopPropagation(); window.openEditAgentModal('${agent.id}')" class="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Edit Agent">
-                            <i data-lucide="pencil" class="w-3 h-3"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-
-        // --- RENDER INTEL ---
-        function renderIntelView() {
-            const container = document.getElementById('intel-content');
-            container.innerHTML = '';
-            const msgs = window.insiderData.intel;
-
-            if (msgs.length === 0) {
-                container.innerHTML = `<div class="p-10 text-center flex flex-col items-center justify-center h-full"><div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4"><i data-lucide="inbox" class="w-8 h-8 text-slate-500"></i></div><p class="text-xs font-bold text-slate-500 uppercase tracking-widest">No Intelligence Reports</p></div>`;
-                lucide.createIcons();
-                return;
-            }
-
-            msgs.forEach(msg => {
-                const dateStr = msg.timestamp.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-                const initials = msg.agentName.substring(0,2).toUpperCase();
-                let starsHtml = '';
-                if (msg.rating) {
-                    for(let i=1; i<=5; i++) {
-                        if (i <= msg.rating) starsHtml += `<i data-lucide="star" class="w-3 h-3 text-yellow-500 fill-current"></i>`;
-                        else starsHtml += `<i data-lucide="star" class="w-3 h-3 text-slate-600"></i>`;
-                    }
-                }
-                
-                const card = document.createElement('div');
-                card.className = "p-4 border-b border-gray-700/50 hover:bg-white/5 transition-colors cursor-pointer group";
-                card.onclick = () => window.switchView('dossier', null, msg.agentId);
-
-                card.innerHTML = `
-                    <div class="flex items-start gap-4">
-                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 shadow-sm flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">${initials}</div>
-                        <div class="flex-grow min-w-0">
-                            <div class="flex flex-wrap items-center gap-2 mb-1">
-                                <h4 class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${msg.agentName}</h4>
-                                <span class="text-[10px] text-slate-500 font-mono ml-auto">${dateStr}</span>
-                            </div>
-                            ${msg.courseName ? `<p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> ${msg.courseName}</p>` : ''}
-                            ${starsHtml ? `<div class="flex gap-0.5 mb-2">${starsHtml}</div>` : ''}
-                            <p class="text-sm text-slate-300 leading-relaxed font-mono bg-black/20 p-2 rounded border border-white/5 border-l-2 border-l-blue-500/50">"${msg.message}"</p>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-            lucide.createIcons();
-        }
-
-        // --- LOAD DOSSIER (UPDATED) ---
-        async function loadAgentDossier(agentId) {
-            const container = document.getElementById('dossier-content');
-            container.innerHTML = `<div class="p-10 text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-blue-500 mb-2"></i><p class="text-xs font-bold text-slate-500 uppercase">Decrypting Agent File...</p></div>`;
-            lucide.createIcons();
-
-            const agent = window.insiderData.allAgents.find(a => a.id === agentId);
-            if(!agent) { container.innerHTML = "Agent Not Found."; return; }
-
-            try {
-                const launchesRef = collection(db, 'artifacts', appId, 'users', agentId, 'launches');
-                const launchesSnap = await getDocs(query(launchesRef, orderBy('timestamp', 'desc'), limit(100)));
-                const scoresRef = collection(db, 'artifacts', appId, 'users', agentId, 'game_scores');
-                const scoresSnap = await getDocs(scoresRef);
-                
-                const launches = [];
-                launchesSnap.forEach(doc => launches.push({id: doc.id, ...doc.data()}));
-                
-                const scores = [];
-                scoresSnap.forEach(doc => scores.push({id: doc.id, ...doc.data()}));
-
-                const initials = agent.name.substring(0,2).toUpperCase();
-                
-                let activityHtml = '';
-                if(launches.length === 0 && scores.length === 0) {
-                    activityHtml = `<div class="p-4 text-center text-slate-500 text-xs italic">No activity recorded.</div>`;
-                } else {
-                    const combined = [
-                        ...launches.map(l => ({ ...l, type: 'launch', time: l.timestamp ? l.timestamp.toDate() : new Date(0) })),
-                        ...scores.map(s => ({ ...s, type: 'score', time: s.lastUpdated ? s.lastUpdated.toDate() : new Date(0) }))
-                    ].sort((a,b) => b.time - a.time);
-
-                    window.currentAgentActivities = combined;
-
-                    combined.forEach((item, index) => {
-                         const date = item.time.toLocaleString();
-                         if (item.type === 'launch') {
-                             activityHtml += `
-                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group">
-                                    <div class="mt-0.5 text-blue-400 group-hover:scale-110 transition-transform"><i data-lucide="rocket" class="w-3 h-3"></i></div>
-                                    <div class="flex-grow">
-                                        <div class="flex justify-between items-start">
-                                            <p class="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">Launched: ${item.courseName || 'Unknown'}</p>
-                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                                        </div>
-                                        <p class="text-[9px] text-slate-500 font-mono">${date}</p>
-                                    </div>
-                                </div>`;
-                         } else if (item.type === 'score') {
-                             const scoreDetail = item.finalScore ? `Score: ${item.finalScore}` : (item.completed ? 'Completed' : 'Active');
-                             const badgeIcon = item.completed ? '<i data-lucide="award" class="w-3 h-3 text-emerald-500"></i>' : '<i data-lucide="activity" class="w-3 h-3 text-amber-500"></i>';
-                             
-                             activityHtml += `
-                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group">
-                                    <div class="mt-0.5 group-hover:scale-110 transition-transform">${badgeIcon}</div>
-                                    <div class="flex-grow">
-                                        <div class="flex justify-between items-start">
-                                            <p class="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">${item.gameName || 'Activity'}</p>
-                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                                        </div>
-                                        <p class="text-[10px] text-slate-500 font-medium">${scoreDetail}</p>
-                                        <p class="text-[9px] text-slate-500 font-mono">${date}</p>
-                                    </div>
-                                </div>`;
-                         }
-                    });
-                }
-
-                container.innerHTML = `
-                    <div class="p-6 border-b border-gray-700/50 bg-black/20 flex items-center gap-4 shrink-0 relative">
-                        <!-- Back Button -->
-                        <button onclick="window.switchView('list')" class="absolute top-4 right-4 bg-slate-800 border border-slate-600 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-xs font-bold shadow-sm flex items-center gap-2 transition-all">
-                            <i data-lucide="arrow-left" class="w-3 h-3"></i> Return to Roster
-                        </button>
-
-                        <div class="w-16 h-16 rounded-full bg-slate-800 border-2 border-slate-600 flex items-center justify-center shadow-lg text-xl font-bold text-slate-400">${initials}</div>
-                        <div>
-                            <h2 class="text-2xl font-heading font-bold text-white tracking-wide">${agent.name}</h2>
-                            <div class="flex items-center gap-3 text-xs text-slate-400 font-mono">
-                                <span>${agent.email}</span>
-                                <span class="text-slate-600">|</span>
-                                <span class="${agent.isGuest ? 'text-orange-400' : 'text-emerald-400'} font-bold">${agent.isGuest ? 'Guest User' : 'Registered Agent'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex-grow overflow-hidden h-full bg-transparent relative">
-                         <!-- Activity List -->
-                        <div class="p-3 bg-white/5 border-b border-gray-700/50 font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
-                            <i data-lucide="history" class="w-3 h-3"></i> Complete Activity Log
-                        </div>
-                        <div class="overflow-y-auto h-full custom-scrollbar p-0 pb-20">
-                            ${activityHtml}
-                        </div>
-                        
-                        <!-- Detail Overlay -->
-                        <div id="activity-detail-overlay" class="absolute inset-0 bg-slate-900 z-20 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-700 shadow-2xl">
-                            <!-- Content injected by openActivityDetails -->
-                        </div>
-                    </div>
-                `;
-            } catch(e) { console.error("Dossier Error", e); container.innerHTML = "Error loading dossier."; }
-            lucide.createIcons();
-        }
-
-        // --- OPEN ACTIVITY DETAILS ---
-        window.openActivityDetails = (index) => {
-            const item = window.currentAgentActivities[index];
-            const overlay = document.getElementById('activity-detail-overlay');
-            if(!item || !overlay) return;
-
-            const date = item.time.toLocaleString();
-            let contentHtml = '';
-
-            if (item.type === 'launch') {
-                contentHtml = `
-                    <div class="p-4 border-b border-gray-700 flex items-center gap-3 bg-blue-900/20">
-                        <div class="p-2 bg-blue-500/20 rounded-full text-blue-400"><i data-lucide="rocket" class="w-6 h-6"></i></div>
-                        <div>
-                            <h3 class="text-lg font-bold text-white">Module Launch</h3>
-                            <p class="text-xs text-slate-400 font-mono">${date}</p>
-                        </div>
-                    </div>
-                    <div class="p-6 space-y-4">
-                        <div class="bg-white/5 p-4 rounded border border-white/10">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Module Name</p>
-                            <p class="text-sm font-bold text-slate-200">${item.courseName}</p>
-                        </div>
-                         <div class="bg-white/5 p-4 rounded border border-white/10">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Target URL</p>
-                            <a href="${item.targetUrl}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 underline break-all block">${item.targetUrl}</a>
-                        </div>
-                    </div>
-                `;
-            } else if (item.type === 'score') {
-                let badgeDisplay = '';
-                if (item.badgeArtifact) {
-                    if (item.badgeArtifact.startsWith('<svg')) {
-                        badgeDisplay = `<div class="w-32 h-32 mx-auto mb-4">${item.badgeArtifact}</div>`;
-                    } else {
-                        badgeDisplay = `<img src="${item.badgeArtifact}" class="w-32 h-32 mx-auto mb-4 object-contain">`;
-                    }
-                } else if (item.completed) {
-                     badgeDisplay = `<div class="w-24 h-24 mx-auto mb-4 bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]"><i data-lucide="award" class="w-12 h-12"></i></div>`;
-                }
-
-                contentHtml = `
-                    <div class="p-4 border-b border-gray-700 flex items-center gap-3 bg-emerald-900/20">
-                        <div class="p-2 bg-emerald-500/20 rounded-full text-emerald-400"><i data-lucide="trophy" class="w-6 h-6"></i></div>
-                        <div>
-                            <h3 class="text-lg font-bold text-white">Performance Report</h3>
-                            <p class="text-xs text-slate-400 font-mono">${date}</p>
-                        </div>
-                    </div>
-                    <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-                        ${badgeDisplay}
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white/5 p-3 rounded border border-white/10 text-center">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status</p>
-                                <p class="text-lg font-bold ${item.completed ? 'text-emerald-400' : 'text-amber-500'}">${item.completed ? 'Certified' : 'In Progress'}</p>
-                            </div>
-                            <div class="bg-white/5 p-3 rounded border border-white/10 text-center">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Score</p>
-                                <p class="text-lg font-bold text-white">${item.finalScore !== undefined ? item.finalScore : 'N/A'}</p>
-                            </div>
-                        </div>
-                        <div class="bg-white/5 p-4 rounded border border-white/10">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Module</p>
-                            <p class="text-sm font-bold text-slate-200">${item.gameName}</p>
-                        </div>
-                         ${item.rank ? `<div class="bg-white/5 p-4 rounded border border-white/10"><p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Rank Achieved</p><p class="text-sm font-bold text-purple-400">${item.rank}</p></div>` : ''}
-                         ${item.feedback ? `<div class="bg-white/5 p-4 rounded border border-white/10"><p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">User Feedback</p><p class="text-xs italic text-slate-300">"${item.feedback}"</p></div>` : ''}
-                        <div class="mt-4">
-                             <button onclick="document.getElementById('raw-json').classList.toggle('hidden')" class="text-[10px] text-slate-500 hover:text-white underline decoration-dotted transition-colors">View Raw Payload</button>
-                             <pre id="raw-json" class="hidden text-[9px] bg-black text-green-400 p-2 rounded mt-2 overflow-x-auto border border-gray-800 font-mono shadow-inner">${JSON.stringify(item, null, 2)}</pre>
-                        </div>
-                    </div>
-                `;
-            }
-
-            overlay.innerHTML = `
-                <div class="flex-grow flex flex-col h-full relative">
-                    <button onclick="document.getElementById('activity-detail-overlay').classList.remove('translate-x-0'); document.getElementById('activity-detail-overlay').classList.add('translate-x-full');" 
-                            class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 p-2 rounded-full transition-all border border-transparent hover:border-red-500/50">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                    ${contentHtml}
-                </div>
-            `;
-            
-            overlay.classList.remove('translate-x-full');
-            overlay.classList.add('translate-x-0');
-            lucide.createIcons();
-        }
-
-        // --- UTILS & MENU ---
-        window.toggleMenu = () => {
-            const menu = document.getElementById('menu-modal');
-            if(menu.classList.contains('hidden-modal')) {
-                menu.classList.remove('hidden-modal');
-                menu.classList.add('visible-modal');
-            } else {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-        };
-
-        function updateStat(id, value) {
-            const el = document.getElementById(id);
-            if(el) { el.innerText = value; el.parentElement.classList.add('updated-pulse'); }
-        }
-        function showStatus(msg, type) {
-            const modal = document.getElementById('status-toast');
-            const txt = document.getElementById('status-text');
-            const icon = document.getElementById('status-icon');
-            txt.textContent = msg; modal.classList.remove('translate-y-[-150%]', 'opacity-0');
-            if(type === 'error') { modal.className = "absolute top-4 right-4 z-[9999] bg-red-900/90 text-white px-6 py-4 rounded shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-500 flex items-center gap-3 backdrop-blur-md"; icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>'; }
-            else { modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-900/90 text-white px-6 py-4 rounded shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-500 flex items-center gap-3 backdrop-blur-md"; icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>'; }
-            lucide.createIcons(); setTimeout(() => { modal.classList.add('translate-y-[-150%]', 'opacity-0'); }, 3000);
-        }
-        
-        window.initApp = () => {
-            const startup = document.getElementById('startup-screen');
-            startup.classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => {
-                 startup.style.display = 'none';
-                 onAuthStateChanged(auth, async (user) => {
-                     if (user) {
-                         const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-                         try {
-                             const userSnap = await getDoc(userRef);
-                             if (userSnap.exists() && userSnap.data().isInsider === true) {
-                                 document.getElementById('login-modal').classList.add('hidden-modal');
-                                 // Force hide style
-                                 document.getElementById('login-modal').style.display = 'none';
-                                 loadDashboardData();
-                             } else {
-                                 document.getElementById('login-modal').classList.remove('hidden-modal');
-                             }
-                         } catch(e) { document.getElementById('login-modal').classList.remove('hidden-modal'); }
-                     } else { document.getElementById('login-modal').classList.remove('hidden-modal'); }
-                 });
-            }, 500);
-        }
-    </script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'allgood-primary': '#D34716',
-                        'allgood-secondary': '#357889',
-                        'allgood-dark': '#4C4C4C',
-                    },
-                    fontFamily: {
-                        'heading': ['Georgia', 'serif'],
-                        'body': ['Verdana', 'sans-serif'],
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                        'pulse-glow': 'pulseGlow 2s infinite',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'scale(0.98)' },
-                            '100%': { opacity: '1', transform: 'scale(1)' },
-                        },
-                        pulseGlow: {
-                            '0%, 100%': { boxShadow: '0 0 10px rgba(53, 120, 137, 0.2)' },
-                            '50%': { boxShadow: '0 0 25px rgba(53, 120, 137, 0.6)' },
-                        }
-                    }
-                },
-            },
-        }
-    </script>
-
-    <style>
-        body {
-            font-family: Verdana, sans-serif;
-            background-color: #0f172a; /* Dark background base */
-            background-image: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
-            min-height: 100vh;
-            margin: 0; padding: 0;
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden; /* Prevent body scroll */
-        }
-
-        /* --- HOLOGRAPHIC CONTAINER --- */
-        .projected-container {
-            width: 90vw; 
-            height: 85vh;
-            max-width: 1400px;
-            background-color: rgba(15, 23, 42, 0.6); /* Semi-transparent dark */
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            box-shadow: 
-                0 0 40px rgba(0, 0, 0, 0.5),
-                0 0 10px rgba(53, 120, 137, 0.2), /* Subtle Cyan Glow */
-                inset 0 0 20px rgba(255, 255, 255, 0.05);
-            position: relative;
-            z-index: 10;
-            display: flex; 
-            flex-direction: column;
-            overflow: hidden;
-            /* Optional Keystone Effect for "Projection" feel */
-            /* transform: perspective(1000px) rotateX(1deg); */
-        }
-
-        /* Scanline Overlay */
-        .projected-container::after {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.15),
-                rgba(0, 0, 0, 0.15) 1px,
-                transparent 1px,
-                transparent 2px
-            );
-            pointer-events: none;
-            opacity: 0.3;
-            z-index: 50;
-        }
-
-        .hidden-modal { opacity: 0; pointer-events: none; transform: scale(0.95); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .visible-modal { opacity: 1; pointer-events: auto; transform: scale(1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .updated-pulse { animation: text-flash 1s ease-out; }
-        @keyframes text-flash { 0% { color: #D34716; transform: scale(1.1); } 100% { color: inherit; transform: scale(1); } }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-        /* HEADER & FOOTER */
-        .navbar-content { 
-            flex: 0 0 70px; z-index: 30; 
-            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0)); 
-            border-bottom: 1px solid rgba(255,255,255,0.05); 
-        }
-
-        /* CARD STYLES */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(4px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .glass-card:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 12px rgba(0,0,0,0.2), 0 0 10px rgba(53, 120, 137, 0.1);
-        }
-
-        /* TEXT UTILS */
-        .text-glow { text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-        .text-glow-primary { text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); }
-    </style>
-</head>
-<body class="text-slate-300">
-
-    <!-- FLOATING HUD CONTAINER -->
-    <main class="w-full h-screen flex items-center justify-center relative">
-        
-        <!-- Ambient Background Glows -->
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none animate-pulse" style="animation-delay: 1s;"></div>
-
-        <div class="projected-container">
-
-                <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-950/90 backdrop-blur-xl">
-                    <div class="text-center group relative">
-                        <!-- Glow Effect -->
-                        <div class="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        
-                        <div class="mb-8 relative z-10 animate-float">
-                            <i data-lucide="scan-line" class="w-24 h-24 text-cyan-400 mx-auto drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"></i>
-                        </div>
-                        
-                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-widest text-white mb-2 text-glow">
-                            INSIDER<span class="text-cyan-400">.OS</span>
-                        </h1>
-                        <p class="text-xs text-slate-500 font-mono uppercase tracking-[0.5em] mb-8">Secure Terminal Access</p>
-                        
-                        <div class="mt-8 flex justify-center">
-                             <div class="h-1 w-24 bg-slate-800 rounded overflow-hidden">
-                                 <div class="h-full bg-cyan-500 animate-[loading_2s_ease-in-out_infinite]"></div>
-                             </div>
-                        </div>
-                        
-                        <p id="startup-message" class="mt-8 text-cyan-500/60 text-xs tracking-[0.3em] uppercase font-bold group-hover:text-cyan-400 transition-colors animate-pulse font-mono">
-                            [ Initialize System ]
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 2. LOGIN MODAL -->
-                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4" style="display:none;">
-                    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-10 max-w-sm w-full text-center relative overflow-hidden">
-                        <!-- Top Light Bar -->
-                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
-                        
-                        <div class="mb-8">
-                            <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 shadow-inner">
-                                <i data-lucide="fingerprint" class="w-10 h-10 text-cyan-400"></i>
-                            </div>
-                            <h2 class="text-2xl font-heading font-bold text-white tracking-wide">Identity Check</h2>
-                            <p class="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
-                                Biometric clearance required for Tier 1 access.
-                            </p>
-                        </div>
-                        
-                        <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 font-bold py-4 rounded-lg shadow-lg border border-cyan-500/30 transition-all font-mono uppercase tracking-widest flex items-center justify-center gap-3 group">
-                            <i data-lucide="scan" class="w-4 h-4 group-hover:text-white transition-colors"></i>
-                            <span>Verify Credentials</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 3. DASHBOARD VIEW (HUD) -->
-                <div id="dashboard-view" class="hidden flex flex-col h-full overflow-hidden w-full relative">
-                    
-                    <!-- Header -->
-                    <header id="main-navbar" class="navbar-content flex items-center justify-between px-8 relative z-30 opacity-0 transition-opacity duration-1000">
-                        <div class="flex items-center gap-4">
-                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
-                            <div class="flex flex-col">
-                                <h1 class="text-white font-heading font-bold text-lg tracking-wider">OPS COMMAND</h1>
-                                <span class="text-[9px] text-cyan-500 font-mono uppercase tracking-widest">System Online</span>
-                            </div>
-                        </div>
-                        <!-- Control Cluster -->
-                        <div class="flex items-center space-x-4">
-                            <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                                <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>
-                                <span class="text-[10px] font-mono text-cyan-200">SECURE CONNECTION</span>
-                            </div>
-                            <button id="btn-home" onclick="window.switchView('home')" class="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"><i data-lucide="layout-grid" class="w-5 h-5"></i></button>
-                            <button id="btn-menu" class="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5" onclick="window.toggleMenu()"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                        </div>
-                    </header>
-
-                    <!-- EDIT AGENT MODAL (GLASS) -->
-                    <div id="edit-agent-modal" class="hidden-modal absolute inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" style="display:none;">
-                        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-8 max-w-sm w-full relative">
-                            <button onclick="window.closeEditAgentModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-                            <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-cyan-400"></i> Modify Profile</h3>
-                            <div class="space-y-5">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Alias</label>
-                                    <input type="text" id="edit-agent-name" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-sm text-white focus:border-cyan-500 focus:outline-none transition-colors font-mono">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Comms Channel</label>
-                                    <input type="email" id="edit-agent-email" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-sm text-white focus:border-cyan-500 focus:outline-none transition-colors font-mono">
-                                </div>
-                                <button id="btn-save-changes" onclick="window.saveAgentChanges()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded shadow-lg transition-all text-xs uppercase tracking-widest mt-2">Save Changes</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sidebar Menu -->
-                    <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/40 flex justify-end transition-transform backdrop-blur-sm">
-                        <div class="w-72 h-full bg-slate-900/95 border-l border-slate-700 shadow-2xl flex flex-col backdrop-blur-xl">
-                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
-                                <span class="font-bold text-white font-heading uppercase tracking-widest">System Menu</span>
-                                <button onclick="window.toggleMenu()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-                            </div>
-                            <div class="p-4 space-y-2">
-                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.switchView('home'); window.toggleMenu();">
-                                    <i data-lucide="activity" class="w-4 h-4 mr-3 text-cyan-500"></i>Mission Control
-                                </button>
-                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.loadIntel(); window.toggleMenu();">
-                                    <i data-lucide="radio" class="w-4 h-4 mr-3 text-purple-500"></i>Intercepts
-                                </button>
-                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.switchView('list'); window.toggleMenu();">
-                                    <i data-lucide="users" class="w-4 h-4 mr-3 text-blue-500"></i>Agent Roster
-                                </button>
-                                <div class="h-px bg-white/10 my-2 mx-4"></div>
-                                <button class="w-full text-left px-4 py-3 rounded hover:bg-red-500/10 text-red-400 hover:text-red-300 font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.handleLogout()">
-                                    <i data-lucide="power" class="w-4 h-4 mr-3"></i>Disconnect
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Main Content -->
-                    <div class="flex-grow p-8 overflow-y-auto custom-scrollbar">
-                        
-                        <!-- VIEW 1: STATS GRID -->
-                        <div id="view-home" class="space-y-8 animate-fade-in">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <!-- Card 1 -->
-                                <div onclick="window.switchView('list', 'all_sso')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <span class="text-[10px] uppercase text-blue-300 font-bold tracking-widest">Active Agents</span>
-                                            <i data-lucide="users" class="w-5 h-5 text-blue-400"></i>
-                                        </div>
-                                        <span id="stat-total-agents" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
-                                        <div class="mt-2 h-1 w-full bg-blue-900/30 rounded-full overflow-hidden"><div class="h-full bg-blue-500 w-3/4 shadow-[0_0_10px_#3b82f6]"></div></div>
-                                    </div>
-                                </div>
-                                <!-- Card 2 -->
-                                <div onclick="window.switchView('list', 'active')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <span class="text-[10px] uppercase text-emerald-300 font-bold tracking-widest">Live Signals</span>
-                                            <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
-                                        </div>
-                                        <span id="stat-active-24h" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
-                                        <div class="mt-2 h-1 w-full bg-emerald-900/30 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 w-1/2 shadow-[0_0_10px_#10b981] animate-pulse"></div></div>
-                                    </div>
-                                </div>
-                                <!-- Card 3 -->
-                                <div onclick="window.switchView('list', 'all')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <span class="text-[10px] uppercase text-orange-300 font-bold tracking-widest">Total Net</span>
-                                            <i data-lucide="globe" class="w-5 h-5 text-orange-400"></i>
-                                        </div>
-                                        <span id="stat-ecosystem" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
-                                        <div class="mt-2 h-1 w-full bg-orange-900/30 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-full shadow-[0_0_10px_#f97316]"></div></div>
-                                    </div>
-                                </div>
-                                <!-- Card 4 -->
-                                <div onclick="window.loadIntel()" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <span class="text-[10px] uppercase text-purple-300 font-bold tracking-widest">Intel Logs</span>
-                                            <i data-lucide="radio" class="w-5 h-5 text-purple-400"></i>
-                                        </div>
-                                        <span id="stat-intel" class="block text-4xl font-heading font-bold text-white text-glow">-</span>
-                                        <div class="mt-2 h-1 w-full bg-purple-900/30 rounded-full overflow-hidden"><div class="h-full bg-purple-500 w-1/4 shadow-[0_0_10px_#a855f7]"></div></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Visualization Area Placeholder -->
-                            <div class="glass-card h-64 rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
-                                <div class="absolute inset-0 bg-grid-pattern opacity-10"></div>
-                                <p class="text-sm font-mono text-slate-500 uppercase tracking-widest">[ VISUALIZATION MATRIX STANDBY ]</p>
-                            </div>
-                        </div>
-
-                        <!-- VIEW 2: ROSTER -->
-                        <div id="view-list" class="hidden animate-fade-in h-full flex flex-col">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 id="list-view-title" class="text-lg font-bold text-white uppercase tracking-widest">Agent Roster</h3>
-                                <div class="relative">
-                                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                                    <input type="text" id="agent-search" onkeyup="window.filterRoster()" placeholder="SEARCH DATABASE..." 
-                                           class="pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700 rounded text-xs text-white focus:border-cyan-500 focus:outline-none uppercase tracking-wide placeholder-slate-600 w-64 transition-all">
-                                </div>
-                            </div>
-                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5">
-                                <div class="overflow-y-auto custom-scrollbar flex-grow">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead class="bg-white/5 sticky top-0 z-10 backdrop-blur-md">
-                                            <tr>
-                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Identity</th>
-                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Status</th>
-                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Created</th>
-                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10 text-right">Last Signal</th>
-                                                <th class="px-6 py-4 border-b border-white/10 w-10"></th>
-                                                <th class="px-2 py-4 border-b border-white/10 w-10"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="roster-body" class="divide-y divide-white/5"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- VIEW 3: DOSSIER -->
-                        <div id="view-dossier" class="hidden animate-fade-in h-full flex flex-col">
-                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5 relative" id="dossier-content"></div>
-                        </div>
-
-                        <!-- VIEW 4: INTEL -->
-                        <div id="view-intel" class="hidden animate-fade-in h-full flex flex-col">
-                            <h3 class="text-lg font-bold text-white uppercase tracking-widest mb-4">Intercepted Comms</h3>
-                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5">
-                                <div id="intel-content" class="flex-grow overflow-y-auto custom-scrollbar p-2 space-y-2"></div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                <!-- Status Toast -->
-                <div id="status-toast" class="absolute bottom-8 right-8 z-[9999] opacity-0 translate-y-10 transition-all duration-500 pointer-events-none">
-                    <div class="glass-card px-6 py-3 rounded-lg border border-cyan-500/30 flex items-center gap-3 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-                        <div id="status-icon" class="text-cyan-400"></div>
-                        <span id="status-text" class="text-xs font-bold text-cyan-100 uppercase tracking-wide"></span>
-                    </div>
-                </div>
-
+import React, { useState } from 'react';
+import { 
+  Calendar, 
+  MapPin, 
+  Clock, 
+  Car, 
+  Plane, 
+  Home, 
+  ChevronRight, 
+  ExternalLink,
+  Info,
+  Footprints,
+  Ship,
+  Anchor
+} from 'lucide-react';
+
+const App = () => {
+  const [activeDay, setActiveDay] = useState(0);
+
+  // Brand colors & typography constants
+  const brand = {
+    primary: '#D34716', // Burnt Orange
+    secondary: '#357889', // Deep Cyan
+    text: '#4C4C4C', // Dark Gray
+    lightText: '#757575', // Medium Gray
+    bg: '#F7F7F7', // Very Light Gray
+    white: '#FFFFFF'
+  };
+
+  const itinerary = [
+    {
+      date: 'Jan 30',
+      day: 'Viernes',
+      location: 'Santiago de Chile',
+      accommodation: {
+        name: 'Airbnb Santiago',
+        link: 'https://www.airbnb.com/rooms/765625248677366834'
+      },
+      activities: [
+        { type: 'arrival', text: 'Arrive in Chile (7:00 AM - 8:15 AM)' },
+        { type: 'leisure', text: 'Fantisilandia Theme Park' },
+        { type: 'view', text: 'Cerro San Cristobal City View' },
+        { type: 'social', text: 'Lunch/Shower at Keith\'s place' }
+      ]
+    },
+    {
+      date: 'Jan 31',
+      day: 'Sábado',
+      location: 'Punta Arenas → Puerto Natales',
+      accommodation: {
+        name: 'Puerto Natales Water Nook',
+        price: '$559.87 (Total for stay)'
+      },
+      transport: [
+        { type: 'flight', text: 'Santiago to Punta Arenas (3.5hr)' },
+        { type: 'car', text: 'Pick up Kia Grand Carnival from Southland Rent-A-Car' },
+        { type: 'drive', text: 'Drive to Puerto Natales (3.5hr)' }
+      ],
+      activities: [
+        { type: 'info', text: 'Check-in at Water Nook' }
+      ]
+    },
+    {
+      date: 'Feb 1',
+      day: 'Domingo',
+      location: 'Torres del Paine (East)',
+      accommodation: { name: 'Puerto Natales Water Nook' },
+      transport: [
+        { type: 'drive', text: 'Drive to Welcome Center (1.75hr)' }
+      ],
+      activities: [
+        { type: 'hike', text: 'Base Torres Hike (10 hours - Hard)', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-torres-del-paine-via-sendero-las-torres-a-chileno' },
+        { type: 'hike', text: 'Optional: Mirador Cuernos (Easy)', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-cuernos' }
+      ]
+    },
+    {
+      date: 'Feb 2',
+      day: 'Lunes',
+      location: 'Puerto Natales → El Chaltén',
+      accommodation: { name: 'El Chaltén' },
+      transport: [
+        { type: 'drive', text: 'Puerto Natales to El Calafate (3.75hr)' },
+        { type: 'drive', text: 'El Calafate to El Chaltén (2.5hr)' }
+      ],
+      activities: [
+        { type: 'leisure', text: 'Rest Day / Stop in El Calafate' },
+        { type: 'hike', text: 'Perito Moreno Glacier Walks (Paved)', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/sendero-glaciar-perito-moreno' },
+        { type: 'tour', text: 'Moreno Spirit Boat Tour (2:45pm)', link: 'https://en.patagoniachic.com/el-calafate/tours/moreno-spirit-short-boat-tour_85.html' }
+      ]
+    },
+    {
+      date: 'Feb 3',
+      day: 'Martes',
+      location: 'El Chaltén → El Calafate',
+      accommodation: { name: 'El Calafate Airbnb' },
+      transport: [
+        { type: 'drive', text: 'Drive to Los Huemules (0.5hr)' },
+        { type: 'drive', text: 'Drive back to El Calafate (2.5hr)' }
+      ],
+      activities: [
+        { type: 'hike', text: 'Laguna de los Tres / Fitz Roy', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/laguna-de-los-tres-desde-el-pilar' },
+        { type: 'hike', text: 'Cerro Torre / Laguna Capri', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/cerro-torre-laguna-capri-mirador-fitz-roy' }
+      ]
+    },
+    {
+      date: 'Feb 4',
+      day: 'Miércoles',
+      location: 'El Calafate → Punta Arenas',
+      accommodation: { 
+        name: 'Punta Arenas Airbnb',
+        link: 'http://airbnb.com/I/FN57d86a'
+      },
+      transport: [
+        { type: 'drive', text: 'Drive to Rio Gallegos (3hr)' },
+        { type: 'drive', text: 'Drive to Punta Arenas (3hr)' }
+      ],
+      activities: [
+        { type: 'leisure', text: 'Lunch in Rio Gallegos' },
+        { type: 'hike', text: 'Cabo Virgenes Penguin Hike', link: 'https://www.alltrails.com/trail/argentina/santa-cruz/cabo-virgenes-pinguinera' },
+        { type: 'info', text: 'Alt: Return via Puerto Natales for Milodon Caves' }
+      ]
+    },
+    {
+      date: 'Feb 5',
+      day: 'Jueves',
+      location: 'Punta Arenas → Santiago',
+      accommodation: { name: 'Santiago' },
+      transport: [
+        { type: 'flight', text: 'Fly to Santiago (3.5hr)' }
+      ],
+      activities: [
+        { type: 'tour', text: 'Isla Magdalena Penguin Tour', link: 'https://www.soloexpediciones.com/islamagdalena?lang=en' },
+        { type: 'leisure', text: 'Museo Regional Salesiano' },
+        { type: 'flight', text: 'Red-eye departure back home' }
+      ]
+    }
+  ];
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#F7F7F7] font-sans text-[#4C4C4C]" style={{ fontFamily: 'Verdana, sans-serif' }}>
+      {/* Header */}
+      <header className="bg-[#4C4C4C] text-white p-6 md:p-10 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-3xl md:text-5xl mb-2 text-[#D34716]" style={{ fontFamily: 'Georgia, serif' }}>Patagonia Trip Plan</h1>
+          <p className="text-xs md:text-sm opacity-80 uppercase tracking-widest">January - February 2026</p>
         </div>
-    </main>
-    
-    <style>
-        /* Add smooth fade animation */
-        @keyframes loading {
-            0% { width: 0%; opacity: 1; }
-            50% { width: 50%; opacity: 0.5; }
-            100% { width: 100%; opacity: 0; }
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .bg-grid-pattern {
-            background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-    </style>
+        <div className="mt-4 md:mt-0 bg-[#357889] px-4 py-2 rounded shadow-inner text-sm font-bold flex items-center">
+          <Calendar className="mr-2 w-4 h-4" /> 7 DAYS • CHILE & ARGENTINA
+        </div>
+      </header>
 
-</body>
-</html>
+      <main className="flex-grow flex flex-col md:flex-row p-4 md:p-8 gap-6 max-w-7xl mx-auto w-full">
+        {/* Day Selector (Sidebar) */}
+        <aside className="w-full md:w-1/3 flex flex-col gap-3">
+          <h2 className="text-xl border-b border-gray-300 pb-2 mb-2 flex items-center" style={{ fontFamily: 'Georgia, serif' }}>
+             <Clock className="mr-2 text-[#D34716]" /> Timeline
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
+            {itinerary.map((day, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveDay(idx)}
+                className={`flex flex-col p-4 rounded-lg transition-all border-l-4 text-left shadow-sm ${
+                  activeDay === idx 
+                  ? 'bg-white border-[#D34716] ring-1 ring-gray-200' 
+                  : 'bg-white/50 border-gray-300 hover:bg-white hover:border-[#357889]'
+                }`}
+              >
+                <span className="text-[10px] font-bold text-[#757575] uppercase tracking-tighter">{day.date} • {day.day}</span>
+                <span className={`text-sm font-semibold truncate ${activeDay === idx ? 'text-[#357889]' : ''}`}>
+                  {day.location}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 p-5 bg-[#357889] text-white rounded-xl shadow-md border-t-4 border-[#D34716]">
+            <h3 className="text-lg mb-2 flex items-center" style={{ fontFamily: 'Georgia, serif' }}>
+              <Info className="mr-2 w-5 h-5" /> Travel Logistics
+            </h3>
+            <p className="text-xs leading-relaxed opacity-90 italic">
+              Weather in the south is highly variable. Keep gear accessible for quick changes between wind, rain, and sun.
+            </p>
+          </div>
+        </aside>
+
+        {/* Details View */}
+        <section className="flex-grow bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col border border-gray-200">
+          {/* Day Header */}
+          <div className="bg-[#F7F7F7] p-6 md:p-8 border-b border-gray-100 flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-2 text-[#D34716] font-bold text-xs mb-1">
+                <Calendar className="w-3 h-3" />
+                {itinerary[activeDay].date} • {itinerary[activeDay].day.toUpperCase()}
+              </div>
+              <h2 className="text-3xl md:text-4xl text-[#4C4C4C]" style={{ fontFamily: 'Georgia, serif' }}>{itinerary[activeDay].location}</h2>
+            </div>
+            <div className="hidden md:block">
+              <div className="w-14 h-14 bg-[#F2DDCB] rounded-full flex items-center justify-center text-[#D34716]">
+                <MapPin size={28} />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 md:p-10 space-y-8">
+            {/* Accommodation */}
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                <Home className="mr-2 w-4 h-4" /> Basecamp
+              </h3>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-[#357889] transition-colors group">
+                <div>
+                  <p className="font-semibold text-base">{itinerary[activeDay].accommodation.name}</p>
+                  {itinerary[activeDay].accommodation.price && (
+                    <p className="text-xs text-[#757575] mt-1">{itinerary[activeDay].accommodation.price}</p>
+                  )}
+                </div>
+                {itinerary[activeDay].accommodation.link && (
+                  <a 
+                    href={itinerary[activeDay].accommodation.link} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-[#357889] hover:text-[#D34716] flex items-center font-bold text-xs underline underline-offset-4 decoration-2"
+                  >
+                    View Listing <ExternalLink className="ml-1 w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Transport (If any) */}
+            {itinerary[activeDay].transport && (
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                  <Car className="mr-2 w-4 h-4" /> Transit & Arrival
+                </h3>
+                <div className="space-y-3">
+                  {itinerary[activeDay].transport.map((t, i) => (
+                    <div key={i} className="flex items-start gap-4 p-3 bg-white border border-gray-50 rounded-lg hover:border-gray-200 transition-all">
+                      <div className="p-2 bg-[#F2DDCB] rounded text-[#D34716]">
+                        {t.type === 'flight' ? <Plane size={16} /> : <Car size={16} />}
+                      </div>
+                      <p className="text-sm pt-1 leading-snug">{t.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Activities */}
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#757575] mb-4 flex items-center">
+                <Footprints className="mr-2 w-4 h-4" /> Daily Itinerary
+              </h3>
+              <div className="space-y-3">
+                {itinerary[activeDay].activities.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-gray-100 rounded text-[#357889]">
+                        {a.type === 'hike' ? <Footprints size={18} /> : 
+                         a.type === 'tour' ? <Ship size={18} /> : 
+                         a.type === 'arrival' ? <Plane size={18} /> :
+                         <ChevronRight size={18} />}
+                      </div>
+                      <p className="font-medium text-sm md:text-base">{a.text}</p>
+                    </div>
+                    {a.link && (
+                      <a 
+                        href={a.link} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-[#357889] hover:text-[#D34716] text-xs font-bold underline underline-offset-2"
+                      >
+                        Details
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Branding */}
+          <div className="mt-auto p-4 bg-gray-50 text-center border-t border-gray-100">
+            <p className="text-[9px] uppercase tracking-widest text-[#757575] font-bold">
+              Expedition Data Summary • 2026
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+};
+
+export default App;
