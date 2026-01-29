@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   ChevronRight, 
@@ -20,7 +20,7 @@ import {
   ExternalLink, 
   Info,
   Loader,
-  Lightbulb // Added Lightbulb icon
+  Lightbulb
 } from 'lucide-react';
 
 const itinerary = [
@@ -30,7 +30,8 @@ const itinerary = [
         lat: -33.4489, lon: -70.6693,
         accommodation: { 
             name: 'Airbnb Santiago', 
-            link: 'https://www.airbnb.com/rooms/765625248677366834' 
+            link: 'https://www.airbnb.com/rooms/765625248677366834',
+            address: 'Nueva Providencia 1372, Providencia, Región Metropolitana'
         },
         activities: [
             { type: 'arrival', text: 'Arrive in Chile (7:00 AM - 8:15 AM)', icon: Plane },
@@ -57,7 +58,11 @@ const itinerary = [
             { type: 'car', text: 'Pick up Kia Grand Carnival', icon: Car },
             { type: 'drive', text: 'Drive to Puerto Natales (3.5hr)', icon: Navigation }
         ],
-        accommodation: { name: 'Puerto Natales Water Nook', price: '$559.87' },
+        accommodation: { 
+            name: 'Puerto Natales Water Nook', 
+            price: '$559.87',
+            address: 'Camino a Puerto Bories Km 2 Lote 13, Puerto Natales, Magallanes and Chilean Antarctica 6160000'
+        },
         activities: [{ type: 'info', text: 'Check-in at Water Nook', icon: Home }],
         funFacts: [
             "Punta Arenas is the southernmost city of its size in the world.",
@@ -74,7 +79,10 @@ const itinerary = [
         location: 'Torres del Paine (East)',
         lat: -50.9964, lon: -72.8519,
         transport: [{ type: 'drive', text: 'Drive to Welcome Center (1.75hr)', icon: Car }],
-        accommodation: { name: 'Puerto Natales Water Nook' },
+        accommodation: { 
+            name: 'Puerto Natales Water Nook',
+            address: 'Camino a Puerto Bories Km 2 Lote 13, Puerto Natales, Magallanes and Chilean Antarctica 6160000'
+        },
         activities: [
             { type: 'hike', text: 'Base Torres Hike (10h - Hard)', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-torres-del-paine-via-sendero-las-torres-a-chileno', icon: Footprints },
             { type: 'hike', text: 'Optional: Mirador Cuernos', link: 'https://www.alltrails.com/trail/chile/magallanes/mirador-cuernos', icon: Footprints }
@@ -173,7 +181,10 @@ const itinerary = [
         location: 'Punta Arenas → Santiago',
         lat: -33.4489, lon: -70.6693,
         transport: [{ type: 'flight', text: 'Fly to Santiago (3.5hr)', icon: Plane }],
-        accommodation: { name: 'Santiago Return' },
+        accommodation: { 
+            name: 'Santiago Return',
+            address: 'Nueva Providencia 1372, Providencia, Región Metropolitana'
+        },
         activities: [
             { type: 'tour', text: 'Isla Magdalena Penguins', icon: Ship },
             { type: 'flight', text: 'Red-eye home', icon: Plane }
@@ -238,6 +249,9 @@ const App = () => {
     const [activeDay, setActiveDay] = useState(0);
     const [weather, setWeather] = useState(null);
     const [loadingWeather, setLoadingWeather] = useState(false);
+    
+    // Ref for scrolling the day navigation
+    const dayNavRef = useRef(null);
 
     const fetchWeather = async (lat, lon) => {
         setLoadingWeather(true);
@@ -257,6 +271,14 @@ const App = () => {
             const day = itinerary[activeDay];
             fetchWeather(day.lat, day.lon);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Scroll selected day into view in the navigation bar
+            if (dayNavRef.current) {
+                const buttons = dayNavRef.current.querySelectorAll('button');
+                if (buttons[activeDay]) {
+                    buttons[activeDay].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }
         }
     }, [activeDay, showDashboard]);
 
@@ -316,11 +338,12 @@ const App = () => {
                         <Calendar size={14} className="mr-2" /> Jan 30 - Feb 5
                     </div>
                 </div>
-                <div className="bg-white/10 border-t border-white/5 overflow-x-auto no-scrollbar flex px-4 gap-2 py-3 md:justify-center scrollbar-hide">
+                {/* Mobile Optimized Scroll Bar */}
+                <div ref={dayNavRef} className="bg-white/10 border-t border-white/5 overflow-x-auto no-scrollbar flex px-4 gap-2 py-3 md:justify-center scrollbar-hide snap-x snap-mandatory">
                     {itinerary.map((day, idx) => (
                         <button key={idx} onClick={() => setActiveDay(idx)}
-                            className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border ${
-                                activeDay === idx ? 'bg-[#D34716] border-[#D34716] text-white shadow-lg' : 'bg-transparent border-white/20 text-white/70'
+                            className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border snap-center ${
+                                activeDay === idx ? 'bg-[#D34716] border-[#D34716] text-white shadow-lg scale-105' : 'bg-transparent border-white/20 text-white/70'
                             }`}>
                             {day.date} • {day.day}
                         </button>
@@ -328,7 +351,7 @@ const App = () => {
                 </div>
             </header>
 
-            <main className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-6">
+            <main className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-6 pb-20 md:pb-8">
                 <section className="bg-white rounded-3xl shadow-xl border border-[#D1D5DB] overflow-hidden">
                     <div className="bg-[#F7F7F7] p-6 md:p-10 border-b border-gray-100 relative">
                         <div className="flex flex-col items-center text-center">
@@ -408,9 +431,14 @@ const App = () => {
                                     {itinerary[activeDay].accommodation.address && (
                                         <div className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-3">
                                             <MapPin size={14} className="mt-1 text-[#357889]" />
-                                            <p className="text-xs md:text-sm font-medium text-[#4C4C4C] leading-relaxed">
+                                            <a 
+                                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(itinerary[activeDay].accommodation.address)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs md:text-sm font-medium text-[#4C4C4C] leading-relaxed hover:text-[#D34716] transition-colors text-left border-b border-transparent hover:border-[#D34716] break-words"
+                                            >
                                                 {itinerary[activeDay].accommodation.address}
-                                            </p>
+                                            </a>
                                         </div>
                                     )}
                                 </div>
