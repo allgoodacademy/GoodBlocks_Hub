@@ -296,29 +296,35 @@ const App = () => {
                 <div className="max-w-md w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-[#D1D5DB]">
                     <h1 className="text-3xl md:text-4xl font-bold text-[#D34716] mb-6 font-serif">Patagonia 2026 Dashboard</h1>
                     
-                    <div className="mb-8 relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                        <div className="relative overflow-hidden rounded-2xl border-4 border-white shadow-lg">
+                    {/* Interactive "Boop" Container */}
+                    <div 
+                        onClick={() => setShowDashboard(true)}
+                        className="mb-8 relative group cursor-pointer w-full max-w-sm mx-auto"
+                    >
+                        {/* Glow Effect */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-[#D34716] to-[#357889] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 animate-pulse"></div>
+                        
+                        {/* Image & Overlay */}
+                        <div className="relative overflow-hidden rounded-2xl border-4 border-white shadow-lg transform transition-transform duration-200 active:scale-95">
                             <img 
                                 src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/Christian_AI.JPG?raw=true" 
                                 alt="Christian" 
-                                className="w-full h-auto object-cover transform hover:scale-105 transition duration-500"
+                                className="w-full h-auto object-cover"
                                 onError={(e) => { e.target.src = 'https://via.placeholder.com/400x400?text=Patagonia+Expedition'; }}
                             />
+                            
+                            {/* Visual Cue Overlay */}
+                            <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                                <div className="bg-white/90 backdrop-blur-md text-[#D34716] px-6 py-2 rounded-full font-bold shadow-xl flex items-center gap-2 animate-bounce border border-[#D34716]/20">
+                                    <span>👆 Boop me!</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <p className="text-[#757575] font-medium mb-8 leading-relaxed">
                         Experience the rugged beauty of the south. Real-time weather, addresses, and itinerary details for your upcoming expedition.
                     </p>
-
-                    <button 
-                        onClick={() => setShowDashboard(true)}
-                        className="w-full bg-[#357889] hover:bg-[#2D6473] text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 group"
-                    >
-                        Boop Christian to Enter 
-                        <ChevronRight className="group-hover:translate-x-1 transition-transform" />
-                    </button>
                 </div>
             </div>
         );
