@@ -141,10 +141,11 @@
     <style>
         body {
             font-family: Verdana, sans-serif;
-            background-color: #1a1a1a;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+            /* UPDATED: High-Fidelity Mahogany Desk (Clean Radial) */
+            background-color: #2A1B17; /* Deep base brown */
+            background-image: radial-gradient(circle at 50% 50%, #4E342E 0%, #2A1B17 100%);
             background-attachment: fixed;
+            background-size: cover;
             min-height: 100vh; margin: 0; padding: 0;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
         }
@@ -153,9 +154,10 @@
 
         .tablet-frame {
             height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
+            /* Updated Shadow: Sharper drop shadow to lift tablet off the desk */
             background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
             border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative; margin: 20px auto;
-            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 30px 60px -12px rgba(0,0,0,0.8);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
             transition: all 0.3s ease;
         }
         .tablet-frame::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border-radius: 6px; background: #111; z-index: 0; }
@@ -312,7 +314,7 @@
                             <div class="relative text-center">
                                 <div class="absolute inset-0 bg-white/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 <i data-lucide="shield-check" class="w-20 h-20 text-white mb-6 mx-auto relative z-10 drop-shadow-md"></i>
-                                <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-[0.2em] uppercase">Allgood Intelligence</h2>
+                                <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-[0.2em] uppercase">Allgood Academy</h2>
                                 <h1 class="text-4xl md:text-6xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter relative z-10 drop-shadow-sm leading-tight">Verbal Sprint</h1>
                                 <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10 inline-block">30-Question Challenge</p>
                             </div>
