@@ -74,8 +74,8 @@
                 if (isAuthorized) {
                     showStatus("Identity Verified. Welcome, Director.", "success");
                     const modal = document.getElementById('login-modal');
-                    modal.classList.add('hidden-modal');
-                    modal.style.display = 'none'; 
+                    modal.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => { modal.style.display = 'none'; }, 500);
                     loadDashboardData();
                 } else {
                     await signOut(auth);
@@ -103,9 +103,8 @@
         // --- DATA ENGINE ---
         async function loadDashboardData() {
             document.getElementById('dashboard-view').classList.remove('hidden');
-            const navbar = document.getElementById('main-navbar');
-            if(navbar) navbar.classList.remove('opacity-0');
-
+            document.getElementById('dashboard-view').classList.add('animate-fade-in');
+            
             const statsContainer = document.getElementById('stats-loading');
             if(statsContainer) statsContainer.innerHTML = 'Syncing Ecosystem...';
 
@@ -147,16 +146,9 @@
                 });
 
                 // Update Widget Counts
-                // Widget 1: Total Agents (Email Only)
                 updateStat('stat-total-agents', window.insiderData.emailAgents.length);
-                
-                // Widget 2: Active 24h
                 updateStat('stat-active-24h', window.insiderData.activeAgents.length);
-                
-                // Widget 3: Total Ecosystem (All Entries)
                 updateStat('stat-ecosystem', window.insiderData.allAgents.length);
-                
-                // Widget 4: Placeholder
                 updateStat('stat-intel', '-');
 
                 // Initial State: Show Home
@@ -229,15 +221,17 @@
             // Show Modal
             const modal = document.getElementById('edit-agent-modal');
             modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
             modal.style.display = 'flex';
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
         };
 
         window.closeEditAgentModal = () => {
             const modal = document.getElementById('edit-agent-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            setTimeout(() => { modal.style.display = 'none'; }, 300);
+            modal.classList.add('opacity-0');
+            setTimeout(() => { 
+                modal.style.display = 'none'; 
+                modal.classList.add('hidden-modal');
+            }, 300);
             currentEditingAgentId = null;
         };
 
@@ -253,7 +247,6 @@
                 return;
             }
 
-            // UI Feedback
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...`;
@@ -261,21 +254,13 @@
 
             try {
                 const agentRef = doc(db, 'artifacts', appId, 'users', currentEditingAgentId);
-                
-                const updateData = {
-                    displayName: newName
-                };
-                
-                // Only update email if provided (allow clearing if needed, though rare)
-                if (newEmail) {
-                    updateData.email = newEmail;
-                }
+                const updateData = { displayName: newName };
+                if (newEmail) updateData.email = newEmail;
 
                 await updateDoc(agentRef, updateData);
-
                 showStatus("Agent Profile Updated", "success");
                 window.closeEditAgentModal();
-                loadDashboardData(); // Refresh UI
+                loadDashboardData(); 
 
             } catch (error) {
                 console.error("Update failed:", error);
@@ -286,7 +271,6 @@
             }
         };
 
-
         // --- VIEW CONTROLLER ---
         window.switchView = (viewName, filterType = null, agentId = null) => {
             const viewHome = document.getElementById('view-home');
@@ -294,7 +278,6 @@
             const viewDossier = document.getElementById('view-dossier');
             const viewIntel = document.getElementById('view-intel');
             
-            // Hide everything first
             viewHome.classList.add('hidden');
             viewList.classList.add('hidden');
             viewDossier.classList.add('hidden');
@@ -302,18 +285,22 @@
             
             if (viewName === 'home') {
                 viewHome.classList.remove('hidden');
+                viewHome.classList.add('animate-fade-in');
             } 
             else if (viewName === 'list') {
                 viewList.classList.remove('hidden');
+                viewList.classList.add('animate-fade-in');
                 if (filterType) window.insiderData.currentFilter = filterType;
                 renderListView();
             } 
             else if (viewName === 'dossier') {
                 viewDossier.classList.remove('hidden');
+                viewDossier.classList.add('animate-fade-in');
                 loadAgentDossier(agentId);
             } 
             else if (viewName === 'intel') {
                 viewIntel.classList.remove('hidden');
+                viewIntel.classList.add('animate-fade-in');
                 renderIntelView();
             }
             lucide.createIcons();
@@ -337,7 +324,7 @@
             let dataSet = [];
             
             if (filterType === 'all_sso') {
-                dataSet = window.insiderData.emailAgents; // Updated: Uses filtered email list
+                dataSet = window.insiderData.emailAgents; 
                 listTitle.textContent = "Registered Agents (SSO)";
             } else if (filterType === 'active') {
                 dataSet = window.insiderData.activeAgents;
@@ -363,33 +350,33 @@
 
             dataSet.forEach(agent => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-100 hover:bg-indigo-50/30 transition-all group cursor-pointer border-transparent hover:border-indigo-100";
+                tr.className = "border-b border-gray-700/50 hover:bg-white/5 transition-all group cursor-pointer";
                 
                 const initials = agent.name.substring(0,2).toUpperCase();
                 const dateStr = agent.lastLogin ? agent.lastLogin.toLocaleDateString() + ' ' + agent.lastLogin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
                 const createdStr = agent.joined ? agent.joined.toLocaleDateString() : 'Unknown';
                 
-                let statusBadge = `<span class="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Idle</span>`;
-                if(agent.isActive24h) statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-200 shadow-sm animate-pulse">Active</span>`;
+                let statusBadge = `<span class="bg-slate-700/50 text-slate-300 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-slate-600">Idle</span>`;
+                if(agent.isActive24h) statusBadge = `<span class="bg-emerald-900/30 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">Active</span>`;
 
                 tr.innerHTML = `
                     <td class="px-6 py-4" onclick="window.switchView('dossier', null, '${agent.id}')">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full ${agent.isGuest ? 'bg-orange-100 text-orange-600' : 'bg-allgood-secondary text-white'} flex items-center justify-center font-bold text-xs shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-600 flex items-center justify-center font-bold text-xs shadow-md">
                                 ${initials}
                             </div>
                             <div>
-                                <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors underline-offset-2 group-hover:underline decoration-dotted">${agent.name}</p>
+                                <p class="text-xs font-bold text-slate-200 group-hover:text-white transition-colors">${agent.name}</p>
                                 <p class="text-[9px] text-slate-400 font-mono">${agent.email}</p>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-4" onclick="window.switchView('dossier', null, '${agent.id}')">${statusBadge}</td>
-                    <td class="px-6 py-4 text-[10px] text-slate-500 font-mono" onclick="window.switchView('dossier', null, '${agent.id}')">${createdStr}</td>
-                    <td class="px-6 py-4 text-[10px] text-slate-500 font-mono text-right" onclick="window.switchView('dossier', null, '${agent.id}')">${dateStr}</td>
-                    <td class="px-6 py-4 text-right" onclick="window.switchView('dossier', null, '${agent.id}')"><i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-allgood-secondary"></i></td>
+                    <td class="px-6 py-4 text-[10px] text-slate-400 font-mono" onclick="window.switchView('dossier', null, '${agent.id}')">${createdStr}</td>
+                    <td class="px-6 py-4 text-[10px] text-slate-400 font-mono text-right" onclick="window.switchView('dossier', null, '${agent.id}')">${dateStr}</td>
+                    <td class="px-6 py-4 text-right" onclick="window.switchView('dossier', null, '${agent.id}')"><i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-white"></i></td>
                     <td class="px-2 py-4 w-10 text-center">
-                        <button onclick="event.stopPropagation(); window.openEditAgentModal('${agent.id}')" class="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-allgood-primary transition-colors" title="Edit Agent">
+                        <button onclick="event.stopPropagation(); window.openEditAgentModal('${agent.id}')" class="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Edit Agent">
                             <i data-lucide="pencil" class="w-3 h-3"></i>
                         </button>
                     </td>
@@ -406,7 +393,7 @@
             const msgs = window.insiderData.intel;
 
             if (msgs.length === 0) {
-                container.innerHTML = `<div class="p-10 text-center flex flex-col items-center justify-center h-full"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><i data-lucide="inbox" class="w-8 h-8 text-slate-300"></i></div><p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No Intelligence Reports</p></div>`;
+                container.innerHTML = `<div class="p-10 text-center flex flex-col items-center justify-center h-full"><div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4"><i data-lucide="inbox" class="w-8 h-8 text-slate-500"></i></div><p class="text-xs font-bold text-slate-500 uppercase tracking-widest">No Intelligence Reports</p></div>`;
                 lucide.createIcons();
                 return;
             }
@@ -417,31 +404,26 @@
                 let starsHtml = '';
                 if (msg.rating) {
                     for(let i=1; i<=5; i++) {
-                        if (i <= msg.rating) starsHtml += `<i data-lucide="star" class="w-3 h-3 text-yellow-400 fill-current"></i>`;
-                        else starsHtml += `<i data-lucide="star" class="w-3 h-3 text-gray-200"></i>`;
+                        if (i <= msg.rating) starsHtml += `<i data-lucide="star" class="w-3 h-3 text-yellow-500 fill-current"></i>`;
+                        else starsHtml += `<i data-lucide="star" class="w-3 h-3 text-slate-600"></i>`;
                     }
                 }
-                let typeBadge = '';
-                if (msg.type === 'review') typeBadge = `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-indigo-200">Module Feedback</span>`;
-                else typeBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide border border-blue-200">Direct Message</span>`;
-
+                
                 const card = document.createElement('div');
-                card.className = "p-4 border-b border-gray-100 hover:bg-slate-50 transition-colors cursor-pointer group";
+                card.className = "p-4 border-b border-gray-700/50 hover:bg-white/5 transition-colors cursor-pointer group";
                 card.onclick = () => window.switchView('dossier', null, msg.agentId);
 
                 card.innerHTML = `
                     <div class="flex items-start gap-4">
-                        <div class="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">${initials}</div>
+                        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 shadow-sm flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">${initials}</div>
                         <div class="flex-grow min-w-0">
                             <div class="flex flex-wrap items-center gap-2 mb-1">
-                                <h4 class="text-sm font-bold text-slate-800 group-hover:text-allgood-secondary transition-colors">${msg.agentName}</h4>
-                                ${typeBadge}
-                                <span class="text-[10px] text-slate-400 font-mono ml-auto">${dateStr}</span>
+                                <h4 class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${msg.agentName}</h4>
+                                <span class="text-[10px] text-slate-500 font-mono ml-auto">${dateStr}</span>
                             </div>
-                            ${msg.courseName ? `<p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> ${msg.courseName}</p>` : ''}
+                            ${msg.courseName ? `<p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> ${msg.courseName}</p>` : ''}
                             ${starsHtml ? `<div class="flex gap-0.5 mb-2">${starsHtml}</div>` : ''}
-                            <p class="text-sm text-slate-600 leading-relaxed font-mono bg-white/50 p-2 rounded border border-gray-50 border-l-2 border-l-allgood-secondary/30">"${msg.message}"</p>
-                            <div class="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Reply via Email:</span><a href="mailto:${msg.agentEmail}" onclick="event.stopPropagation()" class="text-[10px] text-allgood-secondary hover:underline">${msg.agentEmail}</a></div>
+                            <p class="text-sm text-slate-300 leading-relaxed font-mono bg-black/20 p-2 rounded border border-white/5 border-l-2 border-l-blue-500/50">"${msg.message}"</p>
                         </div>
                     </div>
                 `;
@@ -453,14 +435,13 @@
         // --- LOAD DOSSIER (UPDATED) ---
         async function loadAgentDossier(agentId) {
             const container = document.getElementById('dossier-content');
-            container.innerHTML = `<div class="p-10 text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-allgood-secondary mb-2"></i><p class="text-xs font-bold text-slate-400 uppercase">Decrypting Agent File...</p></div>`;
+            container.innerHTML = `<div class="p-10 text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-blue-500 mb-2"></i><p class="text-xs font-bold text-slate-500 uppercase">Decrypting Agent File...</p></div>`;
             lucide.createIcons();
 
             const agent = window.insiderData.allAgents.find(a => a.id === agentId);
             if(!agent) { container.innerHTML = "Agent Not Found."; return; }
 
             try {
-                // Fetch ALL history (limit 100 for safety, but effectively entire recent activity)
                 const launchesRef = collection(db, 'artifacts', appId, 'users', agentId, 'launches');
                 const launchesSnap = await getDocs(query(launchesRef, orderBy('timestamp', 'desc'), limit(100)));
                 const scoresRef = collection(db, 'artifacts', appId, 'users', agentId, 'game_scores');
@@ -476,29 +457,27 @@
                 
                 let activityHtml = '';
                 if(launches.length === 0 && scores.length === 0) {
-                    activityHtml = `<div class="p-4 text-center text-slate-400 text-xs italic">No activity recorded.</div>`;
+                    activityHtml = `<div class="p-4 text-center text-slate-500 text-xs italic">No activity recorded.</div>`;
                 } else {
-                    // Combine and Sort Activities
                     const combined = [
                         ...launches.map(l => ({ ...l, type: 'launch', time: l.timestamp ? l.timestamp.toDate() : new Date(0) })),
                         ...scores.map(s => ({ ...s, type: 'score', time: s.lastUpdated ? s.lastUpdated.toDate() : new Date(0) }))
                     ].sort((a,b) => b.time - a.time);
 
-                    // Store for detail view
                     window.currentAgentActivities = combined;
 
                     combined.forEach((item, index) => {
                          const date = item.time.toLocaleString();
                          if (item.type === 'launch') {
                              activityHtml += `
-                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer group">
+                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group">
                                     <div class="mt-0.5 text-blue-400 group-hover:scale-110 transition-transform"><i data-lucide="rocket" class="w-3 h-3"></i></div>
                                     <div class="flex-grow">
                                         <div class="flex justify-between items-start">
-                                            <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors">Launched: ${item.courseName || 'Unknown'}</p>
-                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                            <p class="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">Launched: ${item.courseName || 'Unknown'}</p>
+                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
                                         </div>
-                                        <p class="text-[9px] text-slate-400 font-mono">${date}</p>
+                                        <p class="text-[9px] text-slate-500 font-mono">${date}</p>
                                     </div>
                                 </div>`;
                          } else if (item.type === 'score') {
@@ -506,15 +485,15 @@
                              const badgeIcon = item.completed ? '<i data-lucide="award" class="w-3 h-3 text-emerald-500"></i>' : '<i data-lucide="activity" class="w-3 h-3 text-amber-500"></i>';
                              
                              activityHtml += `
-                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-emerald-50/30 transition-colors cursor-pointer group">
+                                <div onclick="window.openActivityDetails(${index})" class="flex items-start gap-3 p-3 border-b border-gray-700/50 last:border-0 hover:bg-white/5 transition-colors cursor-pointer group">
                                     <div class="mt-0.5 group-hover:scale-110 transition-transform">${badgeIcon}</div>
                                     <div class="flex-grow">
                                         <div class="flex justify-between items-start">
-                                            <p class="text-xs font-bold text-slate-700 group-hover:text-allgood-secondary transition-colors">${item.gameName || 'Activity'}</p>
-                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                            <p class="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">${item.gameName || 'Activity'}</p>
+                                            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
                                         </div>
                                         <p class="text-[10px] text-slate-500 font-medium">${scoreDetail}</p>
-                                        <p class="text-[9px] text-slate-400 font-mono">${date}</p>
+                                        <p class="text-[9px] text-slate-500 font-mono">${date}</p>
                                     </div>
                                 </div>`;
                          }
@@ -522,33 +501,33 @@
                 }
 
                 container.innerHTML = `
-                    <div class="p-6 border-b border-gray-200 bg-slate-50 flex items-center gap-4 shrink-0 relative">
+                    <div class="p-6 border-b border-gray-700/50 bg-black/20 flex items-center gap-4 shrink-0 relative">
                         <!-- Back Button -->
-                        <button onclick="window.switchView('list')" class="absolute top-4 right-4 bg-white border border-gray-200 hover:bg-gray-100 text-slate-500 px-3 py-1.5 rounded text-xs font-bold shadow-sm flex items-center gap-2 transition-all">
+                        <button onclick="window.switchView('list')" class="absolute top-4 right-4 bg-slate-800 border border-slate-600 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-xs font-bold shadow-sm flex items-center gap-2 transition-all">
                             <i data-lucide="arrow-left" class="w-3 h-3"></i> Return to Roster
                         </button>
 
-                        <div class="w-16 h-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-md text-xl font-bold text-slate-600">${initials}</div>
+                        <div class="w-16 h-16 rounded-full bg-slate-800 border-2 border-slate-600 flex items-center justify-center shadow-lg text-xl font-bold text-slate-400">${initials}</div>
                         <div>
-                            <h2 class="text-2xl font-heading font-bold text-slate-800">${agent.name}</h2>
-                            <div class="flex items-center gap-3 text-xs text-slate-500 font-mono">
+                            <h2 class="text-2xl font-heading font-bold text-white tracking-wide">${agent.name}</h2>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 font-mono">
                                 <span>${agent.email}</span>
-                                <span class="text-gray-300">|</span>
-                                <span class="${agent.isGuest ? 'text-orange-500' : 'text-emerald-600'} font-bold">${agent.isGuest ? 'Guest User' : 'Registered Agent'}</span>
+                                <span class="text-slate-600">|</span>
+                                <span class="${agent.isGuest ? 'text-orange-400' : 'text-emerald-400'} font-bold">${agent.isGuest ? 'Guest User' : 'Registered Agent'}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="flex-grow overflow-hidden h-full bg-white relative">
+                    <div class="flex-grow overflow-hidden h-full bg-transparent relative">
                          <!-- Activity List -->
-                        <div class="p-3 bg-gray-50 border-b border-gray-100 font-bold text-xs uppercase text-slate-500 flex items-center gap-2">
+                        <div class="p-3 bg-white/5 border-b border-gray-700/50 font-bold text-xs uppercase text-slate-400 flex items-center gap-2">
                             <i data-lucide="history" class="w-3 h-3"></i> Complete Activity Log
                         </div>
                         <div class="overflow-y-auto h-full custom-scrollbar p-0 pb-20">
                             ${activityHtml}
                         </div>
                         
-                        <!-- Detail Overlay (Hidden by default) -->
-                        <div id="activity-detail-overlay" class="absolute inset-0 bg-white z-20 transform translate-x-full transition-transform duration-300 flex flex-col">
+                        <!-- Detail Overlay -->
+                        <div id="activity-detail-overlay" class="absolute inset-0 bg-slate-900 z-20 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-700 shadow-2xl">
                             <!-- Content injected by openActivityDetails -->
                         </div>
                     </div>
@@ -557,7 +536,7 @@
             lucide.createIcons();
         }
 
-        // --- NEW: OPEN ACTIVITY DETAILS ---
+        // --- OPEN ACTIVITY DETAILS ---
         window.openActivityDetails = (index) => {
             const item = window.currentAgentActivities[index];
             const overlay = document.getElementById('activity-detail-overlay');
@@ -568,83 +547,65 @@
 
             if (item.type === 'launch') {
                 contentHtml = `
-                    <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-blue-50">
-                        <div class="p-2 bg-white rounded-full text-blue-500"><i data-lucide="rocket" class="w-6 h-6"></i></div>
+                    <div class="p-4 border-b border-gray-700 flex items-center gap-3 bg-blue-900/20">
+                        <div class="p-2 bg-blue-500/20 rounded-full text-blue-400"><i data-lucide="rocket" class="w-6 h-6"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-800">Module Launch</h3>
-                            <p class="text-xs text-slate-500 font-mono">${date}</p>
+                            <h3 class="text-lg font-bold text-white">Module Launch</h3>
+                            <p class="text-xs text-slate-400 font-mono">${date}</p>
                         </div>
                     </div>
                     <div class="p-6 space-y-4">
-                        <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Module Name</p>
-                            <p class="text-sm font-bold text-slate-700">${item.courseName}</p>
+                        <div class="bg-white/5 p-4 rounded border border-white/10">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Module Name</p>
+                            <p class="text-sm font-bold text-slate-200">${item.courseName}</p>
                         </div>
-                         <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Target URL</p>
-                            <a href="${item.targetUrl}" target="_blank" class="text-xs text-blue-600 hover:underline break-all block">${item.targetUrl}</a>
+                         <div class="bg-white/5 p-4 rounded border border-white/10">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Target URL</p>
+                            <a href="${item.targetUrl}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 underline break-all block">${item.targetUrl}</a>
                         </div>
                     </div>
                 `;
             } else if (item.type === 'score') {
-                // Badge Logic
                 let badgeDisplay = '';
                 if (item.badgeArtifact) {
-                    // If stored as raw SVG string
                     if (item.badgeArtifact.startsWith('<svg')) {
                         badgeDisplay = `<div class="w-32 h-32 mx-auto mb-4">${item.badgeArtifact}</div>`;
                     } else {
-                        // If stored as URL
                         badgeDisplay = `<img src="${item.badgeArtifact}" class="w-32 h-32 mx-auto mb-4 object-contain">`;
                     }
                 } else if (item.completed) {
-                     badgeDisplay = `<div class="w-24 h-24 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-500"><i data-lucide="award" class="w-12 h-12"></i></div>`;
+                     badgeDisplay = `<div class="w-24 h-24 mx-auto mb-4 bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]"><i data-lucide="award" class="w-12 h-12"></i></div>`;
                 }
 
                 contentHtml = `
-                    <div class="p-4 border-b border-gray-100 flex items-center gap-3 bg-emerald-50">
-                        <div class="p-2 bg-white rounded-full text-emerald-600"><i data-lucide="trophy" class="w-6 h-6"></i></div>
+                    <div class="p-4 border-b border-gray-700 flex items-center gap-3 bg-emerald-900/20">
+                        <div class="p-2 bg-emerald-500/20 rounded-full text-emerald-400"><i data-lucide="trophy" class="w-6 h-6"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-800">Performance Report</h3>
-                            <p class="text-xs text-slate-500 font-mono">${date}</p>
+                            <h3 class="text-lg font-bold text-white">Performance Report</h3>
+                            <p class="text-xs text-slate-400 font-mono">${date}</p>
                         </div>
                     </div>
                     <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-                        
                         ${badgeDisplay}
-                        
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-3 rounded border border-gray-200 text-center">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Status</p>
-                                <p class="text-lg font-bold ${item.completed ? 'text-emerald-600' : 'text-amber-600'}">${item.completed ? 'Certified' : 'In Progress'}</p>
+                            <div class="bg-white/5 p-3 rounded border border-white/10 text-center">
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status</p>
+                                <p class="text-lg font-bold ${item.completed ? 'text-emerald-400' : 'text-amber-500'}">${item.completed ? 'Certified' : 'In Progress'}</p>
                             </div>
-                            <div class="bg-gray-50 p-3 rounded border border-gray-200 text-center">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Score</p>
-                                <p class="text-lg font-bold text-slate-700">${item.finalScore !== undefined ? item.finalScore : 'N/A'}</p>
+                            <div class="bg-white/5 p-3 rounded border border-white/10 text-center">
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Score</p>
+                                <p class="text-lg font-bold text-white">${item.finalScore !== undefined ? item.finalScore : 'N/A'}</p>
                             </div>
                         </div>
-
-                        <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Module</p>
-                            <p class="text-sm font-bold text-slate-700">${item.gameName}</p>
+                        <div class="bg-white/5 p-4 rounded border border-white/10">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Module</p>
+                            <p class="text-sm font-bold text-slate-200">${item.gameName}</p>
                         </div>
-
-                         ${item.rank ? `
-                        <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Rank Achieved</p>
-                            <p class="text-sm font-bold text-purple-600">${item.rank}</p>
-                        </div>` : ''}
-                        
-                         ${item.feedback ? `
-                        <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">User Feedback</p>
-                            <p class="text-xs italic text-slate-600">"${item.feedback}"</p>
-                        </div>` : ''}
-                        
-                         <!-- Raw Data Inspector (For debugging) -->
+                         ${item.rank ? `<div class="bg-white/5 p-4 rounded border border-white/10"><p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Rank Achieved</p><p class="text-sm font-bold text-purple-400">${item.rank}</p></div>` : ''}
+                         ${item.feedback ? `<div class="bg-white/5 p-4 rounded border border-white/10"><p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">User Feedback</p><p class="text-xs italic text-slate-300">"${item.feedback}"</p></div>` : ''}
                         <div class="mt-4">
-                             <button onclick="document.getElementById('raw-json').classList.toggle('hidden')" class="text-[10px] text-gray-400 underline decoration-dotted">View Raw Data Payload</button>
-                             <pre id="raw-json" class="hidden text-[9px] bg-gray-900 text-green-400 p-2 rounded mt-2 overflow-x-auto">${JSON.stringify(item, null, 2)}</pre>
+                             <button onclick="document.getElementById('raw-json').classList.toggle('hidden')" class="text-[10px] text-slate-500 hover:text-white underline decoration-dotted transition-colors">View Raw Payload</button>
+                             <pre id="raw-json" class="hidden text-[9px] bg-black text-green-400 p-2 rounded mt-2 overflow-x-auto border border-gray-800 font-mono shadow-inner">${JSON.stringify(item, null, 2)}</pre>
                         </div>
                     </div>
                 `;
@@ -653,14 +614,13 @@
             overlay.innerHTML = `
                 <div class="flex-grow flex flex-col h-full relative">
                     <button onclick="document.getElementById('activity-detail-overlay').classList.remove('translate-x-0'); document.getElementById('activity-detail-overlay').classList.add('translate-x-full');" 
-                            class="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white text-slate-500 hover:text-red-500 p-2 rounded-full shadow-sm transition-all border border-gray-200">
+                            class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-red-500/20 text-slate-400 hover:text-red-400 p-2 rounded-full transition-all border border-transparent hover:border-red-500/50">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                     ${contentHtml}
                 </div>
             `;
             
-            // Slide in
             overlay.classList.remove('translate-x-full');
             overlay.classList.add('translate-x-0');
             lucide.createIcons();
@@ -687,11 +647,11 @@
             const txt = document.getElementById('status-text');
             const icon = document.getElementById('status-icon');
             txt.textContent = msg; modal.classList.remove('translate-y-[-150%]', 'opacity-0');
-            if(type === 'error') { modal.className = "absolute top-4 right-4 z-[9999] bg-red-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-red-400"; icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>'; }
-            else { modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-600 text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 transform border border-emerald-400"; icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>'; }
+            if(type === 'error') { modal.className = "absolute top-4 right-4 z-[9999] bg-red-900/90 text-white px-6 py-4 rounded shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-500 flex items-center gap-3 backdrop-blur-md"; icon.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>'; }
+            else { modal.className = "absolute top-4 right-4 z-[9999] bg-emerald-900/90 text-white px-6 py-4 rounded shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-500 flex items-center gap-3 backdrop-blur-md"; icon.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>'; }
             lucide.createIcons(); setTimeout(() => { modal.classList.add('translate-y-[-150%]', 'opacity-0'); }, 3000);
         }
-        function shakeScreen() { document.querySelector('.tablet-frame').classList.add('animate-shake'); setTimeout(() => document.querySelector('.tablet-frame').classList.remove('animate-shake'), 500); }
+        
         window.initApp = () => {
             const startup = document.getElementById('startup-screen');
             startup.classList.add('opacity-0', 'pointer-events-none');
@@ -731,17 +691,20 @@
                         'body': ['Verdana', 'sans-serif'],
                     },
                     animation: {
-                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.98)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 10px rgba(53, 120, 137, 0.2)' },
+                            '50%': { boxShadow: '0 0 25px rgba(53, 120, 137, 0.6)' },
+                        }
                     }
                 },
-                keyframes: {
-                    shake: {
-                        '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                        '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                        '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                        '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
-                    }
-                }
             },
         }
     </script>
@@ -749,260 +712,319 @@
     <style>
         body {
             font-family: Verdana, sans-serif;
-            background-color: #f1f5f9;
-            background-image: none;
+            background-color: #0f172a; /* Dark background base */
+            background-image: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
             min-height: 100vh;
             margin: 0; padding: 0;
             display: flex; align-items: center; justify-content: center;
+            overflow: hidden; /* Prevent body scroll */
         }
 
-        /* --- SCREEN CONTAINER --- */
-        .screen-container {
-            width: 100vw; height: 100vh;
-            background-color: #f1f5f9;
-            position: relative; z-index: 1; overflow: hidden;
-            display: flex; flex-direction: column; 
-            border-radius: 0; box-shadow: none;
+        /* --- HOLOGRAPHIC CONTAINER --- */
+        .projected-container {
+            width: 90vw; 
+            height: 85vh;
+            max-width: 1400px;
+            background-color: rgba(15, 23, 42, 0.6); /* Semi-transparent dark */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 
+                0 0 40px rgba(0, 0, 0, 0.5),
+                0 0 10px rgba(53, 120, 137, 0.2), /* Subtle Cyan Glow */
+                inset 0 0 20px rgba(255, 255, 255, 0.05);
+            position: relative;
+            z-index: 10;
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
+            /* Optional Keystone Effect for "Projection" feel */
+            /* transform: perspective(1000px) rotateX(1deg); */
         }
 
-        .hidden-modal { opacity: 0; pointer-events: none; transform: translateX(10px); transition: all 0.3s ease; }
-        .visible-modal { opacity: 1; pointer-events: auto; transform: translateX(0); transition: all 0.3s ease; }
+        /* Scanline Overlay */
+        .projected-container::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 50;
+        }
+
+        .hidden-modal { opacity: 0; pointer-events: none; transform: scale(0.95); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .visible-modal { opacity: 1; pointer-events: auto; transform: scale(1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .updated-pulse { animation: text-flash 1s ease-out; }
         @keyframes text-flash { 0% { color: #D34716; transform: scale(1.1); } 100% { color: inherit; transform: scale(1); } }
         
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
-        /* OS Header Style */
-        .navbar-content { flex: 0 0 60px; z-index: 30; background: rgba(53, 120, 137, 0.85); backdrop-filter: blur(5px); border-bottom: 1px solid rgba(255,255,255,0.1); color: white; transition: opacity 0.3s; position: relative; }
+        /* HEADER & FOOTER */
+        .navbar-content { 
+            flex: 0 0 70px; z-index: 30; 
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0)); 
+            border-bottom: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        /* CARD STYLES */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.2), 0 0 10px rgba(53, 120, 137, 0.1);
+        }
+
+        /* TEXT UTILS */
+        .text-glow { text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .text-glow-primary { text-shadow: 0 0 10px rgba(211, 71, 22, 0.4); }
     </style>
 </head>
-<body class="text-slate-700">
+<body class="text-slate-300">
 
-    <main class="w-full h-screen">
-        <div class="screen-container h-full w-full">
+    <!-- FLOATING HUD CONTAINER -->
+    <main class="w-full h-screen flex items-center justify-center relative">
+        
+        <!-- Ambient Background Glows -->
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none animate-pulse" style="animation-delay: 1s;"></div>
 
-                <!-- 1. STARTUP SCREEN (CORRECTED: Dark Mode, Clean Text) -->
-                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-900">
+        <div class="projected-container">
+
+                <!-- 1. STARTUP SCREEN -->
+                <div id="startup-screen" onclick="window.initApp()" class="absolute inset-0 z-[5000] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-slate-950/90 backdrop-blur-xl">
                     <div class="text-center group relative">
                         <!-- Glow Effect -->
-                        <div class="absolute inset-0 bg-allgood-primary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div class="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         
-                        <div class="mb-6 relative z-10">
-                            <i data-lucide="shield" class="w-24 h-24 text-allgood-primary mx-auto drop-shadow-sm group-hover:scale-105 transition-transform duration-500"></i>
+                        <div class="mb-8 relative z-10 animate-float">
+                            <i data-lucide="scan-line" class="w-24 h-24 text-cyan-400 mx-auto drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"></i>
                         </div>
                         
-                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-tighter uppercase">
-                            <span class="text-allgood-primary">Welcome to Your</span> <span class="text-white">Academy</span>
+                        <h1 class="relative z-10 text-4xl md:text-6xl font-heading font-bold tracking-widest text-white mb-2 text-glow">
+                            INSIDER<span class="text-cyan-400">.OS</span>
                         </h1>
+                        <p class="text-xs text-slate-500 font-mono uppercase tracking-[0.5em] mb-8">Secure Terminal Access</p>
                         
-                        <p id="startup-message" class="mt-8 text-slate-500 text-xs tracking-[0.3em] uppercase font-medium group-hover:text-white transition-colors animate-pulse font-body">
-                            Click to Power Up
+                        <div class="mt-8 flex justify-center">
+                             <div class="h-1 w-24 bg-slate-800 rounded overflow-hidden">
+                                 <div class="h-full bg-cyan-500 animate-[loading_2s_ease-in-out_infinite]"></div>
+                             </div>
+                        </div>
+                        
+                        <p id="startup-message" class="mt-8 text-cyan-500/60 text-xs tracking-[0.3em] uppercase font-bold group-hover:text-cyan-400 transition-colors animate-pulse font-mono">
+                            [ Initialize System ]
                         </p>
                     </div>
                 </div>
 
                 <!-- 2. LOGIN MODAL -->
-                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 !visible-modal !opacity-100 !pointer-events-auto" style="display:none;">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary">
-                        <div class="mb-6">
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200">
-                                <i data-lucide="lock" class="w-8 h-8 text-slate-400"></i>
+                <div id="login-modal" class="hidden-modal absolute inset-0 z-[4000] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4" style="display:none;">
+                    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-10 max-w-sm w-full text-center relative overflow-hidden">
+                        <!-- Top Light Bar -->
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+                        
+                        <div class="mb-8">
+                            <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 shadow-inner">
+                                <i data-lucide="fingerprint" class="w-10 h-10 text-cyan-400"></i>
                             </div>
-                            <h2 class="text-2xl font-heading font-bold text-allgood-dark">Director Access</h2>
-                            <p class="text-xs text-gray-500 mt-2 font-body leading-relaxed">
-                                This terminal is restricted to Allgood Academy administrative personnel only. All access attempts are logged.
+                            <h2 class="text-2xl font-heading font-bold text-white tracking-wide">Identity Check</h2>
+                            <p class="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
+                                Biometric clearance required for Tier 1 access.
                             </p>
                         </div>
                         
-                        <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-4 rounded shadow-md transition-all font-body uppercase tracking-wide flex items-center justify-center gap-3 group">
-                            <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        <button id="btn-verify" onclick="window.handleLogin()" class="w-full bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 font-bold py-4 rounded-lg shadow-lg border border-cyan-500/30 transition-all font-mono uppercase tracking-widest flex items-center justify-center gap-3 group">
+                            <i data-lucide="scan" class="w-4 h-4 group-hover:text-white transition-colors"></i>
                             <span>Verify Credentials</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- 3. DASHBOARD VIEW -->
-                <div id="dashboard-view" class="hidden flex flex-col h-full overflow-hidden w-full">
+                <!-- 3. DASHBOARD VIEW (HUD) -->
+                <div id="dashboard-view" class="hidden flex flex-col h-full overflow-hidden w-full relative">
                     
-                    <!-- Header (MATCHING DASHBOARD OS STYLE) -->
-                    <header id="main-navbar" class="navbar-content flex items-center justify-between px-6 shadow-md relative z-30 opacity-0">
-                        <div class="flex items-center overflow-hidden">
-                            <div class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none uppercase">
-                                ALLGOOD ACADEMY <span class="opacity-60 text-sm font-normal">| INSIDER COMMAND</span>
+                    <!-- Header -->
+                    <header id="main-navbar" class="navbar-content flex items-center justify-between px-8 relative z-30 opacity-0 transition-opacity duration-1000">
+                        <div class="flex items-center gap-4">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
+                            <div class="flex flex-col">
+                                <h1 class="text-white font-heading font-bold text-lg tracking-wider">OPS COMMAND</h1>
+                                <span class="text-[9px] text-cyan-500 font-mono uppercase tracking-widest">System Online</span>
                             </div>
                         </div>
                         <!-- Control Cluster -->
-                        <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button id="btn-home" onclick="window.switchView('home')" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Home">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                            </button>
-                            <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            
-                            <!-- Fullscreen toggle logic removed as app is now natively full-screen -->
-                            
-                            <button id="btn-menu" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10" title="Menu" onclick="window.toggleMenu()">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                            </button>
+                        <div class="flex items-center space-x-4">
+                            <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                                <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>
+                                <span class="text-[10px] font-mono text-cyan-200">SECURE CONNECTION</span>
+                            </div>
+                            <button id="btn-home" onclick="window.switchView('home')" class="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"><i data-lucide="layout-grid" class="w-5 h-5"></i></button>
+                            <button id="btn-menu" class="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5" onclick="window.toggleMenu()"><i data-lucide="menu" class="w-5 h-5"></i></button>
                         </div>
                     </header>
-                    
-                    <!-- EDIT AGENT MODAL -->
-                    <div id="edit-agent-modal" class="hidden-modal absolute inset-0 z-[5000] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 modal-transition" style="display:none;">
-                        <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full relative">
-                            <button onclick="window.closeEditAgentModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-2"><i data-lucide="x" class="w-5 h-5"></i></button>
-                            <h3 class="text-lg font-heading font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-allgood-secondary"></i> Edit Agent Profile</h3>
-                            
-                            <div class="space-y-4">
+
+                    <!-- EDIT AGENT MODAL (GLASS) -->
+                    <div id="edit-agent-modal" class="hidden-modal absolute inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" style="display:none;">
+                        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-8 max-w-sm w-full relative">
+                            <button onclick="window.closeEditAgentModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                            <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-cyan-400"></i> Modify Profile</h3>
+                            <div class="space-y-5">
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Agent Alias</label>
-                                    <input type="text" id="edit-agent-name" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-allgood-secondary outline-none">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Alias</label>
+                                    <input type="text" id="edit-agent-name" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-sm text-white focus:border-cyan-500 focus:outline-none transition-colors font-mono">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contact Email</label>
-                                    <input type="email" id="edit-agent-email" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-allgood-secondary outline-none">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Comms Channel</label>
+                                    <input type="email" id="edit-agent-email" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-sm text-white focus:border-cyan-500 focus:outline-none transition-colors font-mono">
                                 </div>
-                                <button id="btn-save-changes" onclick="window.saveAgentChanges()" class="w-full bg-allgood-secondary hover:bg-allgood-hover text-white font-bold py-2 rounded shadow-sm text-sm transition-colors">Save Changes</button>
+                                <button id="btn-save-changes" onclick="window.saveAgentChanges()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded shadow-lg transition-all text-xs uppercase tracking-widest mt-2">Save Changes</button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Sidebar Menu (MATCHING DASHBOARD OS STYLE) -->
-                    <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-slate-900/50 flex justify-end modal-transition backdrop-blur-sm">
-                        <div class="w-64 h-full bg-white shadow-2xl flex flex-col border-l border-slate-200">
-                            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                <span class="font-bold text-slate-700 font-heading uppercase">System Menu</span>
-                                <button onclick="window.toggleMenu()" class="text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <!-- Sidebar Menu -->
+                    <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/40 flex justify-end transition-transform backdrop-blur-sm">
+                        <div class="w-72 h-full bg-slate-900/95 border-l border-slate-700 shadow-2xl flex flex-col backdrop-blur-xl">
+                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                                <span class="font-bold text-white font-heading uppercase tracking-widest">System Menu</span>
+                                <button onclick="window.toggleMenu()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
                             </div>
-                            <div class="p-3 space-y-1">
-                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.switchView('home'); window.toggleMenu();">
-                                    <i data-lucide="layout-grid" class="w-4 h-4 mr-3 text-allgood-primary"></i>Command Center
+                            <div class="p-4 space-y-2">
+                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.switchView('home'); window.toggleMenu();">
+                                    <i data-lucide="activity" class="w-4 h-4 mr-3 text-cyan-500"></i>Mission Control
                                 </button>
-                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.loadIntel(); window.toggleMenu();">
-                                    <i data-lucide="radio" class="w-4 h-4 mr-3 text-purple-600"></i>Field Intel
+                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.loadIntel(); window.toggleMenu();">
+                                    <i data-lucide="radio" class="w-4 h-4 mr-3 text-purple-500"></i>Intercepts
                                 </button>
-                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.switchView('list'); window.toggleMenu();">
-                                    <i data-lucide="users" class="w-4 h-4 mr-3 text-blue-600"></i>Agent Roster
+                                <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-slate-300 hover:text-white font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.switchView('list'); window.toggleMenu();">
+                                    <i data-lucide="users" class="w-4 h-4 mr-3 text-blue-500"></i>Agent Roster
                                 </button>
-                                <div class="border-t border-slate-100 my-2"></div>
-                                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center transition-colors uppercase" onclick="window.handleLogout()">
-                                    <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>Log Out
+                                <div class="h-px bg-white/10 my-2 mx-4"></div>
+                                <button class="w-full text-left px-4 py-3 rounded hover:bg-red-500/10 text-red-400 hover:text-red-300 font-bold flex items-center transition-colors uppercase text-xs tracking-wide" onclick="window.handleLogout()">
+                                    <i data-lucide="power" class="w-4 h-4 mr-3"></i>Disconnect
                                 </button>
-                            </div>
-                            <div class="mt-auto p-4 bg-slate-50 border-t border-slate-200 text-center">
-                                <p class="text-xs text-slate-500 font-body">Allgood Academy &copy; 2025</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Main Scrollable Area Container -->
-                    <div class="flex-grow flex flex-col overflow-hidden relative">
+                    <!-- Main Content -->
+                    <div class="flex-grow p-8 overflow-y-auto custom-scrollbar">
                         
-                        <!-- VIEW 1: STATS GRID (WIDGETS) -->
-                        <div id="view-home" class="absolute inset-0 overflow-y-auto pr-2 pb-6 custom-scrollbar p-6">
-                            <div id="widget-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                                <!-- Clickable Card 1: All SSO (Email Only) -->
-                                <div onclick="window.switchView('list', 'all_sso')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-allgood-secondary">Total Agents</span>
-                                        <span id="stat-total-agents" class="block text-3xl font-heading font-bold text-slate-700">--</span>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
-                                        <i data-lucide="users" class="w-5 h-5"></i>
-                                    </div>
-                                </div>
-                                <!-- Clickable Card 2: Active 24h -->
-                                <div onclick="window.switchView('list', 'active')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-emerald-600">Active (24h)</span>
-                                        <span id="stat-active-24h" class="block text-3xl font-heading font-bold text-emerald-600">--</span>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
-                                        <i data-lucide="activity" class="w-5 h-5"></i>
+                        <!-- VIEW 1: STATS GRID -->
+                        <div id="view-home" class="space-y-8 animate-fade-in">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <!-- Card 1 -->
+                                <div onclick="window.switchView('list', 'all_sso')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-[10px] uppercase text-blue-300 font-bold tracking-widest">Active Agents</span>
+                                            <i data-lucide="users" class="w-5 h-5 text-blue-400"></i>
+                                        </div>
+                                        <span id="stat-total-agents" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
+                                        <div class="mt-2 h-1 w-full bg-blue-900/30 rounded-full overflow-hidden"><div class="h-full bg-blue-500 w-3/4 shadow-[0_0_10px_#3b82f6]"></div></div>
                                     </div>
                                 </div>
-                                <!-- Clickable Card 3: Total Ecosystem (All Users) -->
-                                <div onclick="window.switchView('list', 'all')" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-orange-600">Total Ecosystem</span>
-                                        <span id="stat-ecosystem" class="block text-3xl font-heading font-bold text-orange-600">--</span>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-100 transition-colors">
-                                        <i data-lucide="globe" class="w-5 h-5"></i>
+                                <!-- Card 2 -->
+                                <div onclick="window.switchView('list', 'active')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-[10px] uppercase text-emerald-300 font-bold tracking-widest">Live Signals</span>
+                                            <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
+                                        </div>
+                                        <span id="stat-active-24h" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
+                                        <div class="mt-2 h-1 w-full bg-emerald-900/30 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 w-1/2 shadow-[0_0_10px_#10b981] animate-pulse"></div></div>
                                     </div>
                                 </div>
-                                <!-- Clickable Card 4: Field Intel -->
-                                <div onclick="window.loadIntel()" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer h-24">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider group-hover:text-purple-600">Field Intel</span>
-                                        <span id="stat-intel" class="block text-3xl font-heading font-bold text-purple-600">-</span>
+                                <!-- Card 3 -->
+                                <div onclick="window.switchView('list', 'all')" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-[10px] uppercase text-orange-300 font-bold tracking-widest">Total Net</span>
+                                            <i data-lucide="globe" class="w-5 h-5 text-orange-400"></i>
+                                        </div>
+                                        <span id="stat-ecosystem" class="block text-4xl font-heading font-bold text-white text-glow">--</span>
+                                        <div class="mt-2 h-1 w-full bg-orange-900/30 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-full shadow-[0_0_10px_#f97316]"></div></div>
                                     </div>
-                                    <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-100 transition-colors">
-                                        <i data-lucide="radio" class="w-5 h-5"></i>
+                                </div>
+                                <!-- Card 4 -->
+                                <div onclick="window.loadIntel()" class="glass-card p-5 rounded-xl cursor-pointer group relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-[10px] uppercase text-purple-300 font-bold tracking-widest">Intel Logs</span>
+                                            <i data-lucide="radio" class="w-5 h-5 text-purple-400"></i>
+                                        </div>
+                                        <span id="stat-intel" class="block text-4xl font-heading font-bold text-white text-glow">-</span>
+                                        <div class="mt-2 h-1 w-full bg-purple-900/30 rounded-full overflow-hidden"><div class="h-full bg-purple-500 w-1/4 shadow-[0_0_10px_#a855f7]"></div></div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Visualization Area Placeholder -->
+                            <div class="glass-card h-64 rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 bg-grid-pattern opacity-10"></div>
+                                <p class="text-sm font-mono text-slate-500 uppercase tracking-widest">[ VISUALIZATION MATRIX STANDBY ]</p>
+                            </div>
+                        </div>
+
+                        <!-- VIEW 2: ROSTER -->
+                        <div id="view-list" class="hidden animate-fade-in h-full flex flex-col">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 id="list-view-title" class="text-lg font-bold text-white uppercase tracking-widest">Agent Roster</h3>
+                                <div class="relative">
+                                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                                    <input type="text" id="agent-search" onkeyup="window.filterRoster()" placeholder="SEARCH DATABASE..." 
+                                           class="pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700 rounded text-xs text-white focus:border-cyan-500 focus:outline-none uppercase tracking-wide placeholder-slate-600 w-64 transition-all">
+                                </div>
+                            </div>
+                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5">
+                                <div class="overflow-y-auto custom-scrollbar flex-grow">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead class="bg-white/5 sticky top-0 z-10 backdrop-blur-md">
+                                            <tr>
+                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Identity</th>
+                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Status</th>
+                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10">Created</th>
+                                                <th class="px-6 py-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-white/10 text-right">Last Signal</th>
+                                                <th class="px-6 py-4 border-b border-white/10 w-10"></th>
+                                                <th class="px-2 py-4 border-b border-white/10 w-10"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="roster-body" class="divide-y divide-white/5"></tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- VIEW 2: DYNAMIC LIST CONTAINER (FULL HEIGHT) -->
-                        <div id="view-list" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md shadow-sm border-t border-white/60 overflow-hidden flex flex-col z-10">
-                            <!-- Toolbar with Search -->
-                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
-                                <div class="flex items-center gap-4 flex-grow">
-                                    <h3 id="list-view-title" class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2 whitespace-nowrap">
-                                        Agent Roster
-                                    </h3>
-                                    <!-- Search Bar -->
-                                    <div class="relative w-full max-w-sm">
-                                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                                        <input type="text" id="agent-search" onkeyup="window.filterRoster()" placeholder="Search agents by name or email..." 
-                                               class="w-full pl-9 pr-4 py-2 bg-white/80 border border-gray-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-allgood-secondary focus:border-transparent placeholder-slate-400 shadow-inner">
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase" id="stats-loading">Live</span>
-                                    <button onclick="window.loadDashboardData()" title="Refresh" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
-                            
-                            <!-- Scrollable Table Body -->
-                            <div class="flex-grow overflow-y-auto custom-scrollbar bg-white/40 p-4">
-                                <table class="w-full text-left border-collapse">
-                                    <thead class="bg-allgood-secondary border-b border-allgood-secondary sticky top-0 z-10 shadow-md">
-                                        <tr>
-                                            <th class="px-6 py-3 text-[10px] font-bold text-white uppercase tracking-widest w-1/3">Identity</th>
-                                            <th class="px-6 py-3 text-[10px] font-bold text-white uppercase tracking-widest">Status</th>
-                                            <th class="px-6 py-3 text-[10px] font-bold text-white uppercase tracking-widest">Created</th>
-                                            <th class="px-6 py-3 text-[10px] font-bold text-white uppercase tracking-widest text-right">Last Signal</th>
-                                            <th class="px-6 py-3 w-10"></th>
-                                            <th class="px-2 py-3 w-10"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="roster-body" class="divide-y divide-gray-100">
-                                        <!-- Dynamic Rows Injected Here -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <!-- VIEW 3: DOSSIER -->
+                        <div id="view-dossier" class="hidden animate-fade-in h-full flex flex-col">
+                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5 relative" id="dossier-content"></div>
                         </div>
 
-                        <!-- VIEW 3: AGENT DOSSIER (Hidden by default) -->
-                        <div id="view-dossier" class="hidden absolute inset-0 bg-white/95 backdrop-blur-md shadow-xl border-t border-white/60 overflow-hidden flex flex-col z-20">
-                            <!-- Header is injected dynamically -->
-                            <div id="dossier-content" class="h-full flex flex-col"></div>
-                        </div>
-
-                        <!-- VIEW 4: INTEL / MESSAGES (NEW) -->
-                        <div id="view-intel" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md shadow-sm border-t border-white/60 overflow-hidden flex flex-col z-10">
-                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50 shrink-0">
-                                <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
-                                    <i data-lucide="inbox" class="w-4 h-4 text-purple-600"></i> Field Intelligence & Comms
-                                </h3>
-                                <button onclick="window.loadIntel()" title="Refresh Intel" class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                            </div>
-                            <div id="intel-content" class="flex-grow overflow-y-auto custom-scrollbar p-4">
-                                <!-- Dynamic Messages Injected Here -->
+                        <!-- VIEW 4: INTEL -->
+                        <div id="view-intel" class="hidden animate-fade-in h-full flex flex-col">
+                            <h3 class="text-lg font-bold text-white uppercase tracking-widest mb-4">Intercepted Comms</h3>
+                            <div class="glass-card rounded-xl overflow-hidden flex-grow flex flex-col border border-white/5">
+                                <div id="intel-content" class="flex-grow overflow-y-auto custom-scrollbar p-2 space-y-2"></div>
                             </div>
                         </div>
 
@@ -1010,13 +1032,34 @@
                 </div>
 
                 <!-- Status Toast -->
-                <div id="status-toast" class="absolute top-4 right-4 z-[9999] opacity-0 translate-y-[-150%] transition-all duration-300 pointer-events-none">
-                    <div id="status-icon"></div>
-                    <span id="status-text" class="text-sm font-bold"></span>
+                <div id="status-toast" class="absolute bottom-8 right-8 z-[9999] opacity-0 translate-y-10 transition-all duration-500 pointer-events-none">
+                    <div class="glass-card px-6 py-3 rounded-lg border border-cyan-500/30 flex items-center gap-3 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+                        <div id="status-icon" class="text-cyan-400"></div>
+                        <span id="status-text" class="text-xs font-bold text-cyan-100 uppercase tracking-wide"></span>
+                    </div>
                 </div>
 
-            </div>
+        </div>
     </main>
+    
+    <style>
+        /* Add smooth fade animation */
+        @keyframes loading {
+            0% { width: 0%; opacity: 1; }
+            50% { width: 50%; opacity: 0.5; }
+            100% { width: 100%; opacity: 0; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .bg-grid-pattern {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
 
 </body>
 </html>
