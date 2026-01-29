@@ -469,7 +469,13 @@
                     <div class="page" id="page-2">
                         <section class="mb-8 text-center border-b border-gray-200 pb-4"><h2 class="text-2xl font-heading font-bold text-allgood-dark">Clearance Roadmap</h2></section>
                         <div class="space-y-4 max-w-md mx-auto">
-                            <div class="glass-panel p-6 flex items-center gap-6 career-step active"><div class="w-10 h-10 bg-allgood-secondary text-white rounded-full flex items-center justify-center font-bold shadow-md">01</div><div><h4 class="font-bold text-allgood-secondary">Junior Analyst</h4><p class="text-xs text-gray-500">Core relational connections.</p></div></div>
+                            <!-- LOCKED MISSION CARD -->
+                            <div id="mission-card-1" onclick="window.unlockMission()" class="glass-panel p-6 flex items-center gap-6 career-step active cursor-pointer hover:bg-white transition-all relative overflow-hidden ring-0">
+                                <div class="absolute inset-0 bg-gray-100/80 z-10 flex items-center justify-center font-bold text-gray-400 uppercase tracking-widest text-xs transition-opacity duration-300" id="mission-lock-overlay"><i data-lucide="lock" class="w-4 h-4 mr-2"></i> Click to Unlock</div>
+                                <div class="w-10 h-10 bg-allgood-secondary text-white rounded-full flex items-center justify-center font-bold shadow-md relative z-0">01</div>
+                                <div class="relative z-0"><h4 class="font-bold text-allgood-secondary">Junior Analyst</h4><p class="text-xs text-gray-500">Core relational connections.</p></div>
+                            </div>
+                            
                             <div class="glass-panel p-6 flex items-center gap-6 career-step active"><div class="w-10 h-10 bg-allgood-accent text-white rounded-full flex items-center justify-center font-bold shadow-md">02</div><div><h4 class="font-bold text-allgood-accent">Senior Associate</h4><p class="text-xs text-gray-500">Group properties and anomalies.</p></div></div>
                             <div class="glass-panel p-6 flex items-center gap-6 career-step active"><div class="w-10 h-10 bg-allgood-primary text-white rounded-full flex items-center justify-center font-bold shadow-md">03</div><div><h4 class="font-bold text-allgood-primary">Lead Director</h4><p class="text-xs text-gray-500">Abstract relationships.</p></div></div>
                         </div>
@@ -531,6 +537,23 @@
         let currentPageIndex = 0;
         let stageScores = [0, 0, 0];
         let currentLevelIndices = [0, 0, 0];
+        
+        // UNLOCK MISSION LOGIC
+        window.missionUnlocked = false;
+        window.unlockMission = () => {
+            if(window.missionUnlocked) return;
+            window.missionUnlocked = true;
+            document.getElementById('mission-lock-overlay').style.opacity = '0';
+            document.getElementById('mission-lock-overlay').style.pointerEvents = 'none';
+            document.getElementById('mission-card-1').classList.add('ring-2', 'ring-allgood-secondary', 'bg-blue-50');
+            
+            const btn = document.getElementById('next-button');
+            btn.style.display = 'flex';
+            btn.innerHTML = `<span>LAUNCH MISSION ALPHA</span><i data-lucide="rocket" class="w-4 h-4 ml-1"></i>`;
+            btn.classList.add('animate-pulse'); 
+            sfx.powerOn();
+            lucide.createIcons();
+        }
 
         // VERBAL DATASET (30 Questions from RTF)
         const questions = {
@@ -618,7 +641,24 @@
 
             const q = data[idx];
             document.getElementById(`s${stageNum}-q-text`).innerText = q.q;
-            document.getElementById(`q-counter-${stageNum}`).innerText = `${idx + 1} / 10`;
+            
+            // ACTIVE COMMAND HEADER UPDATE
+            const directives = {
+                1: "DIRECTIVE: DECIPHER ANALOGY",
+                2: "DIRECTIVE: ISOLATE ANOMALY",
+                3: "DIRECTIVE: ANALYZE RELATIONSHIP"
+            };
+            const iconMap = {1: "shield", 2: "shield-check", 3: "shield-alert"};
+            
+            const headerHTML = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="${iconMap[stageNum]}" class="w-4 h-4"></i> 
+                    <span class="text-[10px] font-bold uppercase tracking-widest">${directives[stageNum]}</span>
+                </div>
+                <span id="q-counter-${stageNum}" class="text-[10px] font-mono font-bold">${idx + 1} / 10</span>
+            `;
+            const headerEl = document.getElementById(`s${stageNum}-header`);
+            if(headerEl) headerEl.innerHTML = headerHTML;
             
             const options = document.getElementById(`s${stageNum}-options`);
             options.innerHTML = '';
@@ -634,6 +674,7 @@
             // Remove internal scrolling reset for mobile since we removed the scroll container
             const body = document.getElementById(`s${stageNum}-body`);
             if(body) body.scrollTop = 0; 
+            lucide.createIcons();
         }
 
         function handleAnswer(stageNum, choiceIdx) {
@@ -692,16 +733,40 @@
             currentPageIndex = idx;
             progressBar.style.width = `${((idx + 1) / totalPages) * 100}%`;
             document.getElementById('header-page-indicator').textContent = `${idx + 1} / ${totalPages}`;
+            
+            // PAGE 2 (ROADMAP) LOGIC
+            if (idx === 1) {
+                window.missionUnlocked = false; 
+                nextBtn.style.display = 'none'; // Lock navigation
+                
+                // Reset card UI
+                const overlay = document.getElementById('mission-lock-overlay');
+                const card = document.getElementById('mission-card-1');
+                if(overlay && card) {
+                     overlay.style.opacity = '1';
+                     overlay.style.pointerEvents = 'auto';
+                     card.classList.remove('ring-2', 'ring-allgood-secondary', 'bg-blue-50');
+                }
+            } else {
+                 nextBtn.style.display = 'flex';
+                 nextBtn.classList.remove('animate-pulse');
+            }
+
             if (idx === 2) loadQuestion(1);
             if (idx === 4) loadQuestion(2);
             if (idx === 6) loadQuestion(3);
             
-            // Final Page Logic for Next Button - UPDATED FOR DEBRIEF MODAL
-            if (idx === totalPages - 1) { // Page 9 (Index 8) is the last page
+            // SUCCESS PAGE BUTTON TEXT UPDATES
+            if (idx === 3) { // Success 1
+                 nextBtn.innerHTML = `<span>INITIALIZE STAGE 2</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>`;
+            } else if (idx === 5) { // Success 2
+                 nextBtn.innerHTML = `<span>INITIALIZE STAGE 3</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>`;
+            } else if (idx === totalPages - 1) { // Final Page
                 nextBtn.innerHTML = `<span>Finish</span><i data-lucide="flag" class="w-4 h-4 ml-1"></i>`;
-                nextBtn.onclick = window.openNextStepsModal; // CHANGED HERE
+                nextBtn.onclick = window.openNextStepsModal;
             } else {
-                nextBtn.innerHTML = `<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>`;
+                // Default Next Button (Logic handles hiding for Page 2 above)
+                if (idx !== 1) nextBtn.innerHTML = `<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>`;
                 nextBtn.onclick = () => showPage(currentPageIndex + 1);
             }
             
@@ -728,7 +793,6 @@
 
             backBtn.disabled = idx === 0;
             backBtn.classList.toggle('opacity-0', idx === 0);
-            nextBtn.style.display = 'flex'; 
             document.getElementById('main-scroll-view').scrollTop = 0;
             lucide.createIcons();
             sfx.nav();
