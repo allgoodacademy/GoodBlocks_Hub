@@ -1637,6 +1637,10 @@
             });
 
             // Initial Render
+            pages.forEach(p => { 
+                const idx = parseInt(p.getAttribute('data-scenario-index')); 
+                if(idx) renderScenarioPage(p, idx); 
+            });
             window.showPage(0);
             updateTOC();
             
