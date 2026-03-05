@@ -38,12 +38,10 @@
         window.isAuthReady = false;
         
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-        console.log("[System] Session ID generated:", window.sessionId);
 
         onAuthStateChanged(auth, async (user) => {
             window.isAuthReady = true;
             if (user) {
-                console.log("[Auth] User detected:", user.uid);
                 window.currentUser = user;
                 let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
                 
@@ -67,7 +65,6 @@
                     }
                 }
             } else {
-                console.log("[Auth] No user signed in.");
                 window.currentUser = null;
                 if(window.updateUserDisplay) window.updateUserDisplay("Agent Learner");
             }
@@ -96,18 +93,80 @@
             } catch (e) { console.error("[DB] Session Write Failed", e); }
         }
 
-        window.sendDirectMessageToHQ = async (text) => {
+        // MOVED INSIDE MODULE: Secure messaging logic directly accessing Firestore
+        window.submitHQMessage = async () => {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            const btn = document.getElementById('btn-send-message');
+            
+            if (!text) return;
+            
             const user = auth.currentUser;
-            if (!user) throw new Error("No user signed in.");
-            const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
-            await addDoc(targetCollection, {
-                senderName: user.displayName || "Guest Agent",
-                senderEmail: user.email || "Anonymous",
-                message: text,
-                source: "Digital Decisions Challenge",
-                timestamp: serverTimestamp(),
-                isGuest: user.isAnonymous
-            });
+            if (!user) {
+                const originalText = btn.innerHTML;
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.textContent = "Please Sign In First";
+                if(window.sfx) window.sfx.powerOff();
+                
+                setTimeout(() => {
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    btn.innerHTML = originalText;
+                    if(window.lucide) window.lucide.createIcons();
+                }, 2000);
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.textContent = "Sending...";
+
+            try {
+                const targetCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'feedback_inbox');
+                await addDoc(targetCollection, {
+                    senderName: user.displayName || "Guest Agent",
+                    senderEmail: user.email || "Anonymous",
+                    message: text,
+                    source: "Digital Decisions Challenge",
+                    timestamp: serverTimestamp(),
+                    isGuest: user.isAnonymous
+                });
+                
+                if(window.sfx) window.sfx.confirm();
+                input.value = "";
+                
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Transmission Sent`;
+                if(window.lucide) window.lucide.createIcons();
+
+                setTimeout(() => {
+                    if(window.closeMessageModal) window.closeMessageModal();
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                        btn.innerHTML = originalText;
+                        if(window.lucide) window.lucide.createIcons();
+                    }, 500);
+                }, 1500);
+
+            } catch (e) {
+                console.error("Transmission failed", e);
+                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.textContent = "Transmission Failed";
+                if(window.sfx) window.sfx.powerOff();
+
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+                    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    btn.innerHTML = originalText;
+                    if(window.lucide) window.lucide.createIcons();
+                }, 3000);
+            }
         };
 
         window.handleGuestLogin = async () => {
@@ -294,7 +353,7 @@
         <div class="tablet-frame">
             <div class="screen-container" id="screen">
 
-                <!-- 1. STARTUP SCREEN (Upgraded: Glassmorphism + Fingerprint) -->
+                <!-- 1. STARTUP SCREEN -->
                 <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
                     <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                         <div class="flex-grow flex flex-col items-center justify-center px-4">
@@ -354,6 +413,8 @@
                             <div class="h-6 w-px bg-white/20 mx-1"></div>
                             <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="moon" class="w-5 h-5"></i></button>
                             <button id="fullscreen-toggle" class="hidden sm:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                            
+                            <!-- THE MESSAGING PORTAL BUTTON -->
                             <button id="message-toggle" onclick="window.openMessageModal()" class="relative text-gray-200 hover:text-allgood-primary transition-colors p-2 rounded-full hover:bg-white/10" title="Direct Message HQ">
                                 <i data-lucide="message-square" class="w-5 h-5"></i>
                                 <span id="message-notification" class="absolute top-1 right-1 flex h-2.5 w-2.5">
@@ -361,12 +422,13 @@
                                   <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                                 </span>
                             </button>
+
                             <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-7 h-7"></i></button>
                         </div>
                     </div>
                 </header>
 
-                <!-- WORKSTATION SPLIT LAYOUT WRAPPER (NEW) -->
+                <!-- WORKSTATION SPLIT LAYOUT WRAPPER -->
                 <div class="flex-1 flex overflow-hidden w-full relative">
                     
                     <!-- HUD SIDEBAR (Mission Control) - Desktop Only -->
@@ -465,7 +527,7 @@
                                 </div>
                             </div>
 
-                            <!-- Page 2: Mission Launchpad (Replaces old static Welcome) -->
+                            <!-- Page 2: Mission Launchpad -->
                             <div class="page bg-gray-50 h-full" id="page-2">
                                 <div class="max-w-3xl mx-auto py-6">
                                     <section class="mb-6 border-b border-gray-200 pb-4">
@@ -711,7 +773,8 @@
             powerOn: () => { initAudio(); const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(110, now); osc.frequency.exponentialRampToValueAtTime(220, now + 0.4); gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.4, now + 0.1); gain.gain.linearRampToValueAtTime(0, now + 0.4); osc.start(now); osc.stop(now + 0.4); },
             powerOff: () => { initAudio(); playTone(80, 'triangle', 0.2, 0.5, 0.01, 0.001); },
             nav: () => { initAudio(); playTone(150, 'sine', 0.1, 0.1, 0.01, 0.01); },
-            tick: () => { initAudio(); playTone(1000, 'sine', 0.01, 0.01); }
+            tick: () => { initAudio(); playTone(1000, 'sine', 0.01, 0.01); },
+            confirm: () => { initAudio(); playTone(400, 'sine', 0.1, 0.1, 0.01, 0.01); setTimeout(() => playTone(600, 'sine', 0.1, 0.1, 0.01, 0.01), 100); }
         };
         window.sfx = sfx;
         window.initAudio = initAudio;
@@ -729,7 +792,7 @@
         let currentStarRating = 0;
         window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
-        // RAPID FIRE STATE (NEW)
+        // RAPID FIRE STATE
         let activeCategory = null;
         let categoryQueue = [];
         let currentQueueIndex = 0;
@@ -799,7 +862,7 @@
             return `<div class="w-full">${insightHtml}${scriptHtml}</div>`;
         }
 
-        // ORIGINAL DATA WITH CATEGORY METADATA SURGICALLY INJECTED
+        // SCENARIO DATA
         const SCENARIO_DATA = [
             { cat: 'social_intelligence', title: "Your classmate posts a picture of your group project online without getting your permission. Question: What do you do?", icon: "users", choices: [ { text: "Say nothing and ignore the post, hoping it will go away.", score: 1, effectiveness: "less-effective", feedback: "**The Consequence:** Silence doesn't solve the problem. Being principled means speaking up for your boundaries calmly." }, { text: "Post a mean comment on their picture telling them to take it down immediately.", score: 0, effectiveness: "least-effective", feedback: "**The Consequence:** Aggression ruins your reputation. You lose the high ground and the friend without fixing the issue." }, { text: "Politely message them to ask them to take it down, explaining why you're uncomfortable.", score: 3, effectiveness: "most-effective", feedback: "**The \"Why\":** You protect your work while keeping the friendship intact. *Try saying this: \"Hey, I saw the picture of our project you posted. I’m actually not comfortable with my work being online yet—could you please take that down for me?\"*" } ] },
             { cat: 'social_intelligence', title: "You get into a heated debate with a stranger in the comments section of a social media post. Question: What do you do?", icon: "message-square", choices: [ { text: "Use an 'I' statement to express your point of view calmly and then disengage from the conversation.", score: 3, effectiveness: "most-effective", feedback: "**The \"Why\":** Knowing when to walk away protects your mental peace and professional brand. *Try saying this: \"I see we have different views here, so I'm going to step away from this thread now. Have a good one.\"*" }, { text: "Use personal attacks to try and win the argument.", score: 0, effectiveness: "least-effective", feedback: "**The Consequence:** Personal attacks signal a loss of control. It hurts your online brand more than the person you’re arguing with." }, { text: "Say nothing and leave the conversation.", score: 1, effectiveness: "less-effective", feedback: "**The Consequence:** It’s okay to leave, but sharing your perspective respectfully before exiting is a stronger communicator trait." } ] },
@@ -841,12 +904,12 @@
             const startupScreen = document.getElementById('startup-screen');
             const loginModal = document.getElementById('login-modal');
 
-            // --- MENU FUNCTIONS ---
+            // --- MENU & MODAL FUNCTIONS ---
             window.openMenuModal = () => { document.getElementById('menu-modal').classList.remove('hidden-modal'); document.getElementById('menu-modal').classList.add('visible-modal'); sfx.tick(); }
             window.closeMenuModal = () => { document.getElementById('menu-modal').classList.remove('visible-modal'); document.getElementById('menu-modal').classList.add('hidden-modal'); sfx.tick(); }
             window.closeLoginModal = () => { loginModal.classList.add('hidden-modal'); loginModal.classList.remove('visible-modal'); }
             
-            // --- MESSAGE PORTAL LOGIC ---
+            // --- MESSAGE PORTAL CONTROLS (UI Only, Logic is in module block) ---
             window.openMessageModal = () => {
                 const notif = document.getElementById('message-notification');
                 if (notif) {
@@ -873,74 +936,6 @@
                 if(window.sfx) window.sfx.click();
             };
 
-            window.submitHQMessage = async () => {
-                const input = document.getElementById('message-input');
-                const text = input.value.trim();
-                const btn = document.getElementById('btn-send-message');
-                
-                if (!text) return;
-                
-                if (!window.currentUser) {
-                    const originalText = btn.innerHTML;
-                    btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                    btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                    btn.textContent = "Please Sign In First";
-                    if(window.sfx) window.sfx.powerOff();
-                    
-                    setTimeout(() => {
-                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                        btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                        btn.innerHTML = originalText;
-                        if(window.lucide) window.lucide.createIcons();
-                    }, 2000);
-                    return;
-                }
-
-                const originalText = btn.innerHTML;
-                btn.disabled = true;
-                btn.textContent = "Sending...";
-
-                try {
-                    if(window.sendDirectMessageToHQ) {
-                        await window.sendDirectMessageToHQ(text);
-                    }
-                    
-                    if(window.sfx) window.sfx.confirm();
-                    input.value = "";
-                    
-                    btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                    btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                    btn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Transmission Sent`;
-                    if(window.lucide) window.lucide.createIcons();
-
-                    setTimeout(() => {
-                        window.closeMessageModal();
-                        setTimeout(() => {
-                            btn.disabled = false;
-                            btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                            btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                            btn.innerHTML = originalText;
-                            if(window.lucide) window.lucide.createIcons();
-                        }, 500);
-                    }, 1500);
-
-                } catch (e) {
-                    console.error("Message failed", e);
-                    btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover');
-                    btn.classList.add('bg-red-600', 'hover:bg-red-700');
-                    btn.textContent = "Transmission Failed";
-                    if(window.sfx) window.sfx.powerOff();
-
-                    setTimeout(() => {
-                        btn.disabled = false;
-                        btn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
-                        btn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                        btn.innerHTML = originalText;
-                        if(window.lucide) window.lucide.createIcons();
-                    }, 3000);
-                }
-            };
-            
             window.updateUserDisplay = (name) => {
                 currentUserName = name;
                 document.getElementById('header-welcome-text').textContent = `Welcome, ${name}`;
@@ -954,7 +949,7 @@
                 if (pageIndicator) pageIndicator.textContent = `${currentPageIndex + 1} / ${TOTAL_PAGES}`;
             }
 
-            // HUD UPDATER (NEW)
+            // HUD UPDATER
             function updateHUDDisplay() {
                 document.getElementById('hud-score').textContent = totalChallengeScore;
                 document.getElementById('mobile-hud-score').textContent = totalChallengeScore;
@@ -1011,7 +1006,7 @@
                 }
             }
 
-            // --- LAUNCHPAD RENDERER (NEW) ---
+            // --- LAUNCHPAD RENDERER ---
             function renderLaunchpad() {
                 const grid = document.getElementById('category-grid');
                 grid.innerHTML = '';
@@ -1053,7 +1048,7 @@
                 lucide.createIcons();
             }
 
-            // --- CATEGORY ROUTING (NEW) ---
+            // --- CATEGORY ROUTING ---
             window.startCategory = function(catKey) {
                 activeCategory = catKey;
                 categoryQueue = [];
@@ -1067,7 +1062,7 @@
                 window.showPage(categoryQueue[currentQueueIndex]);
             }
 
-            // --- PAGE NAVIGATION (MODIFIED FOR ROUTING) ---
+            // --- PAGE NAVIGATION ---
             window.showPage = function(index) {
                 if (index < 0 || index >= TOTAL_PAGES) return;
 
@@ -1190,7 +1185,7 @@
                 startupScreen.addEventListener('touchend', handleStartup);
             }
 
-            // --- SCENARIO LOGIC (UNTOUCHED ORIGINAL TEMPLATE) ---
+            // --- SCENARIO LOGIC ---
             function getScenarioTemplate(type, title, icon, choicesHtml, feedbackHtml) {
                 const cleanText = title.split(" Question:")[0];
                 const deskStyleMobile = `background-image: radial-gradient(#cfc8c2 2px, transparent 2px), radial-gradient(#cfc8c2 2px, transparent 2px); background-color: #f0ebe6; background-position: 0 0, 10px 10px; background-size: 20px 20px;`;
@@ -1515,7 +1510,6 @@
                 document.getElementById('scenario-modal').classList.remove('visible-modal');
                 document.getElementById('scenario-modal').classList.add('hidden-modal');
                 sfx.nav();
-                // Use next button logic to advance based on rapid-fire queue
                 if (advance && currentPageIndex >= 2 && currentPageIndex <= 31) {
                     const btn = document.getElementById('next-button');
                     if(!btn.disabled) btn.click();
@@ -1609,6 +1603,9 @@
                 } else if (!isPassing) {
                      badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Certification Locked (Score < 80)';
                      if (certSection) certSection.classList.add('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
+                } else if (!feedbackSubmitted) {
+                     badgeBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4 mr-2"></i>Submit Feedback to Unlock';
+                     if (certSection) certSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
                 } else {
                      badgeBtn.disabled = false;
                      badgeBtn.className = "w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-lg flex items-center justify-center transition-all duration-300 animate-pulse";
@@ -1623,7 +1620,7 @@
                     rank: rank,
                     sessionId: window.sessionId 
                 });
-            }; // End of updateFinalScorePage
+            };
 
             // --- TOC LOGIC ---
             function updateTOC() {
