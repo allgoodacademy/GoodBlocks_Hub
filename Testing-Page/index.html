@@ -1,1302 +1,403 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Allgood Academy: Master Template</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    
-    <!-- FIREBASE SETUP -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+import React, { useState, useEffect } from 'react';
+import { Play, RotateCcw, ChevronLeft, Heart, Zap, Coffee, UserCircle, Power, CheckCircle2 } from 'lucide-react';
 
-        // 1. CONFIGURATION (Environment or Fallback)
-        // Using environment variables for the sandbox, or falling back to safe defaults if downloaded
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "AIzaSyAf2SO8xovrApl52udUUoR1n9WBnERr_ko", authDomain: "allgood-academy.firebaseapp.com", projectId: "allgood-academy" };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'allgood-academy';
+const CATEGORY_INFO = [
+  {
+    id: "fun",
+    title: "Fun & Lighthearted",
+    desc: "High energy, low stakes. Use these to warm up the room.",
+    icon: Coffee,
+    color: "#357889" // Deep Cyan
+  },
+  {
+    id: "deep",
+    title: "Deep & Thoughtful",
+    desc: "Intellectual stimulation and perspective shifting.",
+    icon: Zap,
+    color: "#D34716" // Burnt Orange
+  },
+  {
+    id: "provocative",
+    title: "Emotionally Provocative",
+    desc: "Vulnerability and emotional resonance.",
+    icon: Heart,
+    color: "#357889"
+  },
+  {
+    id: "mirror",
+    title: "The Mirror",
+    desc: "Feedback and communal reflection. The hot seat.",
+    icon: UserCircle,
+    color: "#D34716"
+  }
+];
 
-        // 2. INITIALIZE SERVICES
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+const QUESTIONS = {
+  "fun": [
+    "If you had to enter a talent show tomorrow, what would your 'useless' talent be?",
+    "What is the most ridiculous thing you’ve done to save a small amount of money?",
+    "If your life was a sitcom, what would the title be and who would play your neighbor?",
+    "What’s a trend you hope never comes back, but you secretly participated in?",
+    "If you were a ghost, who would you haunt first and what’s your signature move?",
+    "What’s the most 'illegal' feeling thing that is actually perfectly legal?",
+    "If you could have any animal as a pet (regardless of logistics), what would it be?",
+    "What’s the weirdest food combination you actually enjoy?",
+    "If you were stranded on an island and could only have one condiment, what is it?",
+    "What is the most embarrassing song in your 'most played' list?",
+    "If you could swap lives with any fictional character for 24 hours, who is it?",
+    "What’s your go-to 'karaoke' song that you actually can't sing at all?",
+    "What’s the most useless trivia fact you know?",
+    "If you won the lottery tomorrow, what is the first 'stupid' thing you’d buy?",
+    "What is your 'old person' habit that you've had since you were young?",
+    "What’s the worst haircut you’ve ever had and what was the logic behind it?",
+    "If you had to be an Olympic athlete in a sport you’ve never played, which one?",
+    "What’s the most 'main character' moment you’ve ever had?",
+    "If you could add any rule to a sport to make it more chaotic, what would it be?",
+    "What’s a hill you are willing to die on regarding a minor, unimportant topic?",
+    "If you were a professional wrestler, what would your entrance music be?",
+    "What’s the most bizarre dream you still remember vividly?",
+    "What’s your 'guilty pleasure' movie that everyone else thinks is terrible?",
+    "If you could be any age forever, which age would you pick?",
+    "What’s the best prank you’ve ever pulled or seen pulled?"
+  ],
+  "deep": [
+    "What is a 'truth' you used to believe that you no longer do?",
+    "What do you want to be remembered for most when you're gone?",
+    "If you could send a 30-second message to your 18-year-old self, what would you say?",
+    "What is the most significant 'pivot' you’ve ever made in your life?",
+    "What does 'success' look like to you today versus five years ago?",
+    "What is a fear you have that you know is irrational but still affects you?",
+    "If you could know the absolute truth to one mystery (personal or universal), what is it?",
+    "What is the biggest lesson you learned from a failure?",
+    "How do you define 'home'? Is it a place, a person, or a feeling?",
+    "What is a habit you’ve built that has fundamentally changed your life?",
+    "What is something you’re currently struggling to forgive yourself for?",
+    "If you could change one thing about the way you were raised, what would it be?",
+    "What is the most courageous thing you have ever done?",
+    "What does 'loyalty' mean to you in a friendship?",
+    "If you had to choose between being respected or being liked, which would you pick?",
+    "What is the one thing you are most proud of that isn't on your resume?",
+    "How do you want to be different 10 years from now?",
+    "What is a piece of advice you received that you initially ignored but now live by?",
+    "What is the most important quality you look for in a partner or friend?",
+    "What is something you think most people misunderstand about you?",
+    "If you could have a conversation with your ancestors, what would you ask them?",
+    "What is the hardest 'no' you’ve ever had to say?",
+    "How do you handle the feeling of being stuck or stagnant?",
+    "What is a question you wish people would ask you more often?",
+    "What gives your life the most meaning right now?"
+  ],
+  "provocative": [
+    "What is a part of your childhood you are still trying to heal from?",
+    "When was the last time you felt truly, deeply lonely even when surrounded by people?",
+    "What is a secret you’ve never told anyone because you’re afraid of the judgment?",
+    "What was the moment you realized your parents were just flawed human beings?",
+    "What is the biggest 'what if' that keeps you up at night?",
+    "When did you last cry in front of another person, and why?",
+    "What is a compliment you received that felt like it hit your soul?",
+    "What is the most painful thing someone has said to you that was actually true?",
+    "What part of yourself do you hide because you think it’s 'too much' for others?",
+    "What is the most significant loss you have ever experienced?",
+    "Have you ever felt like you were living someone else’s life? When?",
+    "What is a dream you’ve given up on, and how does that make you feel?",
+    "What does 'vulnerability' feel like in your body?",
+    "What is the one thing you would change about your personality if you could?",
+    "Who is the person you need to forgive, even if they aren't sorry?",
+    "What is your biggest regret regarding a relationship that ended?",
+    "When was the last time you felt like you truly belonged somewhere?",
+    "What is a 'shadow' trait of yours that you are working to accept?",
+    "What is the kindest thing anyone has ever done for you that you can never repay?",
+    "What makes you feel truly seen and understood?",
+    "What is the most difficult conversation you are currently avoiding?",
+    "How do you comfort yourself when things fall apart?",
+    "What is a boundary you wish you had set a long time ago?",
+    "What is the most 'human' mistake you’ve ever made?",
+    "What does love feel like to you at this stage of your life?"
+  ],
+  "mirror": [
+    "In your opinion, what is my 'superpower' that I might not see in myself?",
+    "If I were a color or a specific season, which one would I be and why?",
+    "What is one trait I have that you think I should lean into more?",
+    "What was your very first impression of me, and how has it changed?",
+    "If I were to go on a reality TV show, which one would I win?",
+    "What is a habit or quirk of mine that you find particularly endearing?",
+    "When we’re in a group, what is the 'role' you see me naturally taking?",
+    "If I called you at 3 AM in an emergency, what would you assume happened?",
+    "What is one thing you’ve learned about yourself through our friendship?",
+    "What is a quality I have that you wish you had more of?",
+    "How would you describe my 'vibe' to someone who has never met me?",
+    "What is one piece of advice you think I need to hear, even if it’s tough?",
+    "What is a situation where you’ve seen me at my absolute best?",
+    "If I were an animal, which one would I be and why?",
+    "What is one thing I’ve done that genuinely surprised you?",
+    "What is a topic you feel like you can only talk to *me* about?",
+    "How have you seen me grow or change in the time you’ve known me?",
+    "What is one thing you think I am currently holding myself back from?",
+    "What is my 'signature' look or phrase in your mind?",
+    "If I were to write a book, what do you think the subject matter would be?",
+    "What is one thing I do that makes you feel supported or cared for?",
+    "What do you think is my biggest blind spot right now?",
+    "If you had to describe my 'energy' in three words, what would they be?",
+    "What is one goal of mine that you are 100% sure I will achieve?",
+    "How has my presence in your life changed your perspective on something?"
+  ]
+};
 
-        // Expose for Global Access
-        window.auth = auth;
-        window.db = db;
-        window.authSignOut = () => signOut(auth);
+const App = () => {
+  const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'list'
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [activeQuestion, setActiveQuestion] = useState(null);
+  
+  // Timer State
+  const [phase, setPhase] = useState('idle'); // 'idle', 'speaker', 'group'
+  const [timeLeft, setTimeLeft] = useState(120);
 
-        // 3. GLOBAL STATE
-        window.currentUser = null;
-        window.currentUserName = "Agent Learner";
-        window.currentUserEmail = "";
-        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+  useEffect(() => {
+    let timer;
+    if (phase !== 'idle' && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      if (phase === 'speaker') {
+        startGroupPhase();
+      } else {
+        setPhase('idle');
+      }
+    }
+    return () => clearInterval(timer);
+  }, [phase, timeLeft]);
 
-        // 4. AUTH HANDLER
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                window.currentUser = user;
-                let finalName = user.displayName || localStorage.getItem('aa_username') || "Agent Learner";
-                
-                if (finalName === "Seeker" || finalName === "Learner") {
-                    try {
-                        const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
-                        if (userDoc.exists() && userDoc.data().displayName) finalName = userDoc.data().displayName;
-                    } catch(e) {}
-                }
-                
-                window.currentUserName = finalName;
-                window.currentUserEmail = user.email;
-                const welcomeText = document.getElementById('header-welcome-text');
-                if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
-                
-                const loginModal = document.getElementById('login-modal');
-                if (loginModal && !loginModal.classList.contains('hidden-modal')) {
-                    loginModal.classList.add('hidden-modal');
-                    loginModal.classList.remove('visible-modal');
-                    // Auto-start session log if we just auto-logged in
-                    if(window.SessionManager) window.SessionManager.start(finalName, user.email);
-                }
-            } else {
-                window.currentUser = null;
-            }
-        });
+  const startSpeakerPhase = () => {
+    setPhase('speaker');
+    setTimeLeft(120);
+  };
 
-        // 5. IDENTITY ENGINE
-        window.ensureUserContainer = async (user, name, email) => {
-             const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-             try {
-                 await setDoc(userRef, { displayName: name, email: email || null, lastLogin: serverTimestamp(), lastActiveModule: document.title }, { merge: true });
-             } catch (e) { console.error(e); }
-        }
+  const startGroupPhase = () => {
+    setPhase('group');
+    setTimeLeft(120);
+  };
 
-        // --- SESSION + STREAM LOGGING ARCHITECTURE ---
-        window.logToFirestore = async (action, detail, payload = {}) => {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            // 1. Session Reference (The "Head" - Latest Status)
-            const sessionRef = doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId);
-            
-            // 2. Logs Collection (The "Stream" - History)
-            const logsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId, 'logs');
+  const resetTimer = () => {
+    setPhase('idle');
+    setTimeLeft(120);
+  };
 
-            // WRITE 1: Update Session Head
-            const sessionData = {
-                gameName: document.title,
-                lastUpdated: serverTimestamp(),
-                user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail },
-                last_action: action,
-                current_page: window.currentPageIndex || 0, 
-                percent_complete: window.progressPercent || 0
-            };
-            
-            if (payload.completed) sessionData.completed = true;
-            if (payload.badgeArtifact) sessionData.badgeArtifact = payload.badgeArtifact;
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
-            try {
-                await setDoc(sessionRef, sessionData, { merge: true });
-                
-                // WRITE 2: Append to Log Stream
-                await addDoc(logsRef, {
-                    action: action,
-                    detail: detail,
-                    payload: payload,
-                    timestamp: serverTimestamp(),
-                    page_context: window.currentPageIndex || 0
-                });
-            } catch (e) { console.error("[DB] Error:", e); }
-        }
+  const handleCategorySelect = (catId) => {
+    setActiveCategory(catId);
+    setActiveQuestion(null);
+    resetTimer();
+    setView('list');
+  };
 
-        // --- SESSION MANAGER WRAPPER ---
-        window.SessionManager = {
-            log: function(action, detail, payload = {}) {
-                window.logToFirestore(action, detail, payload);
-            },
-            start: function(name, email) { 
-                this.log("System", "Session Started", { startTime: new Date().toISOString() }); 
-            }
-        };
+  // --- Views ---
 
-        // 7. LOGIN LOGIC
-        window.handleGuestLogin = async () => {
-            const nameInput = document.getElementById('user-name-input');
-            const emailInput = document.getElementById('user-email-input');
-            const name = nameInput ? nameInput.value.trim() : "Agent Learner";
-            const email = emailInput ? emailInput.value.trim() : "";
-            
-            const btn = document.getElementById('btn-guest-login');
-            if(btn) { btn.innerText = "Connecting..."; btn.disabled = true; }
-            
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else if (!auth.currentUser) await signInAnonymously(auth);
-                
-                const user = auth.currentUser;
-                if (user) {
-                    await updateProfile(user, { displayName: name });
-                    await window.ensureUserContainer(user, name, email);
-                    window.currentUserName = name;
-                    window.currentUserEmail = email;
-                    localStorage.setItem('aa_username', name);
-                    
-                    window.SessionManager.start(name, email);
-                    
-                    const welcomeText = document.getElementById('header-welcome-text');
-                    if(welcomeText) welcomeText.textContent = `Welcome: ${name}`;
-                    
-                    const loginModal = document.getElementById('login-modal');
-                    if(loginModal) {
-                        loginModal.classList.add('hidden-modal');
-                        loginModal.classList.remove('visible-modal');
-                    }
-                    if(window.showPage) window.showPage(0);
-                    if(window.sfx) window.sfx.nav();
-                }
-            } catch (error) { 
-                console.error(error); 
-                alert("Connection failed. Please try again."); 
-            } finally { 
-                if(btn) { btn.innerText = "Start Mission"; btn.disabled = false; }
-            }
-        };
+  const renderLanding = () => (
+    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+      <div className="w-20 h-20 bg-[#D34716] rounded-xl flex items-center justify-center mb-8 shadow-lg">
+        <Power className="text-white w-10 h-10" />
+      </div>
+      <h1 className="text-4xl md:text-5xl font-['Georgia'] font-bold text-[#4C4C4C] mb-4">
+        The Connection Deck
+      </h1>
+      <p className="text-[#757575] font-['Verdana'] text-lg mb-12 max-w-md">
+        Move from passive hanging out to purposeful conversation.
+      </p>
+      
+      <div className="bg-white border-2 border-[#D1D5DB] rounded-xl p-8 max-w-lg w-full text-left shadow-md mb-12">
+        <h2 className="font-['Georgia'] font-bold text-[#357889] text-xl mb-4 border-b pb-2">Rules of Engagement</h2>
+        <ul className="space-y-4 font-['Verdana'] text-[#4C4C4C] text-sm">
+          <li className="flex items-start gap-3">
+            <CheckCircle2 className="text-[#D34716] shrink-0 mt-0.5" size={18} />
+            <div><strong>The Speaker (2 Mins):</strong> Uninterrupted space to answer. No cross-talk. Just listen.</div>
+          </li>
+          <li className="flex items-start gap-3">
+            <CheckCircle2 className="text-[#357889] shrink-0 mt-0.5" size={18} />
+            <div><strong>The Group (2 Mins):</strong> Time for clarifying questions or building on the response.</div>
+          </li>
+          <li className="flex items-start gap-3">
+            <CheckCircle2 className="text-[#4C4C4C] shrink-0 mt-0.5" size={18} />
+            <div><strong>The Mirror:</strong> Read a prompt about yourself, and the group gets 2 minutes to answer it <em>for</em> you.</div>
+          </li>
+        </ul>
+      </div>
 
-        window.handleGoogleLogin = async () => {
-            const provider = new GoogleAuthProvider();
-            try {
-                const result = await signInWithPopup(auth, provider);
-                const user = result.user;
-                const finalName = user.displayName || "Agent Learner";
-                await window.ensureUserContainer(user, finalName, user.email);
-                window.currentUserName = finalName;
-                window.currentUserEmail = user.email;
-                localStorage.setItem('aa_username', finalName);
-                
-                window.SessionManager.start(finalName, user.email);
+      <button 
+        onClick={() => setView('dashboard')}
+        className="bg-[#D34716] hover:bg-[#EB8D69] text-white font-['Verdana'] font-bold py-4 px-12 rounded-lg shadow-lg transition-all transform hover:scale-105"
+      >
+        POWER UP
+      </button>
+    </div>
+  );
 
-                const welcomeText = document.getElementById('header-welcome-text');
-                if(welcomeText) welcomeText.textContent = `Welcome: ${finalName}`;
-                
-                const loginModal = document.getElementById('login-modal');
-                if(loginModal) {
-                    loginModal.classList.add('hidden-modal');
-                    loginModal.classList.remove('visible-modal');
-                }
-                if(window.showPage) window.showPage(0);
-                if(window.sfx) window.sfx.nav();
-            } catch (error) { alert("Google Sign-In failed."); }
-        };
-        
-        (async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) {}
-            }
-        })();
-    </script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'allgood-primary': '#D34716',
-                        'allgood-secondary': '#357889',
-                        'allgood-dark': '#4C4C4C',
-                        'allgood-light': '#F7F7F7',
-                        'allgood-hover': '#EB8D69',
-                        'allgood-accent': '#2D6473',
-                    },
-                    fontFamily: {
-                        'heading': ['Georgia', 'serif'],
-                        'body': ['Verdana', 'sans-serif'],
-                    },
-                },
-            },
-        }
-    </script>
-    
-    <style>
-        body {
-            font-family: Verdana, sans-serif;
-            background-color: #1a1a1a;
-            background-image: url("https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=2070&auto=format&fit=crop");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            min-height: 100vh; margin: 0; padding: 0;
-            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
-        }
-        input, textarea { -webkit-user-select: text; user-select: text; }
-        h1, h2, h3, h4, h5, h6 { font-family: Georgia, serif; }
-        
-        .tablet-frame {
-            height: 80vh; width: auto; aspect-ratio: 16/10; max-width: 1100px; max-height: 95vh;
-            background-image: radial-gradient(circle at 0% 0%, rgba(211, 71, 22, 0.35) 0%, transparent 30%), linear-gradient(135deg, #5c5c5c 0%, #d6d6d6 25%, #8a8a8a 50%, #e0e0e0 75%, #5c5c5c 100%);
-            border-radius: 12px; padding: 12px; border: 1px solid #333; position: relative; margin: 20px auto;
-            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 30px 60px -12px rgba(0,0,0,0.8);
-            transition: width 0.3s, height 0.3s;
-        }
-        .tablet-frame::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border-radius: 6px; background: #111; z-index: 0; }
-        .screen-container { width: 100%; height: 100%; background-color: #F7F7F7; position: relative; z-index: 1; overflow: hidden; display: flex; flex-direction: column; border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-        
-        /* SCROLLBAR */
-        .content-column::-webkit-scrollbar { width: 10px; }
-        .content-column::-webkit-scrollbar-track { background: #e5e5e5; border-left: 1px solid #d1d5db; }
-        .content-column::-webkit-scrollbar-thumb { background-color: #D34716; border-radius: 5px; border: 2px solid #e5e5e5; }
-        .content-column::-webkit-scrollbar-thumb:hover { background-color: #EB8D69; }
+  const renderDashboard = () => (
+    <div className="px-4 py-8 max-w-4xl mx-auto">
+      <header className="mb-10 text-center">
+        <h1 className="text-3xl font-['Georgia'] font-bold text-[#4C4C4C] mb-2">Select a Category</h1>
+        <p className="text-[#757575] font-['Verdana']">100 questions to deepen your inner circle.</p>
+      </header>
 
-        /* MODAL */
-        .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
-        .hidden-modal { opacity: 0; pointer-events: none; transform: translateY(-10px); }
-        .visible-modal { opacity: 1; pointer-events: auto; transform: translateY(0); }
-        #flex-progress-bar { height: 4px; width: 100%; background-color: #eee; position: absolute; top: 0; left: 0; }
-        #flex-progress-fill { height: 100%; background-color: #D34716; width: 0%; transition: width 0.3s ease; }
-        
-        .split-layout { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
-        .content-column { flex: 1; overflow-y: auto; position: relative; background-color: #F9FAFB; padding-bottom: 20px; }
-
-        .page { width: 100%; height: auto; padding: 20px; position: relative; display: none; }
-        .page.active { display: block; animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        .blueprint-mode { background-color: #0f172a !important; color: #94a3b8 !important; }
-        .blueprint-mode .page, .blueprint-mode .content-column { background-color: #0f172a !important; }
-        .blueprint-mode .bg-white { background-color: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
-        .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
-        .blueprint-mode .footer-content { background-color: #1e293b !important; border-top-color: #334155 !important; }
-        
-        .tablet-frame.focus-mode { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; aspect-ratio: unset !important; margin: 0 !important; padding: 0 !important; z-index: 99999 !important; border-radius: 0 !important; background: #F7F7F7 !important; }
-        .tablet-frame.focus-mode::before { display: none; }
-        
-        @media (min-width: 768px) {
-            .split-layout { flex-direction: row; }
-            .content-column { width: 100%; }
-        }
-
-        @media (max-width: 768px) {
-            html, body { position: fixed; width: 100%; height: 100dvh; overflow: hidden; margin: 0; padding: 0; background-color: #F7F7F7; }
-            main { padding: 0 !important; height: 100dvh !important; width: 100% !important; display: block; position: fixed; top: 0; left: 0; }
-            .tablet-frame { position: absolute !important; top: 0; left: 0; right: 0; bottom: 0; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; background: #F7F7F7 !important; aspect-ratio: unset !important; }
-            .tablet-frame::before { display: none !important; }
-            .screen-container { border-radius: 0 !important; box-shadow: none !important; }
-            header.navbar-content { padding-top: max(env(safe-area-inset-top), 12px); height: auto; min-height: 60px; padding-bottom: 12px; }
-            
-            /* MOBILE FOOTER OVERRIDE */
-            footer.footer-content { 
-                position: absolute; bottom: 0; left: 0; width: 100%; 
-                padding-bottom: max(env(safe-area-inset-bottom), 10px); 
-                padding-top: 10px; 
-                height: auto; 
-                min-height: 60px; 
-                z-index: 100; 
-                background-color: white; 
-                border-top: 1px solid #e5e7eb; 
-            }
-            footer.footer-content button {
-                padding-top: 0.5rem; padding-bottom: 0.5rem;
-                font-size: 0.75rem; 
-            }
-            .content-column { padding-bottom: 100px !important; }
-        }
-
-        .navbar-content { flex: 0 0 60px; z-index: 50; }
-        .footer-content { flex: 0 0 60px; z-index: 50; background-color: white; border-top: 1px solid #e5e7eb; position: relative; }
-
-        .flip-card { background-color: transparent; width: 100%; height: 200px; perspective: 1000px; cursor: pointer; }
-        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
-        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
-        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .flip-card-front { background-color: white; border: 1px solid #e5e7eb; }
-        .flip-card-back { background-color: #357889; color: white; transform: rotateY(180deg); border: 2px solid #D34716; }
-
-        .range-slider { -webkit-appearance: none; width: 100%; height: 8px; border-radius: 5px; background: #d3d3d3; outline: none; }
-        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #357889; cursor: pointer; transition: background .15s ease-in-out; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        
-        .profile-card { transition: all 0.2s; cursor: pointer; border: 2px solid transparent; }
-        .profile-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    </style>
-</head>
-<body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
-
-    <main class="flex-grow flex items-center justify-center py-8">
-        <div class="tablet-frame">
-            <div class="screen-container" id="screen">
-
-                <!-- 1. STARTUP SCREEN -->
-                <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-allgood-secondary to-gray-900">
-                    <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
-                        <div class="flex-grow flex flex-col items-center justify-center px-4">
-                            <div class="relative">
-                                <div class="absolute inset-0 bg-white/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                                <i data-lucide="crown" class="w-24 h-24 text-white mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"></i>
-                                <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-widest uppercase">Allgood Academy</h2>
-                                <h1 class="text-5xl md:text-7xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter relative z-10 drop-shadow-sm">GoodBlock</h1>
-                                <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10">Module: Living with William</p>
-                            </div>
-                            <p class="mt-16 text-white/60 text-xs tracking-[0.4em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Header -->
-                <header class="bg-allgood-secondary shadow-md navbar-content flex items-center shrink-0">
-                    <div class="w-full px-4 flex items-center justify-between h-full pt-[env(safe-area-inset-top)]">
-                        <div class="flex items-center overflow-hidden">
-                            <div id="header-welcome-text" class="flex-shrink-0 text-white font-heading font-bold text-lg tracking-tight truncate mr-4 select-none">Welcome: Agent Learner</div>
-                            <div class="hidden sm:flex items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
-                                <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Page</span>
-                                <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 10</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-1 shrink-0 relative">
-                            <button id="home-button" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 mr-2"><i data-lucide="home" class="w-6 h-6"></i></button>
-                            <div class="h-6 w-px bg-white/20 mx-1"></div>
-                            <button id="blueprint-toggle" class="text-gray-200 hover:text-cyan-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="moon" class="w-5 h-5"></i></button>
-                            <button id="fullscreen-toggle" class="hidden md:block text-gray-200 hover:text-green-300 transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="maximize" class="w-5 h-5"></i></button>
-                            <button id="menu-toggle" class="text-gray-200 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"><i data-lucide="menu" class="w-7 h-7"></i></button>
-                        </div>
-                    </div>
-                </header>
-
-                <!-- MAIN FULL WIDTH VIEW -->
-                <div class="flex-1 min-h-0 relative split-layout">
-                    <div class="content-column w-full" id="content-column">
-
-                        <!-- P1: Cover -->
-                        <div class="page active" id="page-1">
-                            <div class="flex flex-col items-center justify-start h-full text-center px-6 pt-10">
-                                <div class="w-24 h-24 bg-allgood-primary/10 rounded-full flex items-center justify-center mb-6 border border-allgood-primary/20">
-                                    <i data-lucide="crown" class="w-12 h-12 text-allgood-primary"></i>
-                                </div>
-                                <h1 class="text-4xl sm:text-5xl font-heading font-bold text-allgood-dark mb-2 leading-tight">Living with <br>William</h1>
-                                <h2 class="text-sm font-bold text-allgood-secondary uppercase tracking-[0.2em] mb-6">Household Protocol</h2>
-                                <p class="text-lg text-gray-600 mb-8 max-w-md italic">"Hi, I'm Brandon. But from 9 to 5? You're dealing with William. (Don't worry, this is a joke... mostly.)"</p>
-                                
-                                <div class="w-full max-w-lg text-left mx-auto space-y-4 mb-8">
-                                    <div class="border border-gray-200 rounded-lg overflow-hidden shadow-md">
-                                        <button class="accordion-toggle w-full bg-white p-4 flex justify-between items-center hover:bg-gray-50 hover:border-allgood-primary transition-all group">
-                                            <span class="font-bold text-allgood-dark text-base group-hover:text-allgood-primary transition-colors font-heading">How to use this GoodBlock</span>
-                                            <i data-lucide="chevron-down" class="accordion-icon w-5 h-5 text-gray-400 transform transition-transform duration-300 group-hover:text-allgood-primary"></i>
-                                        </button>
-                                        <div class="hidden accordion-content bg-gray-50 border-t border-gray-200 p-5 text-gray-600 shadow-inner text-xs font-body">
-                                            <p class="mb-4 text-sm text-allgood-dark">Use the <strong>Control Cluster</strong> in the top right to customize your environment.</p>
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-allgood-primary"><i data-lucide="home" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Home & Reset</strong><span class="text-gray-500 leading-snug">Click to return to cover.</span></div></div>
-                                                <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-cyan-600"><i data-lucide="moon" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Blueprint Mode</strong><span class="text-gray-500 leading-snug">Dark Mode.</span></div></div>
-                                                <div class="flex items-start"><div class="p-1.5 bg-white rounded border border-gray-300 mr-3 text-green-600"><i data-lucide="maximize" class="w-4 h-4"></i></div><div><strong class="text-allgood-dark block mb-0.5">Focus Mode</strong><span class="text-gray-500 leading-snug">Maximize workspace.</span></div></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- P2: Duality -->
-                        <div class="page" id="page-2">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">The Duality</h2>
-                                <p class="mb-6 text-sm text-gray-600">A quick guide to the two distinct operating systems running in this apartment during the week.</p>
-                                
-                                <div class="space-y-4">
-                                    <!-- William Stack -->
-                                    <div class="bg-white border-l-4 border-allgood-primary rounded shadow-sm p-5 hover:shadow-md transition-shadow">
-                                        <div class="flex items-center mb-2">
-                                            <div class="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center mr-4 shrink-0">
-                                                <i data-lucide="briefcase" class="w-5 h-5 text-allgood-primary"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="font-bold text-lg text-gray-800 font-heading">William</h3>
-                                                <p class="text-[10px] uppercase tracking-widest text-allgood-primary font-bold">Professional Mode</p>
-                                            </div>
-                                        </div>
-                                        <p class="text-sm text-gray-600 sm:pl-14 pt-2 sm:pt-0">What I go by at work. Focused, dialed in, and currently funding the premium Wi-Fi.</p>
-                                    </div>
-
-                                    <!-- Brandon Stack -->
-                                    <div class="bg-white border-l-4 border-allgood-secondary rounded shadow-sm p-5 hover:shadow-md transition-shadow">
-                                        <div class="flex items-center mb-2">
-                                            <div class="w-10 h-10 bg-cyan-50 rounded-full flex items-center justify-center mr-4 shrink-0">
-                                                <i data-lucide="coffee" class="w-5 h-5 text-allgood-secondary"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="font-bold text-lg text-gray-800 font-heading">Brandon</h3>
-                                                <p class="text-[10px] uppercase tracking-widest text-allgood-secondary font-bold">Personal Mode</p>
-                                            </div>
-                                        </div>
-                                        <p class="text-sm text-gray-600 sm:pl-14 pt-2 sm:pt-0">The chill, best roomie ever with a good smelling dog.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- P3: Honorifics Gate -->
-                        <div class="page" id="page-3">
-                            <div class="max-w-xl mx-auto pt-6 px-6 pb-12">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">The Royal Decree</h2>
-                                <div class="bg-amber-50 p-6 rounded-lg border-l-4 border-amber-500 mb-6 shadow-sm text-center">
-                                    <i data-lucide="crown" class="w-8 h-8 text-amber-500 mx-auto mb-3"></i>
-                                    <p class="text-sm text-amber-900 font-serif italic leading-relaxed">"Like the old royals of Egypt, Cleopatra, Rameses to the Imperial Russian family, Brandon is the queen of all... and thus should be respected as so..."</p>
-                                </div>
-
-                                <!-- Scenario 1: Laundry -->
-                                <div id="royal-scene-1" class="mb-4 transition-all duration-500">
-                                    <p class="text-sm text-gray-700 font-bold mb-2">Decree 1: The Laundry</p>
-                                    <p class="text-xs text-gray-600 mb-3 italic">"I've left a basket of clean laundry on the table. It offends my eyes. Fold it."</p>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-red-50 transition-colors" onclick="window.checkRoyal(this, 1, false, 'lol')">
-                                            <span class="font-bold text-allgood-dark text-xs">"Do it yourself."</span><span class="text-xl opacity-60">💅</span>
-                                        </div>
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-green-50 transition-colors" onclick="window.checkRoyal(this, 1, true, 'yes')">
-                                            <span class="font-bold text-allgood-dark text-xs">"Right away, your majesty."</span><span class="text-xl opacity-60">🫡</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Scenario 2: Feast (Hidden) -->
-                                <div id="royal-scene-2" class="mb-4 hidden opacity-0 transition-all duration-500">
-                                    <p class="text-sm text-gray-700 font-bold mb-2">Decree 2: The Feast</p>
-                                    <p class="text-xs text-gray-600 mb-3 italic">"I am famished from sitting on the couch. Fix me dinner."</p>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-red-50 transition-colors" onclick="window.checkRoyal(this, 2, false, 'later')">
-                                            <span class="font-bold text-allgood-dark text-xs">"Order UberEats."</span><span class="text-xl opacity-60">🙄</span>
-                                        </div>
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-green-50 transition-colors" onclick="window.checkRoyal(this, 2, true, 'yes')">
-                                            <span class="font-bold text-allgood-dark text-xs">"I'm firing up the stove now."</span><span class="text-xl opacity-60">👨‍🍳</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Scenario 3: Beverage (Hidden) -->
-                                <div id="royal-scene-3" class="mb-6 hidden opacity-0 transition-all duration-500">
-                                    <p class="text-sm text-gray-700 font-bold mb-2">Decree 3: The Beverage</p>
-                                    <p class="text-xs text-gray-600 mb-3 italic">"My throat is parched. Fetch me a sparkling water. Do not shake it."</p>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-red-50 transition-colors" onclick="window.checkRoyal(this, 3, false, 'lol')">
-                                            <span class="font-bold text-allgood-dark text-xs">*Shakes it vigorously*</span><span class="text-xl opacity-60">🌋</span>
-                                        </div>
-                                        <div class="profile-card bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center justify-between cursor-pointer hover:bg-green-50 transition-colors" onclick="window.checkRoyal(this, 3, true, 'yes')">
-                                            <span class="font-bold text-allgood-dark text-xs">"Perfectly chilled and pristine, for you."</span><span class="text-xl opacity-60">🧊</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div id="royal-feedback" class="text-center text-3xl h-12 transition-all duration-300 flex flex-col items-center justify-center"></div>
-
-                                <script>
-                                    window.checkRoyal = (el, level, isCorrect, type) => {
-                                        const fb = document.getElementById('royal-feedback');
-                                        const scene = document.getElementById('royal-scene-' + level);
-                                        
-                                        // Reset borders on current level
-                                        scene.querySelectorAll('.profile-card').forEach(x => x.classList.remove('border-amber-500', 'bg-red-50', 'bg-green-50'));
-
-                                        if (!isCorrect) {
-                                            el.classList.add('border-amber-500', 'bg-red-50');
-                                            fb.innerHTML = type === 'lol' ? "💅 <span class='text-xs block text-red-500 font-bold mt-1'>Excuse me? Try again.</span>" : "🙄 <span class='text-xs block text-red-500 font-bold mt-1'>Unacceptable.</span>";
-                                            if(window.sfx) window.sfx.error();
-                                        } else {
-                                            el.classList.add('border-amber-500', 'bg-green-50');
-                                            fb.innerHTML = "👑 <span class='text-xs block text-green-600 font-bold mt-1'>As you should.</span>";
-                                            if(window.sfx) window.sfx.success();
-                                            
-                                            // Lock current scene
-                                            scene.classList.add('opacity-50', 'pointer-events-none');
-                                            
-                                            // Reveal next scene or finish
-                                            if (level < 3) {
-                                                const nextScene = document.getElementById('royal-scene-' + (level + 1));
-                                                nextScene.classList.remove('hidden');
-                                                setTimeout(() => {
-                                                    nextScene.classList.remove('opacity-0');
-                                                    if(window.lucide) window.lucide.createIcons();
-                                                }, 50);
-                                            } else {
-                                                fb.innerHTML = "👑 🫡 ✨ <span class='text-xs block text-green-600 font-bold mt-1 uppercase tracking-widest'>The Queen is pleased. Proceed.</span>";
-                                            }
-                                        }
-                                    };
-                                </script>
-                            </div>
-                        </div>
-
-                        <!-- P4: The Microclimate -->
-                        <div class="page" id="page-4">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">The Microclimate</h2>
-                                <p class="mb-6 text-sm text-gray-600">Here is the basic physics of the apartment: Heat rises. Since Pete and I sleep upstairs, it becomes a literal sauna if the downstairs isn't cooled properly for sleep or post-workout.</p>
-                                <div class="bg-gray-800 p-8 rounded-xl text-center shadow-lg border-2 border-gray-700 max-w-sm mx-auto">
-                                    <div class="text-4xl font-mono text-allgood-primary mb-6 transition-colors" id="temp-display">72°F</div>
-                                    <input type="range" min="60" max="75" value="72" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" oninput="window.updateTemp(this.value)">
-                                    <div class="flex justify-between text-xs text-gray-400 mt-4 uppercase font-bold"><span>Penguins 🥶</span><span>Sauna 🥵</span></div>
-                                </div>
-                                <p id="temp-feedback" class="text-center text-sm font-bold mt-6 h-6"></p>
-                            </div>
-                        </div>
-
-                        <!-- P5: H.R.S. -->
-                        <div class="page" id="page-5">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">The H.R.S.</h2>
-                                <div class="bg-red-50 p-4 rounded border-l-4 border-red-500 mb-6 shadow-sm">
-                                    <p class="text-sm text-red-800"><strong>Scenario:</strong> I sigh heavily, stare at you, and make a highly unnecessary, catty comment about your outfit. What is the correct course of action?</p>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4 text-left">
-                                    <div onclick="window.checkSnack(this, false, 'shirt')" class="profile-card bg-white p-4 rounded shadow cursor-pointer border border-gray-200 flex justify-between items-center"><span class="font-bold text-gray-700">Apologize and change your shirt</span><span class="text-2xl opacity-60">👕</span></div>
-                                    <div onclick="window.checkSnack(this, false, 'argue')" class="profile-card bg-white p-4 rounded shadow cursor-pointer border border-gray-200 flex justify-between items-center"><span class="font-bold text-gray-700">Argue back and defend your style</span><span class="text-2xl opacity-60">🗣️</span></div>
-                                    <div onclick="window.checkSnack(this, true, 'pretzel')" class="profile-card bg-white p-4 rounded shadow cursor-pointer border border-gray-200 flex justify-between items-center"><span class="font-bold text-gray-700">Realize it's about calories. Feed me.</span><span class="text-2xl opacity-60">🥨</span></div>
-                                </div>
-                                <p id="frown-feedback" class="text-center text-sm font-bold mt-6 h-6"></p>
-                            </div>
-                        </div>
-
-                        <!-- P6: Larder Logic -->
-                        <div class="page" id="page-6">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">Larder Logic</h2>
-                                <p class="mb-6 text-sm text-gray-600">I'm a sharer, but my leftovers are sacred. Cheese, milk, and drinks are fine (in moderation). Sort the fridge.</p>
-                                <div class="space-y-4 max-w-md mx-auto">
-                                    <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="window.checkLarder(this, true, 'cheese')"><span class="font-bold text-gray-800">Have a slice of communal cheese</span><span class="text-xl">🧀</span></div>
-                                    <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="window.checkLarder(this, false, 'thai')"><span class="font-bold text-gray-800">Eat my leftover Thai food</span><span class="text-xl">🥡</span></div>
-                                    <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="window.checkLarder(this, true, 'water')"><span class="font-bold text-gray-800">Grab a sparkling water</span><span class="text-xl">🫧</span></div>
-                                    <div class="bg-white p-4 rounded border border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="window.checkLarder(this, false, 'milk')"><span class="font-bold text-gray-800">Finish the very last drop of milk</span><span class="text-xl">🥛</span></div>
-                                </div>
-                                <p id="review-feedback" class="text-center text-sm font-bold mt-6 h-6"></p>
-                            </div>
-                        </div>
-
-                        <!-- P7: Guest Protocol -->
-                        <div class="page" id="page-7">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">Guest & Vibe Check</h2>
-                                <p class="mb-6 text-sm text-gray-600">Guests are always welcome! Toggle the vibe below to see the current status.</p>
-                                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-col items-center justify-center">
-                                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Current Mode</span>
-                                    <label class="relative inline-flex items-center cursor-pointer mb-2">
-                                        <input type="checkbox" id="vibe-toggle" class="sr-only peer" onchange="window.checkVibe()">
-                                        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-allgood-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-allgood-primary"></div>
-                                        <span class="ml-3 text-sm font-bold text-gray-700" id="vibe-label">Weekday</span>
-                                    </label>
-                                </div>
-                                <div id="vibe-result" class="bg-blue-50 p-4 rounded border border-blue-200 text-center transition-colors">
-                                    <span class="text-3xl block mb-2">🤫</span>
-                                    <h3 class="font-bold text-blue-800">Chill Vibes</h3>
-                                    <p class="text-sm text-blue-700">William is sleeping or working. Guests okay, but keep it down.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- P8: Sommelier -->
-                        <div class="page" id="page-8">
-                            <div class="max-w-xl mx-auto pt-6 px-6 text-center">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2 text-left">The Queen's Favor</h2>
-                                <p class="mb-6 text-sm text-gray-600 text-left">Wondering how you can please the queen? Try this: I enjoy having my wine poured. Hold the button to pour. Don't overdo it... or do.</p>
-                                <div class="flex flex-col items-center">
-                                    <div class="w-24 h-40 border-4 border-t-0 border-gray-300 rounded-b-xl relative overflow-hidden bg-white mb-6">
-                                        <div id="wine-liquid" class="absolute bottom-0 w-full bg-red-800 transition-all duration-100" style="height: 0%"></div>
-                                    </div>
-                                    <button onmousedown="window.startPour()" onmouseup="window.stopPour()" ontouchstart="window.startPour()" ontouchend="window.stopPour()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-8 py-3 rounded-full font-bold shadow-md active:scale-95 transition-transform select-none">Hold to Pour</button>
-                                </div>
-                                <p id="pour-feedback" class="text-center text-sm font-bold mt-6 h-6"></p>
-                            </div>
-                        </div>
-
-                        <!-- P9: Pete & Jolene -->
-                        <div class="page" id="page-9">
-                            <div class="max-w-xl mx-auto pt-6 px-6">
-                                <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-4 border-b pb-2">Chief Anal Gland Officer</h2>
-                                <p class="mb-6 text-sm text-gray-600">Congratulations to Pete on his highly distinguished, entirely fictional promotion to <strong>Chief Anal Gland Officer.</strong> If it smells like rotting fish, it's Jolene. Deploy immediately.</p>
-                                
-                                <div id="pete-card" class="bg-gray-100 p-8 rounded-xl border-2 border-dashed border-gray-300 text-center relative overflow-hidden transition-colors duration-500">
-                                    
-                                    <!-- Slime Overlay (Hidden by Default) -->
-                                    <div id="slime-overlay" class="absolute inset-0 bg-green-900/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-1000 z-10 flex flex-col items-center justify-center">
-                                        <span class="text-6xl mb-2 drop-shadow-lg animate-bounce">🤢</span>
-                                        <h3 class="text-xl font-bold text-green-100 uppercase tracking-widest drop-shadow-md">Direct Hit.</h3>
-                                    </div>
-                                    
-                                    <!-- Standard View -->
-                                    <div class="relative z-0">
-                                        <div id="dog-spinner" class="text-6xl mx-auto mb-4 transition-transform duration-500 inline-block drop-shadow-sm">🐕</div>
-                                        <h3 class="font-bold text-lg mb-6 text-gray-700 uppercase tracking-wide">Jolene Gland Emergency</h3>
-                                        <button id="pete-btn" onclick="window.peteAction()" class="bg-allgood-primary hover:bg-allgood-hover text-white px-8 py-4 rounded font-bold shadow-lg transition-all transform active:scale-95 w-full sm:w-auto relative z-20">EXPRESS GLANDS</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- P10: Certification & Feedback -->
-                        <div class="page" id="page-10">
-                            <div class="flex flex-col items-center justify-start h-full text-center px-4 pt-8 overflow-y-auto">
-                                <div class="mb-4 text-allgood-secondary font-bold tracking-widest uppercase text-xs">Mission Accomplished</div>
-                                <h2 class="text-3xl font-heading font-bold text-allgood-dark mb-6">The Sovereign's Oath</h2>
-
-                                <!-- Feedback Card -->
-                                <div id="feedback-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8 text-left relative">
-                                    <h3 class="font-bold text-allgood-dark text-sm uppercase tracking-wide mb-4 text-center">Acknowledge Terms</h3>
-                                    <p class="text-sm text-gray-500 mb-6 text-center italic">"I hereby agree to the Arctic conditions, the wine pouring, and acknowledging the Jolene smells."</p>
-                                    
-                                    <div class="flex justify-center space-x-2 mb-4" id="star-wrapper">
-                                        <button onclick="setRating(1)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="1"><i id="star-1" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                        <button onclick="setRating(2)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="2"><i id="star-2" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                        <button onclick="setRating(3)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="3"><i id="star-3" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                        <button onclick="setRating(4)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="4"><i id="star-4" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                        <button onclick="setRating(5)" class="star-btn focus:outline-none transition-transform hover:scale-110" data-val="5"><i id="star-5" class="fas fa-star text-2xl text-gray-300"></i></button>
-                                    </div>
-                                    <textarea id="feedback-text" rows="2" class="w-full border border-gray-300 rounded p-3 text-sm focus:ring-1 focus:ring-allgood-primary focus:border-allgood-primary outline-none resize-none bg-gray-50" placeholder="Optional: Any final roommate complaints?"></textarea>
-                                    <button onclick="submitFeedback()" class="w-full mt-4 bg-allgood-dark hover:bg-allgood-primary text-white font-bold py-3 rounded transition-colors text-sm uppercase tracking-wider">I Accept These Terms</button>
-                                </div>
-
-                                <!-- Success State -->
-                                <div id="feedback-success" class="hidden w-full max-w-md bg-green-50 p-4 rounded-lg shadow-inner border border-green-200 mb-8 text-center animate-fade-in">
-                                    <span class="text-3xl block mb-2">🤝</span>
-                                    <h3 class="font-bold text-green-800 text-sm">Oath Recorded.</h3>
-                                    <p class="text-xs text-green-700 mt-1">Welcome to the apartment.</p>
-                                </div>
-
-                                <!-- Badge Section (Locked State) -->
-                                <div id="badge-section" class="w-full max-w-md flex flex-col items-center justify-center opacity-50 pointer-events-none transition-all duration-500 filter grayscale">
-                                    <div id="badge-display" class="w-48 h-48 mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-white shadow-xl flex items-center justify-center">
-                                        <i data-lucide="award" class="w-24 h-24 text-gray-300"></i>
-                                    </div>
-                                    <h2 class="text-2xl font-heading font-bold text-allgood-dark mb-1">William's Favorite</h2>
-                                    <p class="text-xs text-gray-500 mb-4">You have survived the orientation.</p>
-                                    <button onclick="window.downloadBadge()" id="download-badge-btn" disabled class="bg-gray-300 text-white px-8 py-3 rounded-full font-bold shadow-none flex items-center cursor-not-allowed transition-all">
-                                        <i data-lucide="lock" class="mr-2 w-4 h-4"></i> Certificate Locked
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <footer class="footer-content flex items-center justify-between px-6 border-t border-gray-200 bg-white z-20 relative shrink-0">
-                    <div id="flex-progress-bar" class="absolute top-0 left-0 h-1 bg-gray-200 w-full"><div id="flex-progress-fill" class="h-full bg-allgood-primary w-0 transition-all duration-300"></div></div>
-                    <button id="back-button" class="text-allgood-primary hover:text-allgood-dark font-bold text-sm flex items-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-body" onclick="window.prevPage()">
-                        <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i>Back
-                    </button>
-                    <p class="text-gray-400 text-[10px] hidden sm:block font-body">&copy; <a href="https://www.allgoodacademy.com" target="_blank" class="hover:text-allgood-primary transition-colors font-bold">Allgood Academy</a></p>
-                    <button id="next-button" class="bg-allgood-primary hover:bg-allgood-hover text-white px-6 py-2 rounded-full text-sm font-bold shadow-md transition-transform transform hover:scale-105 flex items-center font-body" onclick="window.nextPage()">
-                        <span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
-                    </button>
-                </footer>
-
-                <!-- CONFIRM EXIT MODAL -->
-                <div id="exit-modal" class="hidden-modal absolute inset-0 z-[260] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
-                        <div class="mb-4 text-allgood-primary">
-                            <i data-lucide="log-out" class="w-12 h-12 mx-auto"></i>
-                        </div>
-                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">Return to Dashboard?</h2>
-                        <p class="text-sm text-gray-500 mb-6 font-body">You have completed this module. Your progress and badge have been saved.</p>
-                        
-                        <div class="space-y-3">
-                            <button onclick="window.location.href = 'https://allgoodacademy.com'" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] flex items-center justify-center">
-                                Yes, Return Home
-                            </button>
-                            <button onclick="document.getElementById('exit-modal').classList.add('hidden-modal'); document.getElementById('exit-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">
-                                Stay Here
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Login Modal & System Menus -->
-                <div id="login-modal" class="absolute inset-0 z-[200] bg-allgood-dark/95 flex items-center justify-center p-6 visible-modal modal-transition backdrop-blur-sm">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
-                        <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Roommate Portal</h2>
-                        <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to acknowledge terms.</p>
-                        </div>
-                        <input type="text" id="user-name-input" placeholder="Your Name (e.g., Pete)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary outline-none transition-all font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary outline-none transition-all font-body">
-                        <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">Start Orientation</button>
-                        <div class="mt-4 flex items-center justify-center space-x-2"><div class="h-px w-10 bg-gray-200"></div><p class="text-xs text-gray-500 uppercase font-bold">OR</p><div class="h-px w-10 bg-gray-200"></div></div>
-                        <button id="google-icon-container" onclick="window.handleGoogleLogin()" class="mt-4 p-2 rounded-full border border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 bg-white flex items-center justify-center mx-auto">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Menu Modal -->
-                <div id="menu-modal" class="hidden-modal absolute inset-0 z-[100] bg-black/60 flex justify-end modal-transition">
-                    <div class="w-72 h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
-                        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <span class="font-bold text-allgood-dark font-heading">Protocol Map</span>
-                            <button id="close-menu" class="text-gray-500 hover:text-allgood-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
-                        </div>
-                        <div class="p-2 overflow-y-auto flex-grow space-y-1 text-sm font-body" id="toc-list"></div>
-                    </div>
-                </div>
-
-                <!-- System Menu Modal -->
-                <div id="system-menu-modal" class="hidden-modal absolute inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 modal-transition backdrop-blur-sm">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-gray-500">
-                        <div class="mb-4"><i data-lucide="settings" class="w-12 h-12 mx-auto text-gray-400"></i></div>
-                        <h2 class="text-xl font-heading font-bold text-allgood-dark mb-2">System Menu</h2>
-                        <div class="space-y-3">
-                            <button onclick="window.handleLogOut()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded border border-red-200 shadow-sm flex items-center justify-center"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out</button>
-                            <button onclick="window.handleSystemExit()" class="w-full bg-gray-100 hover:bg-gray-200 text-allgood-dark font-bold py-3 rounded border border-gray-300 shadow-sm flex items-center justify-center"><i data-lucide="external-link" class="w-4 h-4 mr-2"></i> Exit to Dashboard</button>
-                            <button onclick="document.getElementById('system-menu-modal').classList.add('hidden-modal'); document.getElementById('system-menu-modal').classList.remove('visible-modal');" class="w-full text-gray-400 hover:text-gray-600 font-bold py-2 text-sm mt-2">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Brandeisha Easter Egg Modal -->
-                <div id="brandeisha-modal" class="hidden-modal absolute inset-0 z-[300] bg-pink-500 flex flex-col items-center justify-center p-6 modal-transition overflow-hidden backdrop-blur-md">
-                    <div class="absolute inset-0 opacity-50 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==')] animate-pulse"></div>
-                    <div class="relative z-10 text-center transform scale-150 animate-bounce">
-                        <span class="text-6xl block mb-4">👯‍♀️🍾✨</span>
-                        <h1 class="text-4xl font-heading font-bold text-white mb-2 drop-shadow-lg">IT'S PARTY TIME!</h1>
-                        <p class="text-xl text-pink-100 font-bold uppercase tracking-widest drop-shadow-md">Enters Brandeisha.</p>
-                    </div>
-                    <button onclick="document.getElementById('brandeisha-modal').classList.add('hidden-modal'); document.getElementById('brandeisha-modal').classList.remove('visible-modal'); window.resetPour();" class="relative z-10 mt-12 bg-white text-pink-600 hover:bg-pink-100 font-bold py-3 px-8 rounded-full shadow-xl transition-transform transform hover:scale-105 uppercase tracking-wide">Resume Subservience</button>
-                </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {CATEGORY_INFO.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => handleCategorySelect(cat.id)}
+            className="bg-white border-2 border-[#D1D5DB] hover:border-[#357889] rounded-xl p-6 text-left transition-all shadow-sm hover:shadow-md group flex flex-col h-full"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 rounded-lg bg-[#F7F7F7] group-hover:bg-white transition-colors" style={{ color: cat.color }}>
+                <cat.icon size={28} />
+              </div>
+              <h2 className="text-xl font-['Georgia'] font-bold text-[#4C4C4C]">{cat.title}</h2>
             </div>
+            <p className="text-[#757575] font-['Verdana'] text-sm mb-6 flex-grow">
+              {cat.desc}
+            </p>
+            <div className="text-xs font-bold text-[#357889] uppercase tracking-wider">
+              {QUESTIONS[cat.id].length} Questions
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderList = () => {
+    const categoryInfo = CATEGORY_INFO.find(c => c.id === activeCategory);
+    const questions = QUESTIONS[activeCategory];
+
+    return (
+      <div className="pb-40 max-w-3xl mx-auto px-4 pt-6">
+        <button 
+          onClick={() => { setView('dashboard'); resetTimer(); }}
+          className="flex items-center gap-2 text-[#757575] hover:text-[#357889] font-['Verdana'] text-sm font-bold mb-6 transition-colors"
+        >
+          <ChevronLeft size={16} /> Back to Dashboard
+        </button>
+
+        <header className="mb-8 border-b-2 border-[#D1D5DB] pb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <categoryInfo.icon size={24} style={{ color: categoryInfo.color }} />
+            <h1 className="text-3xl font-['Georgia'] font-bold text-[#4C4C4C]">{categoryInfo.title}</h1>
+          </div>
+          <p className="text-[#757575] font-['Verdana']">{categoryInfo.desc}</p>
+        </header>
+
+        <div className="space-y-3">
+          {questions.map((q, idx) => (
+            <div 
+              key={idx}
+              onClick={() => setActiveQuestion(idx)}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                activeQuestion === idx 
+                  ? 'border-[#D34716] bg-white shadow-md transform scale-[1.01]' 
+                  : 'border-[#D1D5DB] bg-[#F7F7F7] hover:bg-white hover:border-[#357889]'
+              }`}
+            >
+              <div className="flex gap-4">
+                <span className={`font-['Georgia'] font-bold text-lg ${activeQuestion === idx ? 'text-[#D34716]' : 'text-[#757575]'}`}>
+                  {(idx + 1).toString().padStart(2, '0')}.
+                </span>
+                <p className={`font-['Verdana'] text-base leading-relaxed ${activeQuestion === idx ? 'text-[#4C4C4C] font-bold' : 'text-[#4C4C4C]'}`}>
+                  {q}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
-    </main>
+      </div>
+    );
+  };
 
-    <!-- LOGIC -->
-    <script>
-        // --- CONFIG & STATE ---
-        const totalPages = 10; 
-        let currentPage = 0;
-        
-        // EXPOSE GLOBALS FOR LOGGER
-        window.currentPageIndex = 0;
-        window.progressPercent = 0;
-        let userRating = 0;
+  // Sticky Footer Timer
+  const renderStickyFooter = () => {
+    if (view !== 'list') return null;
 
-        // --- AUDIO ENGINE ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx;
-        
-        function initAudio() { 
-            try {
-                if (!AudioContext) return; 
-                if (!audioCtx) audioCtx = new AudioContext(); 
-                if (audioCtx.state === 'suspended') audioCtx.resume(); 
-            } catch(e) { console.warn("Audio Context Failed", e); }
-        }
+    return (
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t-2 border-[#D1D5DB] shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-50">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Progress Indicators */}
+          <div className="flex items-center gap-6">
+            <div className={`text-center transition-opacity ${phase === 'speaker' ? 'opacity-100' : 'opacity-40'}`}>
+              <p className="text-[10px] font-['Verdana'] font-bold uppercase tracking-wider mb-1 text-[#4C4C4C]">Speaker</p>
+              <div className={`w-16 h-1.5 rounded-full ${phase === 'speaker' ? 'bg-[#D34716]' : 'bg-[#D1D5DB]'}`} />
+            </div>
+            <div className={`text-center transition-opacity ${phase === 'group' ? 'opacity-100' : 'opacity-40'}`}>
+              <p className="text-[10px] font-['Verdana'] font-bold uppercase tracking-wider mb-1 text-[#4C4C4C]">Group</p>
+              <div className={`w-16 h-1.5 rounded-full ${phase === 'group' ? 'bg-[#357889]' : 'bg-[#D1D5DB]'}`} />
+            </div>
+          </div>
 
-        function playTone(f,t,d,v=0.1) { 
-            try { 
-                initAudio(); 
-                if(!audioCtx) return;
-                const o=audioCtx.createOscillator(), g=audioCtx.createGain(); 
-                o.type=t; 
-                o.frequency.setValueAtTime(f,audioCtx.currentTime); 
-                o.connect(g); 
-                g.connect(audioCtx.destination); 
-                g.gain.setValueAtTime(0,audioCtx.currentTime); 
-                g.gain.linearRampToValueAtTime(v,audioCtx.currentTime+0.01); 
-                g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); 
-                o.start(audioCtx.currentTime); 
-                o.stop(audioCtx.currentTime+d); 
-            } catch(e){ console.warn("PlayTone error", e); } 
-        }
+          {/* Time Display */}
+          <div className="text-4xl font-['Georgia'] font-bold text-[#4C4C4C] tracking-tight w-24 text-center">
+            {formatTime(timeLeft)}
+          </div>
 
-        const sfx = {
-            powerOn: () => {
-                try {
-                    initAudio(); 
-                    if(!audioCtx) return;
-                    const now=audioCtx.currentTime; 
-                    const o=audioCtx.createOscillator(); 
-                    const g=audioCtx.createGain(); 
-                    o.connect(g); 
-                    g.connect(audioCtx.destination); 
-                    o.type='triangle'; 
-                    o.frequency.setValueAtTime(110,now); 
-                    o.frequency.exponentialRampToValueAtTime(220,now+0.4); 
-                    g.gain.setValueAtTime(0,now); 
-                    g.gain.linearRampToValueAtTime(0.4,now+0.1); 
-                    g.gain.linearRampToValueAtTime(0,now+0.4); 
-                    o.start(now); 
-                    o.stop(now+0.4);
-                } catch(e) { console.warn("PowerOn SFX error", e); }
-            },
-            nav: () => playTone(200,'sine',0.1), 
-            tick: () => playTone(800,'sine',0.01), 
-            success: () => playTone(400,'sine',0.2), 
-            error: () => playTone(100,'sawtooth',0.2)
-        };
-        window.sfx = sfx;
+          {/* Controls */}
+          <div className="flex gap-3">
+            {phase === 'idle' ? (
+              <button 
+                onClick={startSpeakerPhase}
+                className="flex items-center gap-2 bg-[#D34716] hover:bg-[#EB8D69] text-white px-6 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors shadow-sm"
+              >
+                <Play size={16} /> START
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={resetTimer}
+                  className="flex items-center gap-2 border-2 border-[#D1D5DB] bg-white hover:bg-[#F7F7F7] text-[#4C4C4C] px-4 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors"
+                  title="Reset Timer"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                {phase === 'speaker' && (
+                  <button 
+                    onClick={startGroupPhase}
+                    className="bg-[#357889] hover:bg-[#2D6473] text-white px-6 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors shadow-sm"
+                  >
+                    SKIP TO GROUP
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-        // --- NAVIGATION ---
-        window.showPage = function(idx) {
-            if (idx < 0 || idx >= totalPages) return;
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(`page-${idx+1}`).classList.add('active');
-            currentPage = idx;
-            
-            // UPDATE GLOBALS
-            window.currentPageIndex = idx + 1;
-            window.progressPercent = Math.round(((idx + 1) / totalPages) * 100);
-            
-            document.getElementById('header-page-indicator').textContent = `${idx + 1} / ${totalPages}`;
-            document.getElementById('flex-progress-fill').style.width = `${window.progressPercent}%`;
-            
-            const backBtn = document.getElementById('back-button');
-            const nextBtn = document.getElementById('next-button');
-            
-            if(backBtn) { backBtn.disabled = (idx === 0); backBtn.classList.toggle('opacity-30', idx === 0); }
-            
-            // NEXT BUTTON LOGIC
-            if(nextBtn) {
-                nextBtn.innerHTML = '<span>Next</span><i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>';
-                nextBtn.onclick = window.nextPage;
-                nextBtn.disabled = false;
-                nextBtn.classList.remove('bg-gray-500', 'hover:bg-gray-600', 'cursor-not-allowed');
-                nextBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover');
+  return (
+    <div className="min-h-screen bg-[#F7F7F7] font-['Verdana']">
+      {/* Top Navbar */}
+      <nav className="bg-white border-b border-[#D1D5DB] px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div className="font-['Georgia'] font-bold text-[#D34716] text-xl tracking-tight">
+          Allgood Academy.
+        </div>
+        <div className="text-xs font-bold text-[#757575] uppercase tracking-widest hidden md:block">
+          Pragmatic Action
+        </div>
+      </nav>
 
-                if (idx === totalPages - 1) {
-                    nextBtn.innerHTML = '<span>Dashboard</span><i data-lucide="layout-grid" class="w-4 h-4 ml-1"></i>';
-                    nextBtn.onclick = () => {
-                        const exitModal = document.getElementById('exit-modal');
-                        if(exitModal) {
-                            exitModal.classList.remove('hidden-modal');
-                            exitModal.classList.add('visible-modal');
-                        }
-                    };
-                } else {
-                     nextBtn.onclick = window.nextPage;
-                }
-            }
-            
-            const scroll = document.getElementById('content-column');
-            if(scroll) scroll.scrollTop = 0;
+      <main>
+        {view === 'landing' && renderLanding()}
+        {view === 'dashboard' && renderDashboard()}
+        {view === 'list' && renderList()}
+      </main>
 
-            if(window.sfx) window.sfx.nav();
-            if(window.lucide) window.lucide.createIcons();
+      {renderStickyFooter()}
+    </div>
+  );
+};
 
-            // Log Page View
-            if(window.SessionManager) {
-                window.SessionManager.log('Page_View', `Viewed Page ${idx + 1}`, {
-                    page_title: `Page ${idx + 1}`,
-                    progress: window.progressPercent
-                });
-            }
-        }
+export default App;
 
-        window.nextPage = () => window.showPage(currentPage + 1);
-        window.prevPage = () => window.showPage(currentPage - 1);
 
-        // --- FEEDBACK & BADGE LOGIC ---
-        window.setRating = function(n) {
-            userRating = n;
-            for (let i = 1; i <= 5; i++) {
-                const star = document.getElementById(`star-${i}`);
-                if (i <= n) { star.classList.remove('text-gray-300'); star.classList.add('text-yellow-400'); } 
-                else { star.classList.add('text-gray-300'); star.classList.remove('text-yellow-400'); }
-            }
-            if(window.sfx) window.sfx.tick();
-        }
-
-        window.submitFeedback = function() {
-            if(userRating === 0) { alert("Please select a star rating first."); return; }
-            const feedbackText = document.getElementById('feedback-text').value;
-            
-            if(window.SessionManager) {
-                window.SessionManager.log('Feedback_Submitted', `Rating: ${userRating} Stars`, { 
-                    rating: userRating, 
-                    comments: feedbackText,
-                    completed: true 
-                });
-            }
-            
-            document.getElementById('feedback-container').classList.add('hidden');
-            const successMsg = document.getElementById('feedback-success');
-            if(successMsg) successMsg.classList.remove('hidden');
-            
-            const badgeSection = document.getElementById('badge-section');
-            if(badgeSection) {
-                badgeSection.classList.remove('opacity-50', 'pointer-events-none', 'filter', 'grayscale');
-                badgeSection.classList.add('opacity-100', 'pointer-events-auto');
-            }
-            
-            const badgeIcon = document.querySelector('#badge-display i');
-            const badgeContainer = document.getElementById('badge-display');
-            if(badgeIcon && badgeContainer) {
-                badgeIcon.classList.remove('text-gray-300');
-                badgeIcon.classList.add('text-allgood-primary');
-                badgeContainer.classList.remove('from-gray-100', 'to-gray-200');
-                badgeContainer.classList.add('from-orange-50', 'to-orange-100', 'border-allgood-primary');
-            }
-
-            const badgeBtn = document.getElementById('download-badge-btn');
-            if(badgeBtn) {
-                badgeBtn.disabled = false;
-                badgeBtn.innerHTML = '<i data-lucide="download" class="mr-2 w-4 h-4"></i> Download Certificate';
-                badgeBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-                badgeBtn.classList.add('bg-allgood-primary', 'hover:bg-allgood-hover', 'shadow-lg', 'animate-pulse');
-            }
-            
-            if(window.lucide) window.lucide.createIcons();
-            if(window.sfx) window.sfx.success(); 
-        }
-
-        window.getBadgeSVG = (nameText, dateText) => {
-            return `
-            <svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-                <defs><pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E0E0E0" stroke-width="2"/></pattern></defs>
-                <rect width="100%" height="100%" fill="#F7F7F7"/>
-                <rect width="100%" height="100%" fill="url(#smallGrid)"/>
-                <rect x="30" y="30" width="1140" height="740" rx="20" ry="20" fill="none" stroke="#D34716" stroke-width="12"/>
-                <text x="600" y="120" font-family="Georgia, serif" font-weight="bold" font-size="48" fill="#357889" text-anchor="middle" letter-spacing="2">ALLGOOD ACADEMY</text>
-                <text x="600" y="170" font-family="Verdana, sans-serif" font-size="20" fill="#4C4C4C" text-anchor="middle" letter-spacing="6">CERTIFIED ROOMMATE</text>
-                <line x1="300" y1="200" x2="900" y2="200" stroke="#D34716" stroke-width="4"/>
-                <g transform="translate(600, 420)">
-                    <circle cx="0" cy="0" r="160" fill="white" stroke="#357889" stroke-width="6"/>
-                    <g transform="scale(3.5) translate(-12, -12)" stroke="#D34716" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                        <path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>
-                    </g>
-                </g>
-                <g transform="translate(600, 680)">
-                    <text x="0" y="0" font-family="Verdana, sans-serif" font-size="24" fill="#357889" text-anchor="middle" font-weight="bold">${nameText}</text>
-                    <text x="0" y="40" font-family="Verdana, sans-serif" font-size="18" fill="#757575" text-anchor="middle">CERTIFIED: ${dateText}</text>
-                </g>
-                <text x="600" y="760" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#4C4C4C" text-anchor="middle">"I survived the Arctic Thermostat and the Jolene Smells."</text>
-            </svg>`;
-        };
-
-        window.downloadBadge = function() {
-            if (currentPage < totalPages - 1) { alert("You must complete the entire module to unlock this badge."); return; }
-
-            const nameText = (window.currentUserName || "LEARNER").toUpperCase();
-            const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
-            const badgeSVG = window.getBadgeSVG(nameText, dateText);
-
-            if(window.SessionManager) {
-                window.SessionManager.log('Mission_Complete', 'Badge_Downloaded', { 
-                    completed: true,
-                    badgeArtifact: badgeSVG,
-                    progress: 100 
-                });
-            }
-
-            const blob = new Blob([badgeSVG], {type: 'image/svg+xml'});
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Certified_Roommate-${nameText}.svg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            const btn = document.getElementById('download-badge-btn');
-            if(btn) {
-                btn.innerHTML = '<i data-lucide="check" class="mr-2 w-4 h-4"></i> Saved';
-                btn.classList.remove('bg-allgood-primary', 'hover:bg-allgood-hover', 'animate-pulse');
-                btn.classList.add('bg-green-600', 'hover:bg-green-700');
-                if(window.lucide) window.lucide.createIcons();
-            }
-            if(window.sfx) window.sfx.success();
-        };
-
-        // --- SYSTEM FUNCTIONS ---
-        window.closeSystemMenu = () => {
-             const sysMenu = document.getElementById('system-menu-modal');
-             if(sysMenu) {
-                 sysMenu.classList.add('hidden-modal');
-                 sysMenu.classList.remove('visible-modal');
-             }
-        };
-
-        window.handleLogOut = async () => {
-            if (window.authSignOut) await window.authSignOut();
-            localStorage.removeItem('aa_username');
-            window.currentUser = null;
-            window.currentUserName = "Agent Learner";
-            window.currentUserEmail = "";
-            
-            const nameInput = document.getElementById('user-name-input');
-            if(nameInput) nameInput.value = "";
-            const emailInput = document.getElementById('user-email-input');
-            if(emailInput) emailInput.value = "";
-            
-            window.closeSystemMenu();
-            const startup = document.getElementById('startup-screen');
-            if(startup) {
-                startup.style.display = 'flex';
-                setTimeout(() => startup.style.opacity = '1', 10);
-            }
-            window.showPage(0);
-            
-            const login = document.getElementById('login-modal');
-            if(login) {
-                login.classList.remove('hidden-modal');
-                login.classList.add('visible-modal');
-            }
-            
-            if(window.sfx) window.sfx.nav(); 
-        };
-
-        window.handleSystemExit = () => {
-            window.location.href = "https://www.allgoodacademy.com";
-        };
-
-        // --- WILLIAM CUSTOM LOGIC ---
-        window.checkSir = (el, isSir, type) => {
-            document.querySelectorAll('#page-3 .profile-card').forEach(x => x.classList.remove('border-allgood-primary', 'bg-red-50', 'bg-green-50'));
-            const fb = document.getElementById('sir-feedback');
-            if(isSir) {
-                el.classList.add('border-allgood-primary', 'bg-green-50');
-                fb.textContent = "😇 Good boy. Protocol accepted.";
-                fb.className = "text-center text-sm font-bold text-green-600 mt-6 h-6";
-                sfx.success();
-            } else if (type === 'lol') {
-                el.classList.add('border-allgood-primary', 'bg-red-50');
-                fb.textContent = "😡 Excuse me? I'm 'William' right now. Try again.";
-                fb.className = "text-center text-sm font-bold text-red-500 mt-6 h-6";
-                sfx.error();
-            } else {
-                el.classList.add('border-allgood-primary', 'bg-red-50');
-                fb.textContent = "🙄 Unacceptable. Try again.";
-                fb.className = "text-center text-sm font-bold text-red-500 mt-6 h-6";
-                sfx.error();
-            }
-        }
-
-        window.updateTemp = (val) => {
-            const disp = document.getElementById('temp-display');
-            const fb = document.getElementById('temp-feedback');
-            disp.textContent = val + '°F';
-            
-            disp.classList.remove('text-cyan-400', 'text-green-400', 'text-allgood-primary');
-            
-            if (val <= 69) {
-                disp.classList.add('text-cyan-400');
-                fb.innerHTML = "🥶 <span class='text-cyan-600'>Too cold. We aren't penguins.</span>";
-                if(window.sfx) window.sfx.error();
-            } else if (val >= 70 && val <= 72) {
-                disp.classList.add('text-green-400');
-                fb.innerHTML = "😴 <span class='text-green-600'>Perfect. The upstairs is finally habitable.</span>";
-                if(window.sfx) window.sfx.success();
-            } else if (val > 72) {
-                disp.classList.add('text-allgood-primary');
-                fb.innerHTML = "🥵 <span class='text-allgood-primary'>Too hot. The upstairs is currently a sauna.</span>";
-                if(window.sfx) window.sfx.error();
-            }
-        }
-
-        window.checkSnack = (el, correct, type) => {
-            document.querySelectorAll('#page-5 .profile-card').forEach(x => x.classList.remove('border-allgood-primary', 'bg-red-50', 'bg-green-50'));
-            const fb = document.getElementById('frown-feedback');
-            if(correct) {
-                el.classList.add('border-allgood-primary', 'bg-green-50');
-                fb.textContent = "🥨 Correct. I'm just hangry.";
-                fb.className = "text-center text-sm font-bold text-green-600 mt-6 h-6";
-                sfx.success();
-            } else if (type === 'shirt') {
-                el.classList.add('border-allgood-primary', 'bg-red-50');
-                fb.textContent = "🙄 It's not about the shirt, obviously.";
-                fb.className = "text-center text-sm font-bold text-red-500 mt-6 h-6";
-                sfx.error();
-            } else {
-                el.classList.add('border-allgood-primary', 'bg-red-50');
-                fb.textContent = "😡 Do you want to get evicted?";
-                fb.className = "text-center text-sm font-bold text-red-500 mt-6 h-6";
-                sfx.error();
-            }
-        }
-
-        window.checkLarder = (el, ok, type) => {
-            document.querySelectorAll('#page-6 .bg-white').forEach(x => { x.classList.remove('border-green-500', 'bg-green-50', 'border-red-500', 'bg-red-50'); x.classList.add('border-gray-200'); });
-            const fb = document.getElementById('review-feedback');
-            
-            if(ok) {
-                el.classList.remove('border-gray-200'); el.classList.add('border-green-500', 'bg-green-50');
-                fb.textContent = type === 'cheese' ? "✅ Sharing is caring." : "✅ Stay hydrated, roomie.";
-                fb.className = "text-center text-sm font-bold text-green-600 mt-6 h-6";
-                if(window.sfx) window.sfx.success();
-            } else {
-                el.classList.remove('border-gray-200'); el.classList.add('border-red-500', 'bg-red-50');
-                fb.textContent = type === 'thai' ? "❌ Absolutely not. My leftovers are sacred." : "❌ Who hurt you? Replace it.";
-                fb.className = "text-center text-sm font-bold text-red-500 mt-6 h-6";
-                if(window.sfx) window.sfx.error();
-            }
-        }
-
-        window.checkVibe = () => {
-            const toggle = document.getElementById('vibe-toggle');
-            const label = document.getElementById('vibe-label');
-            const result = document.getElementById('vibe-result');
-            
-            if (!toggle.checked) {
-                label.textContent = "Weekday";
-                result.className = "bg-blue-50 p-4 rounded border border-blue-200 text-center transition-colors";
-                result.innerHTML = `<span class="text-3xl block mb-2">🤫</span><h3 class="font-bold text-blue-800">Chill Vibes</h3><p class="text-sm text-blue-700">William is sleeping or working. Guests okay, but keep it down.</p>`;
-            } else {
-                label.textContent = "Weekend";
-                result.className = "bg-green-50 p-4 rounded border border-green-200 text-center transition-colors";
-                result.innerHTML = `<span class="text-3xl block mb-2">🥳</span><h3 class="font-bold text-green-800">Party Time!</h3><p class="text-sm text-green-700">Bring 'em over. I'll probably join the party.</p>`;
-                if(window.sfx) window.sfx.success();
-            }
-        }
-
-        let pourInterval;
-        let wineAmt = 0;
-        let brandeishaTriggered = false;
-        window.startPour = () => {
-            if(brandeishaTriggered) return;
-            pourInterval = setInterval(() => {
-                wineAmt += 2;
-                if(wineAmt > 110) {
-                    window.stopPour();
-                    brandeishaTriggered = true;
-                    document.getElementById('brandeisha-modal').classList.remove('hidden-modal');
-                    document.getElementById('brandeisha-modal').classList.add('visible-modal');
-                    sfx.powerOn();
-                    return;
-                }
-                document.getElementById('wine-liquid').style.height = Math.min(wineAmt, 100) + '%';
-            }, 50);
-        }
-        window.stopPour = () => {
-            clearInterval(pourInterval);
-            if(brandeishaTriggered) return;
-            const fb = document.getElementById('pour-feedback');
-            if(wineAmt > 0 && wineAmt <= 100) {
-                fb.textContent = "🍷 A fine pour. Well done.";
-                fb.className = "text-center text-sm font-bold text-green-600 mt-6 h-6";
-                sfx.success();
-            }
-        }
-        window.resetPour = () => {
-            wineAmt = 0;
-            brandeishaTriggered = false;
-            document.getElementById('wine-liquid').style.height = '0%';
-            document.getElementById('pour-feedback').textContent = '';
-        }
-
-        window.peteAction = () => {
-            const btn = document.getElementById('pete-btn');
-            const spinner = document.getElementById('dog-spinner');
-            const overlay = document.getElementById('slime-overlay');
-            const card = document.getElementById('pete-card');
-            
-            // Prevent multiple clicks
-            if (btn.dataset.fired === 'true') return; 
-            
-            // Phase 1: The Spin
-            spinner.style.transform = 'rotate(-180deg) scale(1.3)';
-            if(window.sfx) window.sfx.error(); 
-            
-            // Phase 2: The Hit
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                overlay.classList.add('opacity-100');
-                card.classList.replace('bg-gray-100', 'bg-green-100');
-                card.classList.replace('border-gray-300', 'border-green-600');
-                
-                btn.textContent = "GO WASH YOUR FACE, PETE";
-                btn.classList.replace('bg-allgood-primary', 'bg-green-700');
-                btn.classList.replace('hover:bg-allgood-hover', 'hover:bg-green-800');
-                btn.dataset.fired = 'true';
-                
-                if(window.sfx) window.sfx.success(); // Success chime for the joke landing
-            }, 300);
-        }
-
-        // --- INIT HOOKS ---
-        document.addEventListener('DOMContentLoaded', () => {
-            if(window.lucide) window.lucide.createIcons();
-            
-            const startup = document.getElementById('startup-screen');
-            if(startup) {
-                startup.addEventListener('click', function() {
-                    try { if(window.sfx) window.sfx.powerOn(); } catch(e) { console.log("Audio warning", e); }
-                    this.style.opacity = '0'; 
-                    this.style.pointerEvents = 'none'; 
-                    setTimeout(() => { this.style.display = 'none'; }, 700);
-                    if(!window.currentUser) {
-                        const login = document.getElementById('login-modal');
-                        if(login) { login.classList.remove('hidden-modal'); login.classList.add('visible-modal'); }
-                    } else {
-                         if(window.SessionManager) window.SessionManager.start(window.currentUserName, window.currentUserEmail);
-                    }
-                });
-            }
-
-            document.body.addEventListener('click', (e) => {
-                const accBtn = e.target.closest('.accordion-toggle');
-                if (accBtn) {
-                    const content = accBtn.nextElementSibling;
-                    const icon = accBtn.querySelector('.accordion-icon');
-                    content.classList.toggle('hidden');
-                    if(icon) icon.classList.toggle('rotate-180');
-                    if(window.sfx) window.sfx.tick();
-                }
-            });
-
-            const homeBtn = document.getElementById('home-button');
-            let pressTimer;
-            let isLongPress = false;
-            
-            if(homeBtn) {
-                const startPress = () => {
-                    isLongPress = false;
-                    pressTimer = setTimeout(() => {
-                        isLongPress = true;
-                        document.getElementById('system-menu-modal').classList.remove('hidden-modal');
-                        document.getElementById('system-menu-modal').classList.add('visible-modal');
-                        if(window.sfx) window.sfx.nav();
-                    }, 2000);
-                };
-                const endPress = () => { clearTimeout(pressTimer); };
-
-                homeBtn.addEventListener('mousedown', startPress);
-                homeBtn.addEventListener('mouseup', endPress);
-                homeBtn.addEventListener('mouseleave', endPress);
-                homeBtn.addEventListener('touchstart', (e) => { startPress(); }, { passive: true });
-                homeBtn.addEventListener('touchend', endPress);
-                homeBtn.addEventListener('touchcancel', endPress);
-
-                homeBtn.addEventListener('click', (e) => {
-                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); isLongPress = false; } else { window.showPage(0); }
-                });
-                homeBtn.addEventListener('contextmenu', e => { e.preventDefault(); return false; });
-            }
-
-            document.getElementById('menu-toggle').addEventListener('click', () => {
-                const m = document.getElementById('menu-modal');
-                m.classList.remove('hidden-modal'); m.classList.add('visible-modal');
-                const list = document.getElementById('toc-list');
-                list.innerHTML = '';
-                const titles = ["The Intro", "The Duality", "The Honorific", "Arctic Survival", "The H.R.S.", "Larder Logic", "Guest Protocol", "Sommelier", "Jolene & Pete", "The Oath"];
-                titles.forEach((t, i) => {
-                    list.innerHTML += `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 rounded text-xs font-bold transition-colors" onclick="window.showPage(${i}); document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');">${i+1}. ${t}</button>`;
-                });
-            });
-            
-            document.getElementById('close-menu').addEventListener('click', () => {
-                document.getElementById('menu-modal').classList.add('hidden-modal'); document.getElementById('menu-modal').classList.remove('visible-modal');
-            });
-            
-            const fsBtn = document.getElementById('fullscreen-toggle');
-            if(fsBtn) {
-                fsBtn.addEventListener('click', () => {
-                    document.querySelector('.tablet-frame').classList.toggle('focus-mode');
-                    if(window.sfx) window.sfx.tick();
-                });
-            }
-            
-            const bpBtn = document.getElementById('blueprint-toggle');
-            if(bpBtn) {
-                bpBtn.addEventListener('click', () => {
-                    document.body.classList.toggle('blueprint-mode');
-                    if(window.sfx) window.sfx.tick();
-                });
-            }
-        });
-    </script>
-</body>
-</html>
