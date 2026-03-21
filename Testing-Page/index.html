@@ -1,403 +1,480 @@
-import React, { useState, useEffect } from 'react';
-import { Play, RotateCcw, ChevronLeft, Heart, Zap, Coffee, UserCircle, Power, CheckCircle2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Connection Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandOrange: '#D34716',
+                        brandOrangeHover: '#EB8D69',
+                        brandCyan: '#357889',
+                        brandCyanHover: '#2D6473',
+                        textDark: '#4C4C4C',
+                        textMuted: '#757575',
+                        bgLight: '#F7F7F7',
+                        borderGray: '#D1D5DB'
+                    },
+                    fontFamily: {
+                        sans: ['Verdana', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth scrolling and basic resets */
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Verdana', sans-serif; background-color: #F7F7F7; color: #4C4C4C; margin: 0; padding: 0; }
+        .hidden-view { display: none !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative pb-32">
 
-const CATEGORY_INFO = [
-  {
-    id: "fun",
-    title: "Fun & Lighthearted",
-    desc: "High energy, low stakes. Use these to warm up the room.",
-    icon: Coffee,
-    color: "#357889" // Deep Cyan
-  },
-  {
-    id: "deep",
-    title: "Deep & Thoughtful",
-    desc: "Intellectual stimulation and perspective shifting.",
-    icon: Zap,
-    color: "#D34716" // Burnt Orange
-  },
-  {
-    id: "provocative",
-    title: "Emotionally Provocative",
-    desc: "Vulnerability and emotional resonance.",
-    icon: Heart,
-    color: "#357889"
-  },
-  {
-    id: "mirror",
-    title: "The Mirror",
-    desc: "Feedback and communal reflection. The hot seat.",
-    icon: UserCircle,
-    color: "#D34716"
-  }
-];
+    <!-- Top Navbar -->
+    <nav class="bg-white border-b border-borderGray px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="font-serif font-bold text-brandOrange text-xl tracking-tight">
+            Allgood Academy.
+        </div>
+        <div class="text-xs font-bold text-textMuted uppercase tracking-widest hidden md:block">
+            Pragmatic Action
+        </div>
+    </nav>
 
-const QUESTIONS = {
-  "fun": [
-    "If you had to enter a talent show tomorrow, what would your 'useless' talent be?",
-    "What is the most ridiculous thing you’ve done to save a small amount of money?",
-    "If your life was a sitcom, what would the title be and who would play your neighbor?",
-    "What’s a trend you hope never comes back, but you secretly participated in?",
-    "If you were a ghost, who would you haunt first and what’s your signature move?",
-    "What’s the most 'illegal' feeling thing that is actually perfectly legal?",
-    "If you could have any animal as a pet (regardless of logistics), what would it be?",
-    "What’s the weirdest food combination you actually enjoy?",
-    "If you were stranded on an island and could only have one condiment, what is it?",
-    "What is the most embarrassing song in your 'most played' list?",
-    "If you could swap lives with any fictional character for 24 hours, who is it?",
-    "What’s your go-to 'karaoke' song that you actually can't sing at all?",
-    "What’s the most useless trivia fact you know?",
-    "If you won the lottery tomorrow, what is the first 'stupid' thing you’d buy?",
-    "What is your 'old person' habit that you've had since you were young?",
-    "What’s the worst haircut you’ve ever had and what was the logic behind it?",
-    "If you had to be an Olympic athlete in a sport you’ve never played, which one?",
-    "What’s the most 'main character' moment you’ve ever had?",
-    "If you could add any rule to a sport to make it more chaotic, what would it be?",
-    "What’s a hill you are willing to die on regarding a minor, unimportant topic?",
-    "If you were a professional wrestler, what would your entrance music be?",
-    "What’s the most bizarre dream you still remember vividly?",
-    "What’s your 'guilty pleasure' movie that everyone else thinks is terrible?",
-    "If you could be any age forever, which age would you pick?",
-    "What’s the best prank you’ve ever pulled or seen pulled?"
-  ],
-  "deep": [
-    "What is a 'truth' you used to believe that you no longer do?",
-    "What do you want to be remembered for most when you're gone?",
-    "If you could send a 30-second message to your 18-year-old self, what would you say?",
-    "What is the most significant 'pivot' you’ve ever made in your life?",
-    "What does 'success' look like to you today versus five years ago?",
-    "What is a fear you have that you know is irrational but still affects you?",
-    "If you could know the absolute truth to one mystery (personal or universal), what is it?",
-    "What is the biggest lesson you learned from a failure?",
-    "How do you define 'home'? Is it a place, a person, or a feeling?",
-    "What is a habit you’ve built that has fundamentally changed your life?",
-    "What is something you’re currently struggling to forgive yourself for?",
-    "If you could change one thing about the way you were raised, what would it be?",
-    "What is the most courageous thing you have ever done?",
-    "What does 'loyalty' mean to you in a friendship?",
-    "If you had to choose between being respected or being liked, which would you pick?",
-    "What is the one thing you are most proud of that isn't on your resume?",
-    "How do you want to be different 10 years from now?",
-    "What is a piece of advice you received that you initially ignored but now live by?",
-    "What is the most important quality you look for in a partner or friend?",
-    "What is something you think most people misunderstand about you?",
-    "If you could have a conversation with your ancestors, what would you ask them?",
-    "What is the hardest 'no' you’ve ever had to say?",
-    "How do you handle the feeling of being stuck or stagnant?",
-    "What is a question you wish people would ask you more often?",
-    "What gives your life the most meaning right now?"
-  ],
-  "provocative": [
-    "What is a part of your childhood you are still trying to heal from?",
-    "When was the last time you felt truly, deeply lonely even when surrounded by people?",
-    "What is a secret you’ve never told anyone because you’re afraid of the judgment?",
-    "What was the moment you realized your parents were just flawed human beings?",
-    "What is the biggest 'what if' that keeps you up at night?",
-    "When did you last cry in front of another person, and why?",
-    "What is a compliment you received that felt like it hit your soul?",
-    "What is the most painful thing someone has said to you that was actually true?",
-    "What part of yourself do you hide because you think it’s 'too much' for others?",
-    "What is the most significant loss you have ever experienced?",
-    "Have you ever felt like you were living someone else’s life? When?",
-    "What is a dream you’ve given up on, and how does that make you feel?",
-    "What does 'vulnerability' feel like in your body?",
-    "What is the one thing you would change about your personality if you could?",
-    "Who is the person you need to forgive, even if they aren't sorry?",
-    "What is your biggest regret regarding a relationship that ended?",
-    "When was the last time you felt like you truly belonged somewhere?",
-    "What is a 'shadow' trait of yours that you are working to accept?",
-    "What is the kindest thing anyone has ever done for you that you can never repay?",
-    "What makes you feel truly seen and understood?",
-    "What is the most difficult conversation you are currently avoiding?",
-    "How do you comfort yourself when things fall apart?",
-    "What is a boundary you wish you had set a long time ago?",
-    "What is the most 'human' mistake you’ve ever made?",
-    "What does love feel like to you at this stage of your life?"
-  ],
-  "mirror": [
-    "In your opinion, what is my 'superpower' that I might not see in myself?",
-    "If I were a color or a specific season, which one would I be and why?",
-    "What is one trait I have that you think I should lean into more?",
-    "What was your very first impression of me, and how has it changed?",
-    "If I were to go on a reality TV show, which one would I win?",
-    "What is a habit or quirk of mine that you find particularly endearing?",
-    "When we’re in a group, what is the 'role' you see me naturally taking?",
-    "If I called you at 3 AM in an emergency, what would you assume happened?",
-    "What is one thing you’ve learned about yourself through our friendship?",
-    "What is a quality I have that you wish you had more of?",
-    "How would you describe my 'vibe' to someone who has never met me?",
-    "What is one piece of advice you think I need to hear, even if it’s tough?",
-    "What is a situation where you’ve seen me at my absolute best?",
-    "If I were an animal, which one would I be and why?",
-    "What is one thing I’ve done that genuinely surprised you?",
-    "What is a topic you feel like you can only talk to *me* about?",
-    "How have you seen me grow or change in the time you’ve known me?",
-    "What is one thing you think I am currently holding myself back from?",
-    "What is my 'signature' look or phrase in your mind?",
-    "If I were to write a book, what do you think the subject matter would be?",
-    "What is one thing I do that makes you feel supported or cared for?",
-    "What do you think is my biggest blind spot right now?",
-    "If you had to describe my 'energy' in three words, what would they be?",
-    "What is one goal of mine that you are 100% sure I will achieve?",
-    "How has my presence in your life changed your perspective on something?"
-  ]
-};
-
-const App = () => {
-  const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'list'
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [activeQuestion, setActiveQuestion] = useState(null);
-  
-  // Timer State
-  const [phase, setPhase] = useState('idle'); // 'idle', 'speaker', 'group'
-  const [timeLeft, setTimeLeft] = useState(120);
-
-  useEffect(() => {
-    let timer;
-    if (phase !== 'idle' && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      if (phase === 'speaker') {
-        startGroupPhase();
-      } else {
-        setPhase('idle');
-      }
-    }
-    return () => clearInterval(timer);
-  }, [phase, timeLeft]);
-
-  const startSpeakerPhase = () => {
-    setPhase('speaker');
-    setTimeLeft(120);
-  };
-
-  const startGroupPhase = () => {
-    setPhase('group');
-    setTimeLeft(120);
-  };
-
-  const resetTimer = () => {
-    setPhase('idle');
-    setTimeLeft(120);
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleCategorySelect = (catId) => {
-    setActiveCategory(catId);
-    setActiveQuestion(null);
-    resetTimer();
-    setView('list');
-  };
-
-  // --- Views ---
-
-  const renderLanding = () => (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
-      <div className="w-20 h-20 bg-[#D34716] rounded-xl flex items-center justify-center mb-8 shadow-lg">
-        <Power className="text-white w-10 h-10" />
-      </div>
-      <h1 className="text-4xl md:text-5xl font-['Georgia'] font-bold text-[#4C4C4C] mb-4">
-        The Connection Deck
-      </h1>
-      <p className="text-[#757575] font-['Verdana'] text-lg mb-12 max-w-md">
-        Move from passive hanging out to purposeful conversation.
-      </p>
-      
-      <div className="bg-white border-2 border-[#D1D5DB] rounded-xl p-8 max-w-lg w-full text-left shadow-md mb-12">
-        <h2 className="font-['Georgia'] font-bold text-[#357889] text-xl mb-4 border-b pb-2">Rules of Engagement</h2>
-        <ul className="space-y-4 font-['Verdana'] text-[#4C4C4C] text-sm">
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="text-[#D34716] shrink-0 mt-0.5" size={18} />
-            <div><strong>The Speaker (2 Mins):</strong> Uninterrupted space to answer. No cross-talk. Just listen.</div>
-          </li>
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="text-[#357889] shrink-0 mt-0.5" size={18} />
-            <div><strong>The Group (2 Mins):</strong> Time for clarifying questions or building on the response.</div>
-          </li>
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="text-[#4C4C4C] shrink-0 mt-0.5" size={18} />
-            <div><strong>The Mirror:</strong> Read a prompt about yourself, and the group gets 2 minutes to answer it <em>for</em> you.</div>
-          </li>
-        </ul>
-      </div>
-
-      <button 
-        onClick={() => setView('dashboard')}
-        className="bg-[#D34716] hover:bg-[#EB8D69] text-white font-['Verdana'] font-bold py-4 px-12 rounded-lg shadow-lg transition-all transform hover:scale-105"
-      >
-        POWER UP
-      </button>
-    </div>
-  );
-
-  const renderDashboard = () => (
-    <div className="px-4 py-8 max-w-4xl mx-auto">
-      <header className="mb-10 text-center">
-        <h1 className="text-3xl font-['Georgia'] font-bold text-[#4C4C4C] mb-2">Select a Category</h1>
-        <p className="text-[#757575] font-['Verdana']">100 questions to deepen your inner circle.</p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {CATEGORY_INFO.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => handleCategorySelect(cat.id)}
-            className="bg-white border-2 border-[#D1D5DB] hover:border-[#357889] rounded-xl p-6 text-left transition-all shadow-sm hover:shadow-md group flex flex-col h-full"
-          >
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 rounded-lg bg-[#F7F7F7] group-hover:bg-white transition-colors" style={{ color: cat.color }}>
-                <cat.icon size={28} />
-              </div>
-              <h2 className="text-xl font-['Georgia'] font-bold text-[#4C4C4C]">{cat.title}</h2>
+    <!-- App Container -->
+    <main id="app-root" class="flex-grow w-full">
+        
+        <!-- View 1: Landing Page -->
+        <div id="view-landing" class="flex flex-col items-center justify-center min-h-[80vh] text-center px-4 py-12">
+            <div class="w-20 h-20 bg-brandOrange rounded-xl flex items-center justify-center mb-8 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
             </div>
-            <p className="text-[#757575] font-['Verdana'] text-sm mb-6 flex-grow">
-              {cat.desc}
+            <h1 class="text-4xl md:text-5xl font-serif font-bold text-textDark mb-4">
+                The Connection Deck
+            </h1>
+            <p class="text-textMuted text-lg mb-12 max-w-md">
+                Move from passive hanging out to purposeful conversation.
             </p>
-            <div className="text-xs font-bold text-[#357889] uppercase tracking-wider">
-              {QUESTIONS[cat.id].length} Questions
+            
+            <div class="bg-white border-2 border-borderGray rounded-xl p-8 max-w-lg w-full text-left shadow-md mb-12">
+                <h2 class="font-serif font-bold text-brandCyan text-xl mb-4 border-b pb-2">Rules of Engagement</h2>
+                <ul class="space-y-4 text-sm">
+                    <li class="flex items-start gap-3">
+                        <svg class="text-brandOrange shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <div><strong>The Speaker (2 Mins):</strong> Uninterrupted space to answer. No cross-talk. Just listen.</div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="text-brandCyan shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <div><strong>The Group (2 Mins):</strong> Time for clarifying questions or building on the response.</div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="text-textDark shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <div><strong>The Mirror:</strong> Read a prompt about yourself, and the group gets 2 minutes to answer it <em>for</em> you.</div>
+                    </li>
+                </ul>
             </div>
-          </button>
-        ))}
-      </div>
+
+            <button onclick="app.navigate('dashboard')" class="bg-brandOrange hover:bg-brandOrangeHover text-white font-bold py-4 px-12 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                POWER UP
+            </button>
+        </div>
+
+        <!-- View 2: Dashboard -->
+        <div id="view-dashboard" class="hidden-view px-4 py-8 max-w-4xl mx-auto w-full">
+            <header class="mb-10 text-center">
+                <h1 class="text-3xl font-serif font-bold text-textDark mb-2">Select a Category</h1>
+                <p class="text-textMuted">100 questions to deepen your inner circle.</p>
+            </header>
+            <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Tiles injected via JS -->
+            </div>
+        </div>
+
+        <!-- View 3: List View -->
+        <div id="view-list" class="hidden-view pb-40 max-w-3xl mx-auto px-4 pt-6 w-full">
+            <button onclick="app.navigate('dashboard')" class="flex items-center gap-2 text-textMuted hover:text-brandCyan text-sm font-bold mb-6 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back to Dashboard
+            </button>
+
+            <header class="mb-8 border-b-2 border-borderGray pb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <div id="list-header-icon"></div>
+                    <h1 id="list-header-title" class="text-3xl font-serif font-bold text-textDark">Category Title</h1>
+                </div>
+                <p id="list-header-desc" class="text-textMuted">Category description goes here.</p>
+            </header>
+
+            <div id="questions-container" class="space-y-3">
+                <!-- Questions injected via JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Sticky Footer Timer (Only visible on List View) -->
+    <div id="sticky-timer" class="hidden-view fixed bottom-0 left-0 w-full bg-white border-t-2 border-borderGray shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-50">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Progress Indicators -->
+            <div class="flex items-center gap-6">
+                <div id="indicator-speaker" class="text-center transition-opacity opacity-40">
+                    <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-textDark">Speaker</p>
+                    <div id="bar-speaker" class="w-16 h-1.5 rounded-full bg-borderGray"></div>
+                </div>
+                <div id="indicator-group" class="text-center transition-opacity opacity-40">
+                    <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-textDark">Group</p>
+                    <div id="bar-group" class="w-16 h-1.5 rounded-full bg-borderGray"></div>
+                </div>
+            </div>
+
+            <!-- Time Display -->
+            <div id="timer-display" class="text-4xl font-serif font-bold text-textDark tracking-tight w-24 text-center">
+                2:00
+            </div>
+
+            <!-- Controls -->
+            <div id="timer-controls" class="flex gap-3">
+                <!-- Injected via JS -->
+            </div>
+        </div>
     </div>
-  );
 
-  const renderList = () => {
-    const categoryInfo = CATEGORY_INFO.find(c => c.id === activeCategory);
-    const questions = QUESTIONS[activeCategory];
+    <script>
+        // --- DATA ---
+        const ICONS = {
+            fun: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>`,
+            deep: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+            provocative: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+            mirror: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>`,
+            play: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+            reset: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`
+        };
 
-    return (
-      <div className="pb-40 max-w-3xl mx-auto px-4 pt-6">
-        <button 
-          onClick={() => { setView('dashboard'); resetTimer(); }}
-          className="flex items-center gap-2 text-[#757575] hover:text-[#357889] font-['Verdana'] text-sm font-bold mb-6 transition-colors"
-        >
-          <ChevronLeft size={16} /> Back to Dashboard
-        </button>
+        const CATEGORY_INFO = [
+            { id: "fun", title: "Fun & Lighthearted", desc: "High energy, low stakes. Use these to warm up the room.", icon: ICONS.fun, color: "#357889" },
+            { id: "deep", title: "Deep & Thoughtful", desc: "Intellectual stimulation and perspective shifting.", icon: ICONS.deep, color: "#D34716" },
+            { id: "provocative", title: "Emotionally Provocative", desc: "Vulnerability and emotional resonance.", icon: ICONS.provocative, color: "#357889" },
+            { id: "mirror", title: "The Mirror", desc: "Feedback and communal reflection. The hot seat.", icon: ICONS.mirror, color: "#D34716" }
+        ];
 
-        <header className="mb-8 border-b-2 border-[#D1D5DB] pb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <categoryInfo.icon size={24} style={{ color: categoryInfo.color }} />
-            <h1 className="text-3xl font-['Georgia'] font-bold text-[#4C4C4C]">{categoryInfo.title}</h1>
-          </div>
-          <p className="text-[#757575] font-['Verdana']">{categoryInfo.desc}</p>
-        </header>
+        const QUESTIONS = {
+            "fun": [
+                "If you had to enter a talent show tomorrow, what would your 'useless' talent be?",
+                "What is the most ridiculous thing you’ve done to save a small amount of money?",
+                "If your life was a sitcom, what would the title be and who would play your neighbor?",
+                "What’s a trend you hope never comes back, but you secretly participated in?",
+                "If you were a ghost, who would you haunt first and what’s your signature move?",
+                "What’s the most 'illegal' feeling thing that is actually perfectly legal?",
+                "If you could have any animal as a pet (regardless of logistics), what would it be?",
+                "What’s the weirdest food combination you actually enjoy?",
+                "If you were stranded on an island and could only have one condiment, what is it?",
+                "What is the most embarrassing song in your 'most played' list?",
+                "If you could swap lives with any fictional character for 24 hours, who is it?",
+                "What’s your go-to 'karaoke' song that you actually can't sing at all?",
+                "What’s the most useless trivia fact you know?",
+                "If you won the lottery tomorrow, what is the first 'stupid' thing you’d buy?",
+                "What is your 'old person' habit that you've had since you were young?",
+                "What’s the worst haircut you’ve ever had and what was the logic behind it?",
+                "If you had to be an Olympic athlete in a sport you’ve never played, which one?",
+                "What’s the most 'main character' moment you’ve ever had?",
+                "If you could add any rule to a sport to make it more chaotic, what would it be?",
+                "What’s a hill you are willing to die on regarding a minor, unimportant topic?",
+                "If you were a professional wrestler, what would your entrance music be?",
+                "What’s the most bizarre dream you still remember vividly?",
+                "What’s your 'guilty pleasure' movie that everyone else thinks is terrible?",
+                "If you could be any age forever, which age would you pick?",
+                "What’s the best prank you’ve ever pulled or seen pulled?"
+            ],
+            "deep": [
+                "What is a 'truth' you used to believe that you no longer do?",
+                "What do you want to be remembered for most when you're gone?",
+                "If you could send a 30-second message to your 18-year-old self, what would you say?",
+                "What is the most significant 'pivot' you’ve ever made in your life?",
+                "What does 'success' look like to you today versus five years ago?",
+                "What is a fear you have that you know is irrational but still affects you?",
+                "If you could know the absolute truth to one mystery (personal or universal), what is it?",
+                "What is the biggest lesson you learned from a failure?",
+                "How do you define 'home'? Is it a place, a person, or a feeling?",
+                "What is a habit you’ve built that has fundamentally changed your life?",
+                "What is something you’re currently struggling to forgive yourself for?",
+                "If you could change one thing about the way you were raised, what would it be?",
+                "What is the most courageous thing you have ever done?",
+                "What does 'loyalty' mean to you in a friendship?",
+                "If you had to choose between being respected or being liked, which would you pick?",
+                "What is the one thing you are most proud of that isn't on your resume?",
+                "How do you want to be different 10 years from now?",
+                "What is a piece of advice you received that you initially ignored but now live by?",
+                "What is the most important quality you look for in a partner or friend?",
+                "What is something you think most people misunderstand about you?",
+                "If you could have a conversation with your ancestors, what would you ask them?",
+                "What is the hardest 'no' you’ve ever had to say?",
+                "How do you handle the feeling of being stuck or stagnant?",
+                "What is a question you wish people would ask you more often?",
+                "What gives your life the most meaning right now?"
+            ],
+            "provocative": [
+                "What is a part of your childhood you are still trying to heal from?",
+                "When was the last time you felt truly, deeply lonely even when surrounded by people?",
+                "What is a secret you’ve never told anyone because you’re afraid of the judgment?",
+                "What was the moment you realized your parents were just flawed human beings?",
+                "What is the biggest 'what if' that keeps you up at night?",
+                "When did you last cry in front of another person, and why?",
+                "What is a compliment you received that felt like it hit your soul?",
+                "What is the most painful thing someone has said to you that was actually true?",
+                "What part of yourself do you hide because you think it’s 'too much' for others?",
+                "What is the most significant loss you have ever experienced?",
+                "Have you ever felt like you were living someone else’s life? When?",
+                "What is a dream you’ve given up on, and how does that make you feel?",
+                "What does 'vulnerability' feel like in your body?",
+                "What is the one thing you would change about your personality if you could?",
+                "Who is the person you need to forgive, even if they aren't sorry?",
+                "What is your biggest regret regarding a relationship that ended?",
+                "When was the last time you felt like you truly belonged somewhere?",
+                "What is a 'shadow' trait of yours that you are working to accept?",
+                "What is the kindest thing anyone has ever done for you that you can never repay?",
+                "What makes you feel truly seen and understood?",
+                "What is the most difficult conversation you are currently avoiding?",
+                "How do you comfort yourself when things fall apart?",
+                "What is a boundary you wish you had set a long time ago?",
+                "What is the most 'human' mistake you’ve ever made?",
+                "What does love feel like to you at this stage of your life?"
+            ],
+            "mirror": [
+                "In your opinion, what is my 'superpower' that I might not see in myself?",
+                "If I were a color or a specific season, which one would I be and why?",
+                "What is one trait I have that you think I should lean into more?",
+                "What was your very first impression of me, and how has it changed?",
+                "If I were to go on a reality TV show, which one would I win?",
+                "What is a habit or quirk of mine that you find particularly endearing?",
+                "When we’re in a group, what is the 'role' you see me naturally taking?",
+                "If I called you at 3 AM in an emergency, what would you assume happened?",
+                "What is one thing you’ve learned about yourself through our friendship?",
+                "What is a quality I have that you wish you had more of?",
+                "How would you describe my 'vibe' to someone who has never met me?",
+                "What is one piece of advice you think I need to hear, even if it’s tough?",
+                "What is a situation where you’ve seen me at my absolute best?",
+                "If I were an animal, which one would I be and why?",
+                "What is one thing I’ve done that genuinely surprised you?",
+                "What is a topic you feel like you can only talk to *me* about?",
+                "How have you seen me grow or change in the time you’ve known me?",
+                "What is one thing you think I am currently holding myself back from?",
+                "What is my 'signature' look or phrase in your mind?",
+                "If I were to write a book, what do you think the subject matter would be?",
+                "What is one thing I do that makes you feel supported or cared for?",
+                "What do you think is my biggest blind spot right now?",
+                "If you had to describe my 'energy' in three words, what would they be?",
+                "What is one goal of mine that you are 100% sure I will achieve?",
+                "How has my presence in your life changed your perspective on something?"
+            ]
+        };
 
-        <div className="space-y-3">
-          {questions.map((q, idx) => (
-            <div 
-              key={idx}
-              onClick={() => setActiveQuestion(idx)}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                activeQuestion === idx 
-                  ? 'border-[#D34716] bg-white shadow-md transform scale-[1.01]' 
-                  : 'border-[#D1D5DB] bg-[#F7F7F7] hover:bg-white hover:border-[#357889]'
-              }`}
-            >
-              <div className="flex gap-4">
-                <span className={`font-['Georgia'] font-bold text-lg ${activeQuestion === idx ? 'text-[#D34716]' : 'text-[#757575]'}`}>
-                  {(idx + 1).toString().padStart(2, '0')}.
-                </span>
-                <p className={`font-['Verdana'] text-base leading-relaxed ${activeQuestion === idx ? 'text-[#4C4C4C] font-bold' : 'text-[#4C4C4C]'}`}>
-                  {q}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
+        // --- APP STATE & LOGIC ---
+        const app = {
+            view: 'landing',
+            activeCategory: null,
+            activeQuestionIdx: null,
+            phase: 'idle', // idle, speaker, group
+            timeLeft: 120,
+            timerInterval: null,
 
-  // Sticky Footer Timer
-  const renderStickyFooter = () => {
-    if (view !== 'list') return null;
+            init() {
+                this.renderDashboardTiles();
+                this.updateTimerUI();
+            },
 
-    return (
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t-2 border-[#D1D5DB] shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          
-          {/* Progress Indicators */}
-          <div className="flex items-center gap-6">
-            <div className={`text-center transition-opacity ${phase === 'speaker' ? 'opacity-100' : 'opacity-40'}`}>
-              <p className="text-[10px] font-['Verdana'] font-bold uppercase tracking-wider mb-1 text-[#4C4C4C]">Speaker</p>
-              <div className={`w-16 h-1.5 rounded-full ${phase === 'speaker' ? 'bg-[#D34716]' : 'bg-[#D1D5DB]'}`} />
-            </div>
-            <div className={`text-center transition-opacity ${phase === 'group' ? 'opacity-100' : 'opacity-40'}`}>
-              <p className="text-[10px] font-['Verdana'] font-bold uppercase tracking-wider mb-1 text-[#4C4C4C]">Group</p>
-              <div className={`w-16 h-1.5 rounded-full ${phase === 'group' ? 'bg-[#357889]' : 'bg-[#D1D5DB]'}`} />
-            </div>
-          </div>
+            navigate(newView) {
+                this.view = newView;
+                document.getElementById('view-landing').classList.add('hidden-view');
+                document.getElementById('view-dashboard').classList.add('hidden-view');
+                document.getElementById('view-list').classList.add('hidden-view');
+                document.getElementById('sticky-timer').classList.add('hidden-view');
 
-          {/* Time Display */}
-          <div className="text-4xl font-['Georgia'] font-bold text-[#4C4C4C] tracking-tight w-24 text-center">
-            {formatTime(timeLeft)}
-          </div>
+                document.getElementById(`view-${newView}`).classList.remove('hidden-view');
+                
+                if (newView === 'list') {
+                    document.getElementById('sticky-timer').classList.remove('hidden-view');
+                } else if (newView === 'dashboard') {
+                    this.resetTimer();
+                    this.activeQuestionIdx = null;
+                }
+                window.scrollTo(0,0);
+            },
 
-          {/* Controls */}
-          <div className="flex gap-3">
-            {phase === 'idle' ? (
-              <button 
-                onClick={startSpeakerPhase}
-                className="flex items-center gap-2 bg-[#D34716] hover:bg-[#EB8D69] text-white px-6 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors shadow-sm"
-              >
-                <Play size={16} /> START
-              </button>
-            ) : (
-              <>
-                <button 
-                  onClick={resetTimer}
-                  className="flex items-center gap-2 border-2 border-[#D1D5DB] bg-white hover:bg-[#F7F7F7] text-[#4C4C4C] px-4 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors"
-                  title="Reset Timer"
-                >
-                  <RotateCcw size={16} />
-                </button>
-                {phase === 'speaker' && (
-                  <button 
-                    onClick={startGroupPhase}
-                    className="bg-[#357889] hover:bg-[#2D6473] text-white px-6 py-2.5 rounded font-['Verdana'] font-bold text-sm transition-colors shadow-sm"
-                  >
-                    SKIP TO GROUP
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+            selectCategory(catId) {
+                this.activeCategory = catId;
+                this.activeQuestionIdx = null;
+                this.resetTimer();
+                
+                const catInfo = CATEGORY_INFO.find(c => c.id === catId);
+                
+                // Update List Header
+                const iconContainer = document.getElementById('list-header-icon');
+                iconContainer.innerHTML = catInfo.icon;
+                iconContainer.style.color = catInfo.color;
+                document.getElementById('list-header-title').innerText = catInfo.title;
+                document.getElementById('list-header-desc').innerText = catInfo.desc;
 
-  return (
-    <div className="min-h-screen bg-[#F7F7F7] font-['Verdana']">
-      {/* Top Navbar */}
-      <nav className="bg-white border-b border-[#D1D5DB] px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-        <div className="font-['Georgia'] font-bold text-[#D34716] text-xl tracking-tight">
-          Allgood Academy.
-        </div>
-        <div className="text-xs font-bold text-[#757575] uppercase tracking-widest hidden md:block">
-          Pragmatic Action
-        </div>
-      </nav>
+                this.renderQuestions();
+                this.navigate('list');
+            },
 
-      <main>
-        {view === 'landing' && renderLanding()}
-        {view === 'dashboard' && renderDashboard()}
-        {view === 'list' && renderList()}
-      </main>
+            selectQuestion(idx) {
+                this.activeQuestionIdx = idx;
+                this.renderQuestions();
+            },
 
-      {renderStickyFooter()}
-    </div>
-  );
-};
+            renderDashboardTiles() {
+                const grid = document.getElementById('dashboard-grid');
+                grid.innerHTML = CATEGORY_INFO.map(cat => `
+                    <button onclick="app.selectCategory('${cat.id}')" class="bg-white border-2 border-borderGray hover:border-brandCyan rounded-xl p-6 text-left transition-all shadow-sm hover:shadow-md group flex flex-col h-full w-full">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="p-3 rounded-lg bg-bgLight group-hover:bg-white transition-colors" style="color: ${cat.color}">
+                                ${cat.icon}
+                            </div>
+                            <h2 class="text-xl font-serif font-bold text-textDark">${cat.title}</h2>
+                        </div>
+                        <p class="text-textMuted text-sm mb-6 flex-grow">${cat.desc}</p>
+                        <div class="text-xs font-bold text-brandCyan uppercase tracking-wider">
+                            ${QUESTIONS[cat.id].length} Questions
+                        </div>
+                    </button>
+                `).join('');
+            },
 
-export default App;
+            renderQuestions() {
+                const container = document.getElementById('questions-container');
+                const questions = QUESTIONS[this.activeCategory];
+                
+                container.innerHTML = questions.map((q, idx) => {
+                    const isActive = this.activeQuestionIdx === idx;
+                    const borderClass = isActive ? 'border-brandOrange bg-white shadow-md transform scale-[1.01]' : 'border-borderGray bg-bgLight hover:bg-white hover:border-brandCyan';
+                    const numColor = isActive ? 'text-brandOrange' : 'text-textMuted';
+                    const textWeight = isActive ? 'font-bold' : 'font-normal';
+                    
+                    return `
+                        <div onclick="app.selectQuestion(${idx})" class="p-4 rounded-lg border-2 cursor-pointer transition-all ${borderClass}">
+                            <div class="flex gap-4">
+                                <span class="font-serif font-bold text-lg ${numColor}">
+                                    ${(idx + 1).toString().padStart(2, '0')}.
+                                </span>
+                                <p class="text-base leading-relaxed text-textDark ${textWeight}">
+                                    ${q}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
 
+            // --- TIMER LOGIC ---
+            formatTime(seconds) {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            },
+
+            startSpeakerPhase() {
+                this.phase = 'speaker';
+                this.timeLeft = 120;
+                this.runInterval();
+                this.updateTimerUI();
+            },
+
+            startGroupPhase() {
+                this.phase = 'group';
+                this.timeLeft = 120;
+                this.runInterval();
+                this.updateTimerUI();
+            },
+
+            resetTimer() {
+                this.phase = 'idle';
+                this.timeLeft = 120;
+                clearInterval(this.timerInterval);
+                this.updateTimerUI();
+            },
+
+            runInterval() {
+                clearInterval(this.timerInterval);
+                this.timerInterval = setInterval(() => {
+                    if (this.timeLeft > 0) {
+                        this.timeLeft--;
+                        this.updateTimerText();
+                    } else {
+                        if (this.phase === 'speaker') {
+                            this.startGroupPhase();
+                        } else {
+                            this.resetTimer();
+                        }
+                    }
+                }, 1000);
+            },
+
+            updateTimerText() {
+                document.getElementById('timer-display').innerText = this.formatTime(this.timeLeft);
+            },
+
+            updateTimerUI() {
+                this.updateTimerText();
+                
+                const speakerInd = document.getElementById('indicator-speaker');
+                const groupInd = document.getElementById('indicator-group');
+                const barSpeaker = document.getElementById('bar-speaker');
+                const barGroup = document.getElementById('bar-group');
+                const controls = document.getElementById('timer-controls');
+
+                // Update UI Indicators
+                if (this.phase === 'speaker') {
+                    speakerInd.classList.replace('opacity-40', 'opacity-100');
+                    groupInd.classList.replace('opacity-100', 'opacity-40');
+                    barSpeaker.classList.replace('bg-borderGray', 'bg-brandOrange');
+                    barGroup.classList.replace('bg-brandCyan', 'bg-borderGray');
+                } else if (this.phase === 'group') {
+                    speakerInd.classList.replace('opacity-100', 'opacity-40');
+                    groupInd.classList.replace('opacity-40', 'opacity-100');
+                    barSpeaker.classList.replace('bg-brandOrange', 'bg-borderGray');
+                    barGroup.classList.replace('bg-borderGray', 'bg-brandCyan');
+                } else {
+                    speakerInd.classList.replace('opacity-100', 'opacity-40');
+                    groupInd.classList.replace('opacity-100', 'opacity-40');
+                    barSpeaker.classList.replace('bg-brandOrange', 'bg-borderGray');
+                    barGroup.classList.replace('bg-brandCyan', 'bg-borderGray');
+                }
+
+                // Update Controls
+                if (this.phase === 'idle') {
+                    controls.innerHTML = `
+                        <button onclick="app.startSpeakerPhase()" class="flex items-center gap-2 bg-brandOrange hover:bg-brandOrangeHover text-white px-6 py-2.5 rounded font-bold text-sm transition-colors shadow-sm">
+                            ${ICONS.play} START
+                        </button>
+                    `;
+                } else {
+                    let html = `
+                        <button onclick="app.resetTimer()" title="Reset Timer" class="flex items-center gap-2 border-2 border-borderGray bg-white hover:bg-bgLight text-textDark px-4 py-2.5 rounded font-bold text-sm transition-colors">
+                            ${ICONS.reset}
+                        </button>
+                    `;
+                    if (this.phase === 'speaker') {
+                        html += `
+                            <button onclick="app.startGroupPhase()" class="bg-brandCyan hover:bg-brandCyanHover text-white px-6 py-2.5 rounded font-bold text-sm transition-colors shadow-sm whitespace-nowrap">
+                                SKIP TO GROUP
+                            </button>
+                        `;
+                    }
+                    controls.innerHTML = html;
+                }
+            }
+        };
+
+        // Initialize App on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
 
