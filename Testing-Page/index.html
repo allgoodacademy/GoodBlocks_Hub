@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Connection Deck</title>
+    <title>The Connection Deck: ATL Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -28,7 +28,6 @@
         }
     </script>
     <style>
-        /* Smooth scrolling and basic resets */
         html { scroll-behavior: smooth; }
         body { font-family: 'Verdana', sans-serif; background-color: #F7F7F7; color: #4C4C4C; margin: 0; padding: 0; }
         .hidden-view { display: none !important; }
@@ -39,10 +38,10 @@
     <!-- Top Navbar -->
     <nav class="bg-white border-b border-borderGray px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="font-serif font-bold text-brandOrange text-xl tracking-tight">
-            Allgood Academy.
+            The Connection Deck <span class="text-brandCyan">ATL</span>.
         </div>
         <div class="text-xs font-bold text-textMuted uppercase tracking-widest hidden md:block">
-            Pragmatic Action
+            Pre-Game & After-Hours
         </div>
     </nav>
 
@@ -52,43 +51,43 @@
         <!-- View 1: Landing Page -->
         <div id="view-landing" class="flex flex-col items-center justify-center min-h-[80vh] text-center px-4 py-12">
             <div class="w-20 h-20 bg-brandOrange rounded-xl flex items-center justify-center mb-8 shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.6L3 8l6 6-4 4-3-1-1 1 3 3 1-1-1-3 4-4 6 6l1.2-.7c.4-.2.7-.6.6-1.1z"/></svg>
             </div>
             <h1 class="text-4xl md:text-5xl font-serif font-bold text-textDark mb-4">
-                The Connection Deck
+                The ATL Edition
             </h1>
             <p class="text-textMuted text-lg mb-12 max-w-md">
-                Move from passive hanging out to purposeful conversation.
+                160 questions designed to spill the tea, break the ice, and go deep with the boys.
             </p>
             
             <div class="bg-white border-2 border-borderGray rounded-xl p-8 max-w-lg w-full text-left shadow-md mb-12">
-                <h2 class="font-serif font-bold text-brandCyan text-xl mb-4 border-b pb-2">Rules of Engagement</h2>
+                <h2 class="font-serif font-bold text-brandCyan text-xl mb-4 border-b pb-2">The Ground Rules</h2>
                 <ul class="space-y-4 text-sm">
                     <li class="flex items-start gap-3">
                         <svg class="text-brandOrange shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <div><strong>The Speaker (2 Mins):</strong> Uninterrupted space to answer. No cross-talk. Just listen.</div>
+                        <div><strong>The Hot Seat (2 Mins):</strong> Uninterrupted space to answer. No interrupting, no judging. Just listen.</div>
                     </li>
                     <li class="flex items-start gap-3">
                         <svg class="text-brandCyan shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <div><strong>The Group (2 Mins):</strong> Time for clarifying questions or building on the response.</div>
+                        <div><strong>The Group Talk (2 Mins):</strong> Time to react, ask clarifying questions, or share a related messy story.</div>
                     </li>
                     <li class="flex items-start gap-3">
                         <svg class="text-textDark shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <div><strong>The Mirror:</strong> Read a prompt about yourself, and the group gets 2 minutes to answer it <em>for</em> you.</div>
+                        <div><strong>The Mirror Category:</strong> Read the prompt out loud, and the group gets 2 minutes to answer it <em>about you</em>.</div>
                     </li>
                 </ul>
             </div>
 
             <button onclick="app.navigate('dashboard')" class="bg-brandOrange hover:bg-brandOrangeHover text-white font-bold py-4 px-12 rounded-lg shadow-lg transition-all transform hover:scale-105">
-                POWER UP
+                START THE SESSION
             </button>
         </div>
 
         <!-- View 2: Dashboard -->
         <div id="view-dashboard" class="hidden-view px-4 py-8 max-w-4xl mx-auto w-full">
             <header class="mb-10 text-center">
-                <h1 class="text-3xl font-serif font-bold text-textDark mb-2">Select a Category</h1>
-                <p class="text-textMuted">100 questions to deepen your inner circle.</p>
+                <h1 class="text-3xl font-serif font-bold text-textDark mb-2">Pick Your Vibe</h1>
+                <p class="text-textMuted">Choose how deep (or messy) you want to get tonight.</p>
             </header>
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Tiles injected via JS -->
@@ -115,14 +114,13 @@
         </div>
     </main>
 
-    <!-- Sticky Footer Timer (Only visible on List View) -->
+    <!-- Sticky Footer Timer -->
     <div id="sticky-timer" class="hidden-view fixed bottom-0 left-0 w-full bg-white border-t-2 border-borderGray shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-50">
         <div class="max-w-3xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
             
-            <!-- Progress Indicators -->
             <div class="flex items-center gap-6">
                 <div id="indicator-speaker" class="text-center transition-opacity opacity-40">
-                    <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-textDark">Speaker</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-textDark">Hot Seat</p>
                     <div id="bar-speaker" class="w-16 h-1.5 rounded-full bg-borderGray"></div>
                 </div>
                 <div id="indicator-group" class="text-center transition-opacity opacity-40">
@@ -131,12 +129,10 @@
                 </div>
             </div>
 
-            <!-- Time Display -->
             <div id="timer-display" class="text-4xl font-serif font-bold text-textDark tracking-tight w-24 text-center">
                 2:00
             </div>
 
-            <!-- Controls -->
             <div id="timer-controls" class="flex gap-3">
                 <!-- Injected via JS -->
             </div>
@@ -144,140 +140,198 @@
     </div>
 
     <script>
-        // --- DATA ---
         const ICONS = {
             fun: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>`,
             deep: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-            provocative: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+            provocative: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19c-1.5 0-2.5-1-2.5-2.5a2.5 2.5 0 0 1 5 0c0 1.5-1 2.5-2.5 2.5Z"/><path d="M11 17a2.5 2.5 0 0 1-5 0c0-1.5 1-2.5 2.5-2.5 1.5 0 2.5 1 2.5 2.5Z"/><path d="M14.5 13a2.5 2.5 0 0 1-5 0c0-1.5 1-2.5 2.5-2.5 1.5 0 2.5 1 2.5 2.5Z"/><path d="M12 4c-3 0-5 2-5 5"/></svg>`,
             mirror: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>`,
             play: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
             reset: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`
         };
 
         const CATEGORY_INFO = [
-            { id: "fun", title: "Fun & Lighthearted", desc: "High energy, low stakes. Use these to warm up the room.", icon: ICONS.fun, color: "#357889" },
-            { id: "deep", title: "Deep & Thoughtful", desc: "Intellectual stimulation and perspective shifting.", icon: ICONS.deep, color: "#D34716" },
-            { id: "provocative", title: "Emotionally Provocative", desc: "Vulnerability and emotional resonance.", icon: ICONS.provocative, color: "#357889" },
-            { id: "mirror", title: "The Mirror", desc: "Feedback and communal reflection. The hot seat.", icon: ICONS.mirror, color: "#D34716" }
+            { id: "fun", title: "Fun & Messy", desc: "Nightlife, Grindr fails, and petty shade. Perfect for pre-gaming.", icon: ICONS.fun, color: "#357889" },
+            { id: "deep", title: "Deep & Thoughtful", desc: "Chosen family, dating in ATL, and the reality of gay life.", icon: ICONS.deep, color: "#D34716" },
+            { id: "provocative", title: "Naughty & Provocative", desc: "Spilling the tea. Hookups, kinks, and scandalous secrets.", icon: ICONS.provocative, color: "#357889" },
+            { id: "mirror", title: "The Mirror", desc: "The Hot Seat. We read your dating habits and best assets.", icon: ICONS.mirror, color: "#D34716" }
         ];
 
         const QUESTIONS = {
             "fun": [
-                "If you had to enter a talent show tomorrow, what would your 'useless' talent be?",
-                "What is the most ridiculous thing you’ve done to save a small amount of money?",
-                "If your life was a sitcom, what would the title be and who would play your neighbor?",
-                "What’s a trend you hope never comes back, but you secretly participated in?",
-                "If you were a ghost, who would you haunt first and what’s your signature move?",
-                "What’s the most 'illegal' feeling thing that is actually perfectly legal?",
-                "If you could have any animal as a pet (regardless of logistics), what would it be?",
-                "What’s the weirdest food combination you actually enjoy?",
-                "If you were stranded on an island and could only have one condiment, what is it?",
-                "What is the most embarrassing song in your 'most played' list?",
-                "If you could swap lives with any fictional character for 24 hours, who is it?",
-                "What’s your go-to 'karaoke' song that you actually can't sing at all?",
-                "What’s the most useless trivia fact you know?",
-                "If you won the lottery tomorrow, what is the first 'stupid' thing you’d buy?",
-                "What is your 'old person' habit that you've had since you were young?",
-                "What’s the worst haircut you’ve ever had and what was the logic behind it?",
-                "If you had to be an Olympic athlete in a sport you’ve never played, which one?",
-                "What’s the most 'main character' moment you’ve ever had?",
-                "If you could add any rule to a sport to make it more chaotic, what would it be?",
-                "What’s a hill you are willing to die on regarding a minor, unimportant topic?",
-                "If you were a professional wrestler, what would your entrance music be?",
-                "What’s the most bizarre dream you still remember vividly?",
-                "What’s your 'guilty pleasure' movie that everyone else thinks is terrible?",
-                "If you could be any age forever, which age would you pick?",
-                "What’s the best prank you’ve ever pulled or seen pulled?"
+                "What is the most ridiculous excuse you've ever used to leave a bad Grindr hookup early?",
+                "What is the most chaotic thing you have ever witnessed at Blake's or Heretic?",
+                "If your sex life right now had a specific circuit party theme, what would the theme be?",
+                "What is the sluttiest or most unhinged thing you've ever done to get free drinks or VIP access?",
+                "Who is your ultimate, embarrassing celebrity or pop-culture hall-pass?",
+                "What is the most awkward encounter you've ever had walking down the BeltLine?",
+                "Have you ever accidentally sent a spicy text or photo to the completely wrong person? What happened?",
+                "If you had a drag persona based entirely on your toxic dating habits, what would her name be?",
+                "What is the pettiest reason you have ever blocked someone on an app?",
+                "What is the worst Uber ride home you've ever had after a messy night out?",
+                "If you could permanently ban one specific type of guy from Midtown, who is it?",
+                "What is the most blatantly obvious lie you've had a guy tell you at a bar?",
+                "Have you ever sneaked someone out of your place before your roommates woke up? How did you do it?",
+                "What is the most tragic outfit choice you've ever made for a night out in Atlanta?",
+                "What is your absolute worst 'morning after' walk of shame story?",
+                "If we looked at your search history right now, what's the weirdest non-porn thing on there?",
+                "What’s a gay stereotype you completely fit into and secretly love?",
+                "Who is the messiest gay icon, and why do you relate to them on a spiritual level?",
+                "What is the most dramatic way you've ever ended a two-week 'relationship'?",
+                "If you had to be handcuffed to one of us for a full weekend at a circuit party, who are you picking?",
+                "What is the most expensive thing you've bought while drunk and horny?",
+                "What’s the absolute worst profile pic trend on Scruff or Tinder right now?",
+                "Have you ever hooked up with a guy just because of his apartment location or amenities?",
+                "What is the most awkward thing that has ever happened to you in a gay sauna or bathhouse?",
+                "If your dating life was a reality TV show, what would the tagline be?",
+                "What is the funniest thing you've ever heard someone say while blacked out?",
+                "Have you ever created a fake social media profile to stalk an ex or a crush?",
+                "What is the most you've ever overreacted to a minor inconvenience while getting ready to go out?",
+                "If you had to survive a zombie apocalypse hiding out in one gay bar in Atlanta, which one?",
+                "What is the most absurd criteria you have for swiping right on someone?",
+                "Have you ever been kicked out of a club or a house party? What did you do?",
+                "What is the best piece of petty revenge you’ve ever gotten on a guy who ghosted you?",
+                "What is your signature, undeniable 'I'm way too drunk' behavior?",
+                "If you had to write a Yelp review for your own kissing skills, what would it say?",
+                "What’s the longest you’ve kept a guy talking on Grindr without ever intending to meet up?",
+                "What is the most embarrassing song you will absolutely drop it to on the dance floor?",
+                "Have you ever faked an orgasm just so the hookup would finally end?",
+                "What’s the most chaotic group chat name you’re currently a part of?",
+                "If you had to explain 'gay time' (being late) to a straight person, how do you justify it?",
+                "What is the most unhinged direct message you’ve ever received on Instagram?"
             ],
             "deep": [
-                "What is a 'truth' you used to believe that you no longer do?",
-                "What do you want to be remembered for most when you're gone?",
-                "If you could send a 30-second message to your 18-year-old self, what would you say?",
-                "What is the most significant 'pivot' you’ve ever made in your life?",
-                "What does 'success' look like to you today versus five years ago?",
-                "What is a fear you have that you know is irrational but still affects you?",
-                "If you could know the absolute truth to one mystery (personal or universal), what is it?",
-                "What is the biggest lesson you learned from a failure?",
-                "How do you define 'home'? Is it a place, a person, or a feeling?",
-                "What is a habit you’ve built that has fundamentally changed your life?",
-                "What is something you’re currently struggling to forgive yourself for?",
-                "If you could change one thing about the way you were raised, what would it be?",
-                "What is the most courageous thing you have ever done?",
-                "What does 'loyalty' mean to you in a friendship?",
-                "If you had to choose between being respected or being liked, which would you pick?",
-                "What is the one thing you are most proud of that isn't on your resume?",
-                "How do you want to be different 10 years from now?",
-                "What is a piece of advice you received that you initially ignored but now live by?",
-                "What is the most important quality you look for in a partner or friend?",
-                "What is something you think most people misunderstand about you?",
-                "If you could have a conversation with your ancestors, what would you ask them?",
-                "What is the hardest 'no' you’ve ever had to say?",
-                "How do you handle the feeling of being stuck or stagnant?",
-                "What is a question you wish people would ask you more often?",
-                "What gives your life the most meaning right now?"
+                "How has your definition of 'chosen family' evolved since you moved to or started living in Atlanta?",
+                "Do you think the heavy party and circuit scene here helps or hurts your mental health?",
+                "What is the hardest part about dating in our specific gay subculture right now?",
+                "Monogamy, open relationship, or poly: what genuinely works for your heart, ignoring community expectations?",
+                "What is a part of your coming out journey that you are still actively trying to heal from?",
+                "In a community hyper-focused on youth and bodies, how do you handle your own insecurities about aging?",
+                "What is a standard you hold yourself to physically that you know is deeply toxic?",
+                "When was the last time you felt profoundly lonely while standing in a crowded gay bar?",
+                "What is the biggest lesson you’ve learned from a gay mentor or an older queer person?",
+                "How do you redefine 'masculinity' for yourself versus what the gay community expects of you?",
+                "What is something you’ve compromised on in a past relationship that you will never compromise on again?",
+                "Do you feel like you present your authentic self on social media, or a highly curated avatar?",
+                "What is the most deeply ingrained survival mechanism you developed in the closet that you still use today?",
+                "What is a boundary with your biological family that took you way too long to set?",
+                "How do you distinguish between genuine connection and just trauma-bonding with other gay men?",
+                "What is a dream you have for your future that has nothing to do with finding a partner?",
+                "When was a moment you felt incredibly proud of the LGBTQ+ community here in Atlanta?",
+                "What is a toxic trait you picked up from gay culture that you are actively trying to unlearn?",
+                "How do you self-soothe when you are feeling entirely inadequate compared to your peers?",
+                "What does emotional intimacy actually look like to you, beyond just physical intimacy?",
+                "What is a deeply held belief about love that a past breakup completely destroyed?",
+                "How do you handle the pressure to always be 'on' or performing when you go out?",
+                "What is the most difficult apology you’ve ever had to give to a friend in our circle?",
+                "Do you think it’s possible to be friends with an ex, or is it always a bad idea for you?",
+                "What is a vulnerability you hide because you think guys will find it unattractive?",
+                "How has your relationship with your body changed over the last five years?",
+                "What is the most significant financial mistake you’ve made trying to keep up with the lifestyle?",
+                "What is a piece of advice you’d give to a 21-year-old gay guy moving to Atlanta tomorrow?",
+                "When have you felt the most 'seen' and validated by someone without them taking your clothes off?",
+                "What is a fear you have regarding your romantic future that keeps you up at night?",
+                "How do you deal with the 'FOMO' (Fear Of Missing Out) when every weekend is a massive event?",
+                "What is a hard truth about yourself that therapy (or deep reflection) recently forced you to face?",
+                "Have you ever lost yourself trying to mold into what a specific partner wanted you to be?",
+                "What does a perfectly peaceful, successful life look like to you ten years from now?",
+                "When did you realize that external validation (likes, attention at the club) wasn't actually fulfilling you?",
+                "What is a part of your identity that feels entirely separate from being gay?",
+                "How do you know when a friendship has run its course and it's time to let them go?",
+                "What is the most courageous thing you’ve done for your own happiness recently?",
+                "What is a promise you need to make to yourself right now regarding your dating life?",
+                "What gives your life the most meaning when the music stops and the party is over?"
             ],
             "provocative": [
-                "What is a part of your childhood you are still trying to heal from?",
-                "When was the last time you felt truly, deeply lonely even when surrounded by people?",
-                "What is a secret you’ve never told anyone because you’re afraid of the judgment?",
-                "What was the moment you realized your parents were just flawed human beings?",
-                "What is the biggest 'what if' that keeps you up at night?",
-                "When did you last cry in front of another person, and why?",
-                "What is a compliment you received that felt like it hit your soul?",
-                "What is the most painful thing someone has said to you that was actually true?",
-                "What part of yourself do you hide because you think it’s 'too much' for others?",
-                "What is the most significant loss you have ever experienced?",
-                "Have you ever felt like you were living someone else’s life? When?",
-                "What is a dream you’ve given up on, and how does that make you feel?",
-                "What does 'vulnerability' feel like in your body?",
-                "What is the one thing you would change about your personality if you could?",
-                "Who is the person you need to forgive, even if they aren't sorry?",
-                "What is your biggest regret regarding a relationship that ended?",
-                "When was the last time you felt like you truly belonged somewhere?",
-                "What is a 'shadow' trait of yours that you are working to accept?",
-                "What is the kindest thing anyone has ever done for you that you can never repay?",
-                "What makes you feel truly seen and understood?",
-                "What is the most difficult conversation you are currently avoiding?",
-                "How do you comfort yourself when things fall apart?",
-                "What is a boundary you wish you had set a long time ago?",
-                "What is the most 'human' mistake you’ve ever made?",
-                "What does love feel like to you at this stage of your life?"
+                "What is a kink or sexual fantasy you have that you've never told anyone in this room?",
+                "Have you ever hooked up with a mutual friend's ex, and did they ever find out?",
+                "What is the most public or risky place you’ve ever had sex or fooled around?",
+                "Have you ever caught deep feelings for a regular f*ckbuddy and totally ruined the arrangement?",
+                "What is the biggest or most elaborate lie you've ever told to get a guy into bed?",
+                "What is your absolute worst threesome or group sex story? Who made it awkward?",
+                "Have you ever been the 'other man' or homewrecker in a relationship? Did you know at the time?",
+                "What is the most scandalous thing you have completely gotten away with on a night out?",
+                "Have you ever paid for sex, had an OnlyFans subscription you hid, or had a sugar daddy?",
+                "What is an absolute hard limit or dealbreaker for you in the bedroom?",
+                "Have you ever used a photo on an app that was definitely an egregious catfish or highly edited?",
+                "What is the quickest you have ever gone from meeting someone to hooking up with them?",
+                "Have you ever slept with someone purely to get back at an ex?",
+                "What is a sexual experience you thought you would love but ended up absolutely hating?",
+                "Have you ever hooked up with a straight-identifying or 'curious' guy? How did it end?",
+                "What is the most embarrassing noise or thing you’ve ever said during sex?",
+                "Have you ever broken the 'bro code' within our friend group regarding a guy?",
+                "What is the largest age gap you've ever had in a hookup, and was it weird?",
+                "Have you ever faked being completely sober to get someone to come home with you?",
+                "What is the messiest drama you have ever caused at a gay bar or party?",
+                "Have you ever ghosted someone after sleeping with them because the sex was that bad?",
+                "What is a fetish you absolutely do not understand and want nothing to do with?",
+                "Have you ever had a hookup steal something from your house, or have you taken a 'souvenir'?",
+                "What is the most taboo place you’ve opened Grindr or Sniffies to check the grid?",
+                "Have you ever been walked in on while hooking up? Who was it?",
+                "What is the longest you've ever gone without sex, and what broke the streak?",
+                "Have you ever had a one-night stand refuse to leave the next morning? How did you handle it?",
+                "What is the absolute sexiest thing a guy can do to you without taking his clothes off?",
+                "Have you ever secretly hooked up with someone that everyone else thinks is terrible?",
+                "What is a sexual boundary you used to have but eventually completely abandoned?",
+                "Have you ever hooked up with a coworker or boss? Was it worth the risk?",
+                "What is the most wild or unhinged party you have ever attended in Atlanta?",
+                "Have you ever let a guy completely degrade or humiliate you because the sex was good?",
+                "What is the most inappropriate time you’ve ever gotten incredibly turned on?",
+                "Have you ever sent a nude to the wrong group chat or person? How did you recover?",
+                "What is the worst post-nut clarity realization you’ve ever experienced?",
+                "Have you ever hooked up with two different guys in the exact same day?",
+                "What is a secret you know about someone else in the scene that could ruin their reputation?",
+                "Have you ever used your looks or sexuality to manipulate someone into doing what you want?",
+                "What is the dirtiest, most unfiltered thought you’ve had about someone in this room?"
             ],
             "mirror": [
-                "In your opinion, what is my 'superpower' that I might not see in myself?",
-                "If I were a color or a specific season, which one would I be and why?",
-                "What is one trait I have that you think I should lean into more?",
-                "What was your very first impression of me, and how has it changed?",
-                "If I were to go on a reality TV show, which one would I win?",
-                "What is a habit or quirk of mine that you find particularly endearing?",
-                "When we’re in a group, what is the 'role' you see me naturally taking?",
-                "If I called you at 3 AM in an emergency, what would you assume happened?",
-                "What is one thing you’ve learned about yourself through our friendship?",
-                "What is a quality I have that you wish you had more of?",
-                "How would you describe my 'vibe' to someone who has never met me?",
-                "What is one piece of advice you think I need to hear, even if it’s tough?",
-                "What is a situation where you’ve seen me at my absolute best?",
-                "If I were an animal, which one would I be and why?",
-                "What is one thing I’ve done that genuinely surprised you?",
-                "What is a topic you feel like you can only talk to *me* about?",
-                "How have you seen me grow or change in the time you’ve known me?",
-                "What is one thing you think I am currently holding myself back from?",
-                "What is my 'signature' look or phrase in your mind?",
-                "If I were to write a book, what do you think the subject matter would be?",
-                "What is one thing I do that makes you feel supported or cared for?",
-                "What do you think is my biggest blind spot right now?",
-                "If you had to describe my 'energy' in three words, what would they be?",
-                "What is one goal of mine that you are 100% sure I will achieve?",
-                "How has my presence in your life changed your perspective on something?"
+                "What is my absolute biggest red flag when it comes to dating or hooking up?",
+                "If you had to wingman me at Xion tonight, what exactly would your pitch be to a hot guy?",
+                "What is my best physical asset, and do you think I show it off enough?",
+                "What highly specific type of guy do I *always* go for, even when I definitely shouldn't?",
+                "What is a vibe or energy I give off to strangers that isn't actually true to who I am?",
+                "If I were a signature cocktail at a gay bar, what would be in it and what would it be called?",
+                "What is a habit I have when I’m drunk that is both annoying and endearing?",
+                "When have you seen me acting the most desperate or 'thirsty'?",
+                "What do you think is my biggest insecurity, even if I try to hide it?",
+                "If I was on a reality dating show, would I be the villain, the fan favorite, or the one sent home first?",
+                "What is one thing I desperately need to update about my wardrobe or grooming routine?",
+                "What is my most predictable move or line when I'm trying to flirt with someone?",
+                "Do you think my standards for men are too high, too low, or just completely misplaced?",
+                "When I walk into a room, what is the first thing you think people notice about me?",
+                "What is a hard truth about my dating life that you've been hesitant to tell me?",
+                "If I let you rewrite my Grindr or Hinge bio right now, what would it say?",
+                "What is a quality I have that makes me a genuinely amazing friend to you?",
+                "When have you seen me be my absolute most confident and powerful self?",
+                "What is an area of my life where you think I am currently settling for less than I deserve?",
+                "If you had to guess my most secret kink based on my personality, what would it be?",
+                "What is a petty argument we’ve had in the past that you still secretly think you were right about?",
+                "How do you think I handle rejection, and what could I do better?",
+                "What is the most attractive non-physical trait I possess?",
+                "If you had to set me up on a blind date with a celebrity, who are you picking?",
+                "What is something I complain about constantly but do nothing to actually fix?",
+                "How do you perceive my relationship with money and spending?",
+                "What is a specific talent or skill I have that I should flaunt more often?",
+                "When have you seen me be the most vulnerable, and how did it change your view of me?",
+                "If I were completely unapologetic, what is the first thing you think I would change about my life?",
+                "What is a bad habit I have that you usually just ignore to keep the peace?",
+                "Do you think I am intimidating to approach? Why or why not?",
+                "What is the funniest or most iconic thing I have ever done on a night out with you?",
+                "If I were a specific neighborhood in Atlanta, which one would I be and why?",
+                "What do you think is the main reason my past relationships haven't worked out?",
+                "What is a piece of advice you think I desperately need right now, but am ignoring?",
+                "How do you think I genuinely view myself versus how the world views me?",
+                "What is an assumption you made about me when we first met that was completely wrong?",
+                "What is the most 'on-brand' thing I could possibly do this weekend?",
+                "What is a goal or dream of mine that you will always hype up and support?",
+                "If we ever had a massive falling out, what do you think the reason would be?"
             ]
         };
 
-        // --- APP STATE & LOGIC ---
         const app = {
             view: 'landing',
             activeCategory: null,
             activeQuestionIdx: null,
-            phase: 'idle', // idle, speaker, group
+            phase: 'idle', 
             timeLeft: 120,
             timerInterval: null,
 
@@ -311,7 +365,6 @@
                 
                 const catInfo = CATEGORY_INFO.find(c => c.id === catId);
                 
-                // Update List Header
                 const iconContainer = document.getElementById('list-header-icon');
                 iconContainer.innerHTML = catInfo.icon;
                 iconContainer.style.color = catInfo.color;
@@ -370,7 +423,6 @@
                 }).join('');
             },
 
-            // --- TIMER LOGIC ---
             formatTime(seconds) {
                 const m = Math.floor(seconds / 60);
                 const s = seconds % 60;
@@ -427,7 +479,6 @@
                 const barGroup = document.getElementById('bar-group');
                 const controls = document.getElementById('timer-controls');
 
-                // Update UI Indicators
                 if (this.phase === 'speaker') {
                     speakerInd.classList.replace('opacity-40', 'opacity-100');
                     groupInd.classList.replace('opacity-100', 'opacity-40');
@@ -445,7 +496,6 @@
                     barGroup.classList.replace('bg-brandCyan', 'bg-borderGray');
                 }
 
-                // Update Controls
                 if (this.phase === 'idle') {
                     controls.innerHTML = `
                         <button onclick="app.startSpeakerPhase()" class="flex items-center gap-2 bg-brandOrange hover:bg-brandOrangeHover text-white px-6 py-2.5 rounded font-bold text-sm transition-colors shadow-sm">
@@ -470,11 +520,11 @@
             }
         };
 
-        // Initialize App on Load
         document.addEventListener('DOMContentLoaded', () => {
             app.init();
         });
     </script>
 </body>
 </html>
+
 
