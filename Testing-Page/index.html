@@ -343,6 +343,13 @@
         .blueprint-mode .text-allgood-dark { color: #e2e8f0 !important; }
         .blueprint-mode .choice-btn { background-color: #1e293b !important; border-color: #334155 !important; }
         
+        /* Flex children default to min-height:auto, which stops them from shrinking below their
+           content size — this is what let tall scenario content push past the fixed app-shell
+           height and create a second outer scrollbar. min-h-0 lets each level shrink and hand
+           scrolling to the one true scroll region (.page-container). */
+        .app-shell, #workstation-wrapper, #workstation-wrapper > main { min-height: 0; }
+        #workstation-wrapper { min-width: 0; }
+
         /* Focus Mode: collapses the Mission Control sidebar to give the scenario more room */
         .sidebar-collapsed .hud-sidebar { display: none !important; }
 
@@ -1196,216 +1203,125 @@
             // --- SCENARIO LOGIC ---
             function getScenarioTemplate(type, title, icon, choicesHtml, feedbackHtml) {
                 const cleanText = title.split(" Question:")[0];
-                const deskStyleMobile = `background-image: radial-gradient(#cfc8c2 2px, transparent 2px), radial-gradient(#cfc8c2 2px, transparent 2px); background-color: #f0ebe6; background-position: 0 0, 10px 10px; background-size: 20px 20px;`;
-                const deskStyleDesktop = `background-image: linear-gradient(135deg, #e2e8f0 25%, #cbd5e1 25%, #cbd5e1 50%, #e2e8f0 50%, #e2e8f0 75%, #cbd5e1 75%, #cbd5e1 100%); background-size: 40px 40px;`;
 
-                const choicesWrapper = `<div class="mt-2 pt-2 border-t border-slate-100"><p class="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-1">Select Response:</p><div class="space-y-1">${choicesHtml}</div></div>`;
-                const feedbackWrapper = feedbackHtml ? `<div class="mt-2 animate-fade-in">${feedbackHtml}</div>` : '';
+                // The interactive card ALWAYS sits below the scene, at a comfortable reading width.
+                // Nothing interactive lives inside the small device mockups anymore — that was
+                // what forced a scrollbar inside a 280px-wide box. Now there's exactly one scroll
+                // region (the page itself), and the mockups are purely decorative context.
+                const answerCard = `
+                    <div class="max-w-xl mx-auto mt-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-3">Select Response</p>
+                        <div class="space-y-2">${choicesHtml}</div>
+                        ${feedbackHtml ? `<div class="mt-4">${feedbackHtml}</div>` : ''}
+                    </div>`;
+
+                let sceneHtml = '';
 
                 if (type === 'chat') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
-                        <div class="relative z-10 mx-auto bg-gray-800 sm:border-[8px] sm:border-gray-800 sm:rounded-[2rem] h-auto w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
-                            <div class="hidden sm:block h-[32px] w-[3px] bg-gray-700 absolute -left-[10px] top-[72px] rounded-l-lg"></div>
-                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-700 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
-                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
-                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-slate-50 relative flex flex-col font-sans border-x border-slate-200 sm:border-0">
-                                <div class="bg-slate-50 h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-100 shrink-0"><span>9:41</span><div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div></div>
-                                <div class="bg-slate-100/90 backdrop-blur-sm px-4 py-2 border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-center shrink-0"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Messages</span></div>
-                                <div class="flex-1 p-3 overflow-visible pb-4 sm:pb-12">
-                                    <div class="flex items-center justify-center mb-2"><span class="text-[9px] text-slate-400 font-bold">Today 9:41 AM</span></div>
-                                    <div class="flex items-end group mb-2">
-                                        <div class="w-6 h-6 rounded-full bg-slate-200 flex-shrink-0 mr-2 flex items-center justify-center text-slate-500 border border-white shadow-sm"><i data-lucide="${icon}" class="w-3 h-3"></i></div>
-                                        <div class="bg-white p-3 rounded-2xl rounded-bl-none shadow-sm text-xs text-slate-700 leading-snug max-w-[85%] border border-slate-100 relative">${cleanText}</div>
-                                    </div>
-                                    <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/60">${choicesWrapper}</div>
-                                    ${feedbackWrapper}
+                    sceneHtml = `
+                    <div class="mx-auto bg-gray-800 border-[8px] border-gray-800 rounded-[1.8rem] w-full max-w-[260px] shadow-lg">
+                        <div class="rounded-[1.2rem] overflow-hidden w-full bg-slate-50">
+                            <div class="bg-slate-50 h-5 w-full flex justify-between items-center px-3 text-[8px] font-bold text-black"><span>9:41</span><div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div></div>
+                            <div class="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200/60 flex items-center justify-center"><span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Messages</span></div>
+                            <div class="p-3">
+                                <div class="flex items-end">
+                                    <div class="w-5 h-5 rounded-full bg-slate-200 flex-shrink-0 mr-2 flex items-center justify-center text-slate-500 border border-white shadow-sm"><i data-lucide="${icon}" class="w-2.5 h-2.5"></i></div>
+                                    <div class="bg-white p-2.5 rounded-2xl rounded-bl-none shadow-sm text-xs text-slate-700 leading-snug border border-slate-100">${cleanText}</div>
                                 </div>
-                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
                             </div>
                         </div>
                     </div>`;
                 } else if (type === 'social') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
-                        <div class="relative z-10 mx-auto bg-gray-900 sm:border-[8px] sm:border-gray-900 sm:rounded-[2rem] h-auto w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
-                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-800 absolute -left-[10px] top-[124px] rounded-l-lg"></div>
-                            <div class="hidden sm:block h-[64px] w-[3px] bg-gray-800 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
-                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans border-x border-gray-100 sm:border-0">
-                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-gray-50 z-20 shrink-0"><span>10:24</span><div class="flex gap-1"><i class="fas fa-signal"></i><i class="fas fa-battery-three-quarters"></i></div></div>
-                                <div class="px-3 py-2 flex items-center justify-between border-b border-gray-100 shrink-0"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-800"></i><span class="text-[10px] font-bold text-gray-900">Feed</span><i data-lucide="send" class="w-4 h-4 text-gray-800"></i></div>
-                                <div class="flex-1 overflow-visible bg-gray-50 pb-4 sm:pb-8">
-                                    <div class="bg-white mb-2 pb-2">
-                                        <div class="px-3 py-2 flex items-center justify-between">
-                                            <div class="flex items-center space-x-2"><div class="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 to-pink-600 p-[1.5px]"><div class="w-full h-full rounded-full bg-white p-[1px] flex items-center justify-center"><i data-lucide="user" class="w-3 h-3 text-gray-400"></i></div></div><div class="leading-none"><div class="text-[10px] font-bold text-gray-900">friend_123</div><div class="text-[8px] text-gray-400">Sponsored</div></div></div><i data-lucide="more-horizontal" class="w-3 h-3 text-gray-400"></i>
-                                        </div>
-                                        <div class="bg-gray-100 h-24 sm:h-32 flex items-center justify-center text-center relative overflow-hidden"><div class="absolute inset-0 opacity-10 bg-repeat" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 8px 8px;"></div><p class="text-xs font-serif font-medium text-gray-800 italic relative z-10 px-4">"${cleanText}"</p></div>
-                                        <div class="px-3 py-2"><div class="flex space-x-3 mb-1"><i data-lucide="heart" class="w-4 h-4 text-gray-800"></i><i data-lucide="message-circle" class="w-4 h-4 text-gray-800"></i><i data-lucide="share-2" class="w-4 h-4 text-gray-800"></i></div><div class="text-[9px] font-bold text-gray-900">4,203 likes</div></div>
-                                    </div>
-                                    <div class="mx-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">${choicesWrapper} ${feedbackWrapper}</div>
-                                </div>
-                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
-                            </div>
+                    sceneHtml = `
+                    <div class="mx-auto max-w-xs bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div class="px-3 py-2 flex items-center justify-between border-b border-gray-100">
+                            <div class="flex items-center space-x-2"><div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-400 to-pink-600 p-[1.5px]"><div class="w-full h-full rounded-full bg-white p-[1px] flex items-center justify-center"><i data-lucide="user" class="w-3 h-3 text-gray-400"></i></div></div><div class="leading-none"><div class="text-[10px] font-bold text-gray-900">friend_123</div><div class="text-[8px] text-gray-400">Sponsored</div></div></div><i data-lucide="more-horizontal" class="w-3 h-3 text-gray-400"></i>
                         </div>
+                        <div class="bg-gray-100 py-6 px-4 flex items-center justify-center text-center"><p class="text-xs font-serif font-medium text-gray-800 italic">"${cleanText}"</p></div>
+                        <div class="px-3 py-2"><div class="flex space-x-3 mb-1"><i data-lucide="heart" class="w-4 h-4 text-gray-800"></i><i data-lucide="message-circle" class="w-4 h-4 text-gray-800"></i><i data-lucide="share-2" class="w-4 h-4 text-gray-800"></i></div><div class="text-[9px] font-bold text-gray-900">4,203 likes</div></div>
                     </div>`;
                 } else if (type === 'browser') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
-                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
-                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
-                             <div class="bg-white sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 h-auto font-sans relative flex flex-col border border-gray-300 rounded-lg">
-                                <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200 flex-shrink-0">
-                                    <div class="flex space-x-1.5"><div class="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-500/20"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400 border border-green-500/20"></div></div>
-                                    <div class="flex-grow bg-white rounded shadow-inner h-6 mx-2 flex items-center px-2 border border-gray-200"><i data-lucide="lock" class="w-2.5 h-2.5 text-green-600 mr-1.5"></i><span class="text-[10px] text-gray-400 font-mono">https://search.web/results</span></div>
-                                </div>
-                                <div class="p-5 bg-white flex-1 overflow-visible">
-                                    <div class="text-[10px] text-gray-500 mb-1 flex items-center"><span class="bg-gray-200 rounded px-1 mr-1">Ad</span> www.result.com</div>
-                                    <h3 class="text-base text-blue-700 hover:underline font-medium mb-1 cursor-pointer truncate">Search Result: ${cleanText.substring(0, 40)}...</h3>
-                                    <p class="text-sm text-gray-600 leading-relaxed mb-6">${cleanText}</p>
-                                    <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100">${choicesWrapper} ${feedbackWrapper}</div>
-                                </div>
-                             </div>
+                    sceneHtml = `
+                    <div class="max-w-lg mx-auto bg-white rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+                        <div class="bg-gray-100 px-3 py-2 flex items-center space-x-2 border-b border-gray-200">
+                            <div class="flex space-x-1.5"><div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div></div>
+                            <div class="flex-grow bg-white rounded shadow-inner h-6 flex items-center px-2 border border-gray-200"><i data-lucide="lock" class="w-2.5 h-2.5 text-green-600 mr-1.5"></i><span class="text-[10px] text-gray-400 font-mono">https://search.web/results</span></div>
                         </div>
-                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                        <div class="p-5 bg-white">
+                            <div class="text-[10px] text-gray-500 mb-1 flex items-center"><span class="bg-gray-200 rounded px-1 mr-1">Ad</span> www.result.com</div>
+                            <h3 class="text-base text-blue-700 font-medium mb-1 truncate">Search Result: ${cleanText.substring(0, 40)}...</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">${cleanText}</p>
+                        </div>
                     </div>`;
                 } else if (type === 'email') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
-                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
-                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
-                             <div class="bg-white sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 h-auto font-sans relative flex flex-col border border-gray-300 rounded-lg">
-                                <div class="bg-blue-600 px-3 py-2 flex items-center justify-between border-b border-blue-700 flex-shrink-0 text-white">
-                                    <div class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i><span class="text-xs font-bold">MailClient</span></div>
-                                    <div class="flex space-x-1"><div class="w-2 h-2 rounded-full bg-white/20"></div><div class="w-2 h-2 rounded-full bg-white/20"></div></div>
-                                </div>
-                                <div class="flex flex-1 overflow-hidden">
-                                    <div class="w-1/4 bg-gray-50 border-r border-gray-200 p-2 hidden sm:block">
-                                        <div class="space-y-1">
-                                            <div class="text-[10px] font-bold text-gray-500 px-2 mb-1">FAVORITES</div>
-                                            <div class="bg-blue-100 text-blue-700 rounded px-2 py-1 text-[10px] font-bold flex items-center gap-1"><i data-lucide="inbox" class="w-3 h-3"></i> Inbox</div>
-                                            <div class="text-gray-600 px-2 py-1 text-[10px] flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> Sent</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex-1 p-5 overflow-visible bg-white">
-                                        <div class="border-b border-gray-100 pb-3 mb-3">
-                                            <h3 class="text-sm font-bold text-gray-800 truncate">Professional Opportunity</h3>
-                                            <div class="flex items-center gap-2 mt-1">
-                                                <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[10px] font-bold">HR</div>
-                                                <div class="text-[10px] text-gray-500">To: Me &lt;applicant@email.com&gt;</div>
-                                            </div>
-                                        </div>
-                                        <p class="text-sm text-gray-600 leading-relaxed mb-6 font-serif">${cleanText}</p>
-                                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm relative">
-                                            <div class="absolute -top-2 left-3 bg-white px-1 text-[9px] font-bold text-gray-400">YOUR RESPONSE</div>
-                                            ${choicesWrapper} ${feedbackWrapper}
-                                        </div>
-                                    </div>
-                                </div>
-                             </div>
+                    sceneHtml = `
+                    <div class="max-w-lg mx-auto bg-white rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+                        <div class="bg-blue-600 px-3 py-2 flex items-center justify-between text-white">
+                            <div class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i><span class="text-xs font-bold">MailClient</span></div>
+                            <div class="flex space-x-1"><div class="w-2 h-2 rounded-full bg-white/20"></div><div class="w-2 h-2 rounded-full bg-white/20"></div></div>
                         </div>
-                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                        <div class="p-5">
+                            <div class="border-b border-gray-100 pb-3 mb-3">
+                                <h3 class="text-sm font-bold text-gray-800">Professional Opportunity</h3>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[10px] font-bold">HR</div>
+                                    <div class="text-[10px] text-gray-500">To: Me &lt;applicant@email.com&gt;</div>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 leading-relaxed font-serif">${cleanText}</p>
+                        </div>
                     </div>`;
                 } else if (type === 'video') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-300 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleDesktop}"></div>
-                        <div class="relative z-10 bg-gray-800 sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
-                             <div class="hidden sm:flex justify-center mb-2"><div class="w-1.5 h-1.5 bg-gray-600 rounded-full border border-gray-700"></div></div>
-                             <div class="bg-gray-900 sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 h-auto font-sans relative flex flex-col border border-gray-300 rounded-lg">
-                                <div class="flex-1 p-2 grid grid-cols-2 gap-2">
-                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 min-h-[100px]">
-                                        <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">P</div>
-                                        <div class="absolute bottom-1 left-2 text-[9px] text-white font-bold bg-black/50 px-1 rounded">Professor</div>
-                                    </div>
-                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 min-h-[100px]">
-                                        <i data-lucide="smile" class="text-gray-600 w-10 h-10"></i>
-                                        <div class="absolute bottom-1 left-2 text-[9px] text-white font-bold bg-black/50 px-1 rounded">Classmate A</div>
-                                        <div class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    </div>
-                                    <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 col-span-2 p-4">
-                                        <div class="text-white/80 text-center px-4">
-                                            <p class="text-xs italic">"${cleanText}"</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="h-12 bg-gray-800 border-t border-gray-700 flex items-center justify-center gap-4 shrink-0">
-                                    <div class="p-2 rounded-full bg-gray-700 text-white"><i data-lucide="mic-off" class="w-4 h-4"></i></div>
-                                    <div class="p-2 rounded-full bg-gray-700 text-white"><i data-lucide="video" class="w-4 h-4"></i></div>
-                                    <div class="p-2 rounded-full bg-red-600 text-white px-4 text-xs font-bold">Leave</div>
-                                </div>
-                                <div class="bg-gray-800/90 border-t border-gray-700 p-4">
-                                    ${choicesWrapper} ${feedbackWrapper}
-                                </div>
-                             </div>
+                    sceneHtml = `
+                    <div class="max-w-sm mx-auto bg-gray-900 rounded-lg overflow-hidden border border-gray-700 shadow-sm">
+                        <div class="p-2 grid grid-cols-2 gap-2">
+                            <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 min-h-[80px]">
+                                <div class="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">P</div>
+                                <div class="absolute bottom-1 left-2 text-[8px] text-white font-bold bg-black/50 px-1 rounded">Professor</div>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden border border-gray-700 min-h-[80px]">
+                                <i data-lucide="smile" class="text-gray-600 w-7 h-7"></i>
+                                <div class="absolute bottom-1 left-2 text-[8px] text-white font-bold bg-black/50 px-1 rounded">Classmate A</div>
+                                <div class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            </div>
                         </div>
-                        <div class="hidden sm:flex h-4 bg-gray-700 max-w-lg mx-auto rounded-b-md shadow-lg justify-center items-start"><div class="w-16 h-1 bg-gray-600 rounded-b-md"></div></div>
+                        <div class="mx-2 mb-2 bg-gray-800 rounded-lg border border-gray-700 p-3 text-center"><p class="text-xs italic text-white/80">"${cleanText}"</p></div>
+                        <div class="h-9 bg-gray-800 border-t border-gray-700 flex items-center justify-center gap-3">
+                            <div class="p-1.5 rounded-full bg-gray-700 text-white"><i data-lucide="mic-off" class="w-3 h-3"></i></div>
+                            <div class="p-1.5 rounded-full bg-gray-700 text-white"><i data-lucide="video" class="w-3 h-3"></i></div>
+                            <div class="p-1.5 rounded-full bg-red-600 text-white px-3 text-[9px] font-bold">Leave</div>
+                        </div>
                     </div>`;
                 } else if (type === 'game') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0 bg-black"></div>
-                        <div class="relative z-10 bg-black sm:rounded-t-xl sm:p-3 sm:pb-0 max-w-lg mx-auto sm:shadow-2xl transform transition-transform sm:hover:scale-[1.01] duration-500">
-                             <div class="bg-gray-900 sm:rounded-t-lg overflow-hidden sm:border-4 sm:border-gray-800 sm:border-b-0 h-auto font-mono relative flex flex-col border border-gray-700 rounded-lg">
-                                <div class="bg-black/50 px-3 py-1 flex justify-between items-center text-green-500 text-[10px] border-b border-green-500/30">
-                                    <span>FPS: 60</span> <span>PING: 24ms</span>
-                                </div>
-                                <div class="flex-1 bg-gray-800 relative flex flex-col items-center justify-center p-4 min-h-[150px]">
-                                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle, #22c55e 1px, transparent 1px); background-size: 20px 20px;"></div>
-                                    <div class="w-full bg-black/60 border border-green-500/30 rounded p-2 mb-4 backdrop-blur-sm max-w-xs self-start relative z-10">
-                                        <div class="text-[9px] text-gray-400 mb-1">[Global] <span class="text-red-400">Troll_User99:</span> ${cleanText}</div>
-                                    </div>
-                                </div>
-                                <div class="bg-gray-900 p-4 border-t border-green-500/30">
-                                    <div class="border border-green-500/20 rounded p-3 bg-black/40">
-                                        ${choicesWrapper} ${feedbackWrapper}
-                                    </div>
-                                </div>
-                             </div>
+                    sceneHtml = `
+                    <div class="max-w-sm mx-auto bg-gray-900 rounded-lg overflow-hidden border border-gray-700 shadow-sm font-mono">
+                        <div class="bg-black/50 px-3 py-1 flex justify-between items-center text-green-500 text-[9px] border-b border-green-500/30">
+                            <span>FPS: 60</span> <span>PING: 24ms</span>
+                        </div>
+                        <div class="bg-gray-800 flex items-center justify-center p-4">
+                            <div class="w-full bg-black/60 border border-green-500/30 rounded p-2">
+                                <div class="text-[9px] text-gray-400">[Global] <span class="text-red-400">Troll_User99:</span> ${cleanText}</div>
+                            </div>
                         </div>
                     </div>`;
                 } else if (type === 'form') {
-                    return `
-                    <div class="relative w-full sm:py-8 sm:px-8 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-stone-200 mb-2 transition-all duration-500">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="${deskStyleMobile}"></div>
-                        <div class="relative z-10 mx-auto bg-gray-800 sm:border-[8px] sm:border-gray-800 sm:rounded-[2rem] h-auto w-full sm:max-w-[300px] sm:shadow-2xl flex flex-col transform transition-transform sm:hover:scale-[1.01] duration-300">
-                            <div class="hidden sm:block h-[46px] w-[3px] bg-gray-700 absolute -right-[10px] top-[142px] rounded-r-lg"></div>
-                            <div class="sm:rounded-[1.5rem] overflow-hidden w-full h-full bg-white relative flex flex-col font-sans border-x border-slate-200 sm:border-0">
-                                <div class="bg-white h-6 w-full flex justify-between items-center px-4 text-[9px] font-bold text-black border-b border-slate-50 shrink-0"><span>9:41</span><i class="fas fa-battery-full"></i></div>
-                                <div class="flex-1 p-6 flex flex-col justify-center bg-gray-50 overflow-visible pb-4 sm:pb-12">
-                                    <div class="mb-4 text-center">
-                                        <div class="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white mb-3 shadow-lg shadow-blue-200"><i data-lucide="${icon}" class="w-6 h-6"></i></div>
-                                        <h3 class="text-lg font-bold text-gray-800">Security Check</h3>
-                                        <p class="text-xs text-gray-500 mt-1 px-4">${cleanText}</p>
-                                    </div>
-                                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                                        ${choicesWrapper}
-                                    </div>
-                                    ${feedbackWrapper}
-                                </div>
-                                <div class="hidden sm:block absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-black/20 rounded-full mb-1"></div>
-                            </div>
-                        </div>
+                    sceneHtml = `
+                    <div class="mx-auto max-w-[260px] bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-center">
+                        <div class="w-11 h-11 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white mb-3 shadow-lg shadow-blue-200"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+                        <h3 class="text-base font-bold text-gray-800">Security Check</h3>
+                        <p class="text-xs text-gray-500 mt-1">${cleanText}</p>
                     </div>`;
                 } else {
-                    return `
-                    <div class="relative w-full sm:py-10 sm:px-4 rounded-xl sm:overflow-hidden sm:shadow-inner sm:border sm:border-slate-200 mb-2">
-                        <div class="hidden sm:block absolute inset-0 z-0" style="background: radial-gradient(circle at center, #f8fafc, #e2e8f0);"></div>
-                        <div class="relative z-10 bg-white/80 backdrop-blur-md rounded-xl overflow-hidden border border-white/50 shadow-sm sm:shadow-xl font-sans mb-6 max-w-sm mx-auto transform sm:scale-95 sm:hover:scale-100 transition-transform duration-300">
-                            <div class="absolute top-0 left-0 w-full h-1 bg-allgood-primary"></div>
-                            <div class="p-6">
-                                <div class="flex items-start space-x-3 mb-4">
-                                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm"><i data-lucide="${icon}" class="w-6 h-6 text-allgood-primary"></i></div>
-                                    <div><h4 class="font-bold text-gray-900 text-sm mb-1 uppercase tracking-wide">System Notification</h4><p class="text-sm text-gray-600 leading-snug">${cleanText}</p></div>
-                                </div>
-                                ${choicesWrapper} ${feedbackWrapper}
-                            </div>
+                    sceneHtml = `
+                    <div class="mx-auto max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                        <div class="flex items-start space-x-3">
+                            <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm shrink-0"><i data-lucide="${icon}" class="w-5 h-5 text-allgood-primary"></i></div>
+                            <div><h4 class="font-bold text-gray-900 text-sm mb-1 uppercase tracking-wide">System Notification</h4><p class="text-sm text-gray-600 leading-snug">${cleanText}</p></div>
                         </div>
                     </div>`;
                 }
+
+                return `<div class="w-full">${sceneHtml}${answerCard}</div>`;
             }
 
             function renderScenarioPage(pageElement, scenarioIndex) {
