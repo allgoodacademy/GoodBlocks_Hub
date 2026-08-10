@@ -293,7 +293,7 @@
         h1, h2, h3, h4 { font-family: Georgia, serif; }
 
         /* App shell replaces the old tablet-frame + screen-container pairing.
-           Mobile: true full-bleed, edge to edge. Desktop: a clean centered card, no bezel. */
+           Full-bleed, edge to edge, at every screen size. */
         .app-shell {
             width: 100%;
             height: 100dvh;
@@ -302,16 +302,6 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-        }
-        @media (min-width: 768px) {
-            .app-shell {
-                max-width: 1440px;
-                height: min(920px, 92vh);
-                margin: 0 auto;
-                border-radius: 20px;
-                box-shadow: 0 25px 60px -15px rgba(0,0,0,0.35);
-                border: 1px solid rgba(0,0,0,0.06);
-            }
         }
 
         .modal-transition { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
@@ -366,7 +356,7 @@
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
 
-    <main class="flex-grow flex items-center justify-center py-0 md:py-6 h-[100dvh] w-full">
+    <main class="flex-grow flex items-center justify-center h-[100dvh] w-full">
         <div class="app-shell" id="screen">
 
                 <!-- 1. STARTUP SCREEN -->
