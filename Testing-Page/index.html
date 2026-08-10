@@ -79,6 +79,55 @@
             return code;
         }
 
+        // --- MODULE REGISTRY ---
+        // Single source of truth for every module in the library, used by classroom assignment
+        // and by generic per-module completion detection. Each module's completion signal is
+        // captured explicitly here because — as-built today — modules don't report a consistent
+        // shape to Firestore: some use `completed: true`, DDC uses a `finalScore` threshold,
+        // Jolene's uses either a `complete` flag or a score cutoff, and several use a `gameName`
+        // that doesn't match their display name below (e.g. AI Co-Pilot writes "AI Co-Pilot", not
+        // "The AI Co-Pilot"). Rather than guess, this maps each module to the exact gameName
+        // string(s) it's actually known to write, based on the existing student-facing badge logic.
+        const MODULE_REGISTRY = [
+            { id: 'ddc', name: 'Digital Decisions', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/digital-decisions',
+              gameNames: ['Digital Decisions Challenge'], isComplete: (d) => typeof d.finalScore === 'number' && d.finalScore >= 80 },
+            { id: 'jolene', name: "Jolene's Lemonade", category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge',
+              gameNames: ["Jolene's Lemonade", 'Jolenes Lemonade Challenge'], isComplete: (d) => d.complete === true || (typeof d.finalScore === 'number' && d.finalScore >= 800) },
+            { id: 'conflict', name: 'Conflict Resolution', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge',
+              gameNames: ['Conflict Resolution Challenge'], isComplete: (d) => d.completed === true },
+            { id: 'purposeful', name: 'Purposeful Communicator', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge',
+              gameNames: ['Purposeful Communicator', 'Purposeful Communicator Challenge'], isComplete: (d) => d.completed === true },
+            { id: 'story', name: 'Master Your Story', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge',
+              gameNames: ['Master Your Story'], isComplete: (d) => d.completed === true },
+            { id: 'airport', name: 'Airport Navigator', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/airport-navigator',
+              gameNames: ['Airport Navigator'], isComplete: (d) => d.completed === true },
+            { id: 'defense', name: 'Digital Asset Defense', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense',
+              gameNames: ['Digital Asset Defense'], isComplete: (d) => d.completed === true },
+            { id: 'copilot', name: 'The AI Co-Pilot', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/aico-pilot',
+              gameNames: ['AI Co-Pilot', 'The AI Co-Pilot'], isComplete: (d) => d.completed === true },
+            { id: 'identity', name: 'Your Digital Identity', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/your-digital-identity',
+              gameNames: ['Your Digital Identity'], isComplete: (d) => d.completed === true },
+            { id: 'rage', name: 'Rage Revenue', category: 'lesson', url: 'https://allgoodacademy.com/jsh/rage-revenue/',
+              gameNames: ['Rage Revenue'], isComplete: (d) => d.completed === true },
+            { id: 'finding', name: 'Finding Yourself', category: 'lesson', url: 'https://allgoodacademy.com/jsh/finding-yourself/',
+              gameNames: ["Jodi's Schoolhouse: Finding Yourself"], isComplete: (d) => d.completed === true },
+        ];
+        function getModuleById(id) { return MODULE_REGISTRY.find(m => m.id === id); }
+
+        // Given one student's fetched game_scores docs, work out their status for a specific
+        // registry module: 'completed' | 'in_progress' | 'not_started'.
+        function computeModuleStatus(moduleId, scoreDocs) {
+            const mod = getModuleById(moduleId);
+            if (!mod) return 'not_started';
+            let sawAttempt = false;
+            for (const data of scoreDocs) {
+                if (!mod.gameNames.includes(data.gameName)) continue;
+                sawAttempt = true;
+                if (mod.isComplete(data)) return 'completed';
+            }
+            return sawAttempt ? 'in_progress' : 'not_started';
+        }
+
         async function writeUserDataToFirestore(user, name, email, isGuest) {
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
              const role = selectedLoginRole; // 'student' or 'teacher', set by the login modal toggle
@@ -1322,7 +1371,9 @@
         };
 
         // --- REAL TEACHER DASHBOARD (reuses the admin page's UI, real data instead of demo rows) ---
-        let _currentRosterData = [];
+        let _currentRosterFull = [];
+        let _currentAssignedModuleIds = [];
+        let _studentStatusCache = {};
 
         window.openTeacherDashboard = async () => {
             const menu = document.getElementById('menu-modal');
@@ -1349,7 +1400,7 @@
             document.getElementById('admin-page-title').textContent = 'My Classroom';
             document.getElementById('admin-page-subtitle').innerHTML = `Classroom Code: <span class="text-allgood-secondary font-mono">${code}</span>`;
             document.getElementById('admin-stat1-label').textContent = 'Total Students';
-            document.getElementById('admin-stat2-label').textContent = 'Digital Decisions — Certified';
+            document.getElementById('admin-stat2-label').textContent = 'Avg. Assigned Completion';
             document.getElementById('admin-stat3-label').textContent = 'Classroom Code';
             document.getElementById('admin-stat-code').textContent = code;
             document.getElementById('admin-roster-title').textContent = 'Student Roster';
@@ -1359,6 +1410,26 @@
             lucide.createIcons();
 
             try {
+                const classroomSnap = await getDoc(doc(db, 'artifacts', appId, 'classrooms', code));
+                const assignedModuleIds = (classroomSnap.exists() && classroomSnap.data().assignedModules) || [];
+                _currentAssignedModuleIds = assignedModuleIds;
+
+                const assignedLabel = document.getElementById('admin-assigned-summary');
+                if (assignedLabel) {
+                    assignedLabel.textContent = assignedModuleIds.length
+                        ? `${assignedModuleIds.length} module${assignedModuleIds.length === 1 ? '' : 's'} assigned: ${assignedModuleIds.map(id => getModuleById(id)?.name || id).join(', ')}`
+                        : 'No modules assigned yet.';
+                }
+
+                if (assignedModuleIds.length === 0) {
+                    rosterBody.innerHTML = '<div class="p-6 text-center"><p class="text-xs text-gray-400 italic mb-3">No modules assigned yet — students won\'t have anything to work toward until you assign at least one.</p><button onclick="window.openAssignmentPicker()" class="bg-allgood-primary text-white text-[10px] font-bold uppercase px-4 py-2 rounded-full">Assign Modules</button></div>';
+                    document.getElementById('admin-stat-total').textContent = '—';
+                    document.getElementById('admin-stat-completion').textContent = '—';
+                    _currentRosterFull = [];
+                    lucide.createIcons();
+                    return;
+                }
+
                 const studentsQuery = query(collection(db, 'artifacts', appId, 'users'), where('classroomCode', '==', code), where('role', '==', 'student'));
                 const studentsSnap = await getDocs(studentsQuery);
 
@@ -1367,74 +1438,190 @@
                 if (studentsSnap.empty) {
                     rosterBody.innerHTML = '<p class="text-xs text-gray-400 italic p-4">No students have joined this classroom yet. Share your code to get started.</p>';
                     document.getElementById('admin-stat-completion').textContent = '—';
-                    _currentRosterData = [];
+                    _currentRosterFull = [];
+                    lucide.createIcons();
                     return;
                 }
 
-                const rosterRows = [];
-                let certifiedCount = 0;
-                rosterBody.innerHTML = ''; // clear "Loading roster..." now that we're about to render real rows
+                const rosterFull = [];
+                let totalCompletionPairs = 0;
+                let completedPairs = 0;
 
                 for (const sDoc of studentsSnap.docs) {
                     const sData = sDoc.data();
-                    let status = 'Not Started';
-                    let statusClass = 'bg-slate-100 text-slate-500';
-                    let hasBadge = false;
-
+                    let scoreDocs = [];
                     try {
                         const scoresSnap = await getDocs(collection(db, 'artifacts', appId, 'users', sDoc.id, 'game_scores'));
-                        scoresSnap.forEach(scoreDoc => {
-                            const scoreData = scoreDoc.data();
-                            if (scoreData.gameName === 'Digital Decisions Challenge' && typeof scoreData.finalScore === 'number') {
-                                if (scoreData.finalScore >= 80) {
-                                    status = 'Certified'; statusClass = 'bg-emerald-100 text-emerald-700'; hasBadge = true;
-                                } else if (status !== 'Certified') {
-                                    status = 'In Progress'; statusClass = 'bg-amber-100 text-amber-700';
-                                }
-                            }
-                        });
+                        scoreDocs = scoresSnap.docs.map(d => d.data());
                     } catch (e) {
-                        console.error("Couldn't read a student's scores (permissions?) — showing them as Not Started.", e);
+                        console.error("Couldn't read a student's scores (permissions?) — showing their assigned modules as Not Started.", e);
                     }
 
-                    if (status === 'Certified') certifiedCount++;
+                    const moduleStatuses = {};
+                    assignedModuleIds.forEach(moduleId => {
+                        const status = computeModuleStatus(moduleId, scoreDocs);
+                        moduleStatuses[moduleId] = status;
+                        totalCompletionPairs++;
+                        if (status === 'completed') completedPairs++;
+                    });
 
                     const lastActive = sData.lastLogin && sData.lastLogin.toDate ? sData.lastLogin.toDate().toLocaleDateString() : '—';
-                    rosterRows.push({ name: sData.displayName || 'Student', email: sData.email || '', status, lastActive });
-
-                    const initials = (sData.displayName || 'St').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-                    const row = document.createElement('div');
-                    row.className = 'grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100';
-                    row.innerHTML = `
-                        <div class="col-span-4 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">${initials}</div>
-                            <div class="min-w-0">
-                                <p class="text-xs font-bold text-slate-700 truncate">${sData.displayName || 'Student'}</p>
-                                <p class="text-[10px] text-slate-400 truncate">${sData.email || ''}</p>
-                            </div>
-                        </div>
-                        <div class="col-span-2"><span class="${statusClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${status}</span></div>
-                        <div class="col-span-2 flex justify-center">${hasBadge ? '<i data-lucide="shield" class="w-4 h-4 text-allgood-primary"></i>' : '<span class="text-[9px] text-slate-300">—</span>'}</div>
-                        <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">${lastActive}</div>
-                        <div class="col-span-2 flex justify-end"><span class="text-slate-300"><i data-lucide="more-horizontal" class="w-4 h-4"></i></span></div>
-                    `;
-                    rosterBody.appendChild(row);
+                    rosterFull.push({
+                        uid: sDoc.id,
+                        name: sData.displayName || 'Student',
+                        email: sData.email || '',
+                        lastActive,
+                        moduleStatuses
+                    });
                 }
 
-                document.getElementById('admin-stat-completion').textContent = Math.round((certifiedCount / studentsSnap.size) * 100) + '%';
-                _currentRosterData = rosterRows;
-                lucide.createIcons();
+                document.getElementById('admin-stat-completion').textContent = totalCompletionPairs
+                    ? Math.round((completedPairs / totalCompletionPairs) * 100) + '%'
+                    : '—';
+
+                _currentRosterFull = rosterFull;
+                _studentStatusCache = {};
+                rosterFull.forEach(r => { _studentStatusCache[r.uid] = r; });
+
+                window.renderRosterRows('all');
             } catch (e) {
                 console.error("Roster fetch failed — check that firestore.rules has been deployed with the teacher-classroom rules.", e);
                 rosterBody.innerHTML = '<p class="text-xs text-red-400 italic p-4">Couldn\'t load roster — this usually means the security rules update hasn\'t been deployed yet.</p>';
             }
         };
 
+        // Renders roster rows from the already-fetched _currentRosterFull cache — no refetching,
+        // so the status filter dropdown can re-render instantly.
+        window.renderRosterRows = (filter) => {
+            const rosterBody = document.getElementById('admin-roster-body');
+            const assignedCount = _currentAssignedModuleIds.length;
+
+            const filtered = _currentRosterFull.filter(r => {
+                if (filter === 'all') return true;
+                const statuses = Object.values(r.moduleStatuses);
+                if (filter === 'completed_all') return statuses.length > 0 && statuses.every(s => s === 'completed');
+                if (filter === 'in_progress') return statuses.some(s => s === 'in_progress' || s === 'completed') && !statuses.every(s => s === 'completed');
+                if (filter === 'not_started') return statuses.every(s => s === 'not_started');
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                rosterBody.innerHTML = '<p class="text-xs text-gray-400 italic p-4">No students match this filter.</p>';
+                return;
+            }
+
+            rosterBody.innerHTML = '';
+            filtered.forEach(r => {
+                const completedCount = Object.values(r.moduleStatuses).filter(s => s === 'completed').length;
+                const initials = (r.name || 'St').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const progressLabel = `${completedCount}/${assignedCount} Complete`;
+                const progressClass = completedCount === assignedCount ? 'bg-emerald-100 text-emerald-700' : (completedCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500');
+
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100 cursor-pointer';
+                row.onclick = () => window.openStudentProfile(r.uid);
+                row.innerHTML = `
+                    <div class="col-span-4 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">${initials}</div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-slate-700 truncate">${r.name}</p>
+                            <p class="text-[10px] text-slate-400 truncate">${r.email}</p>
+                        </div>
+                    </div>
+                    <div class="col-span-2"><span class="${progressClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${progressLabel}</span></div>
+                    <div class="col-span-2 flex justify-center">${completedCount > 0 ? '<i data-lucide="shield" class="w-4 h-4 text-allgood-primary"></i>' : '<span class="text-[9px] text-slate-300">—</span>'}</div>
+                    <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">${r.lastActive}</div>
+                    <div class="col-span-2 flex justify-end"><span class="text-slate-400 text-[9px] font-bold uppercase hover:text-allgood-secondary">View Profile</span></div>
+                `;
+                rosterBody.appendChild(row);
+            });
+            lucide.createIcons();
+        };
+
+        // --- STUDENT PROFILE DRILL-DOWN ---
+        window.openStudentProfile = (studentUid) => {
+            const student = _studentStatusCache[studentUid];
+            if (!student) return;
+
+            document.getElementById('profile-student-name').textContent = student.name;
+            document.getElementById('profile-student-email').textContent = student.email;
+
+            const list = document.getElementById('profile-module-list');
+            const entries = Object.entries(student.moduleStatuses);
+            if (entries.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-400 italic">No modules assigned.</p>';
+            } else {
+                list.innerHTML = entries.map(([moduleId, status]) => {
+                    const mod = getModuleById(moduleId);
+                    const statusClass = status === 'completed' ? 'bg-emerald-100 text-emerald-700' : status === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
+                    const statusLabel = status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Not Started';
+                    return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2">
+                        <span class="text-xs font-bold text-slate-700">${mod ? mod.name : moduleId}</span>
+                        <span class="${statusClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${statusLabel}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            document.getElementById('student-profile-modal').classList.remove('hidden-modal');
+            document.getElementById('student-profile-modal').classList.add('visible-modal');
+            lucide.createIcons();
+        };
+
+        window.closeStudentProfile = () => {
+            document.getElementById('student-profile-modal').classList.add('hidden-modal');
+            document.getElementById('student-profile-modal').classList.remove('visible-modal');
+        };
+
+        // --- ASSIGNMENT MANAGEMENT ---
+        window.openAssignmentPicker = async () => {
+            const uid = localStorage.getItem('aa_uid');
+            if (!uid) return;
+            const userSnap = await getDoc(doc(db, 'artifacts', appId, 'users', uid));
+            const code = userSnap.exists() ? userSnap.data().classroomCode : null;
+            if (!code) return;
+
+            const classroomSnap = await getDoc(doc(db, 'artifacts', appId, 'classrooms', code));
+            const assigned = (classroomSnap.exists() && classroomSnap.data().assignedModules) || [];
+
+            const list = document.getElementById('assignment-picker-list');
+            list.innerHTML = MODULE_REGISTRY.map(m => `
+                <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100">
+                    <input type="checkbox" value="${m.id}" ${assigned.includes(m.id) ? 'checked' : ''} class="assignment-checkbox w-4 h-4 accent-allgood-primary">
+                    <span class="text-xs font-bold text-slate-700">${m.name}</span>
+                    <span class="text-[9px] uppercase text-slate-400 ml-auto">${m.category}</span>
+                </label>
+            `).join('');
+
+            document.getElementById('assignment-picker-modal').classList.remove('hidden-modal');
+            document.getElementById('assignment-picker-modal').classList.add('visible-modal');
+        };
+
+        window.closeAssignmentPicker = () => {
+            document.getElementById('assignment-picker-modal').classList.add('hidden-modal');
+            document.getElementById('assignment-picker-modal').classList.remove('visible-modal');
+        };
+
+        window.saveAssignments = async () => {
+            const uid = localStorage.getItem('aa_uid');
+            if (!uid) return;
+            const userSnap = await getDoc(doc(db, 'artifacts', appId, 'users', uid));
+            const code = userSnap.exists() ? userSnap.data().classroomCode : null;
+            if (!code) return;
+
+            const checked = Array.from(document.querySelectorAll('.assignment-checkbox:checked')).map(cb => cb.value);
+            await setDoc(doc(db, 'artifacts', appId, 'classrooms', code), { assignedModules: checked }, { merge: true });
+            showStatusMessage("Assignments updated.", 'info');
+            window.closeAssignmentPicker();
+            window.openTeacherDashboard(); // refresh roster against the new assignment set
+        };
+
         window.exportRosterCSV = () => {
-            if (!_currentRosterData.length) { showStatusMessage("No roster data to export yet.", 'info'); return; }
-            let csv = 'Name,Email,Status,Last Active\n';
-            _currentRosterData.forEach(r => {
-                csv += `"${r.name}","${r.email}","${r.status}","${r.lastActive}"\n`;
+            if (!_currentRosterFull.length) { showStatusMessage("No roster data to export yet.", 'info'); return; }
+            const moduleIds = _currentAssignedModuleIds;
+            let csv = 'Name,Email,Last Active,' + moduleIds.map(id => `"${(getModuleById(id)?.name || id)}"`).join(',') + '\n';
+            _currentRosterFull.forEach(r => {
+                const statusCols = moduleIds.map(id => `"${r.moduleStatuses[id] || 'not_started'}"`).join(',');
+                csv += `"${r.name}","${r.email}","${r.lastActive}",${statusCols}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -1944,6 +2131,30 @@
                     <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3 modal-content-base">
                         <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
                         <p id="status-content" class="text-sm font-body text-blue-800"></p>
+                    </div>
+                </div>
+
+                <!-- ASSIGNMENT PICKER MODAL: teacher chooses which modules apply to their classroom -->
+                <div id="assignment-picker-modal" class="hidden-modal absolute inset-0 z-[3600] bg-slate-900/60 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="if(event.target === this) window.closeAssignmentPicker()">
+                    <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
+                        <button onclick="window.closeAssignmentPicker()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        <h3 class="text-lg font-heading font-bold text-allgood-dark mb-1">Manage Assignments</h3>
+                        <p class="text-xs text-gray-500 mb-4">Choose which modules apply to your classroom. Students will see these as their assigned work.</p>
+                        <div id="assignment-picker-list" class="max-h-72 overflow-y-auto space-y-1 mb-4 border border-slate-100 rounded-lg p-2"></div>
+                        <button onclick="window.saveAssignments()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-2.5 rounded shadow-md text-xs uppercase tracking-wide">Save Assignments</button>
+                    </div>
+                </div>
+
+                <!-- STUDENT PROFILE MODAL: per-module status breakdown for one student -->
+                <div id="student-profile-modal" class="hidden-modal absolute inset-0 z-[3600] bg-slate-900/60 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="if(event.target === this) window.closeStudentProfile()">
+                    <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full border-t-4 border-allgood-primary relative" onclick="event.stopPropagation()">
+                        <button onclick="window.closeStudentProfile()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        <div class="mb-4">
+                            <h3 id="profile-student-name" class="text-lg font-heading font-bold text-allgood-dark">Student</h3>
+                            <p id="profile-student-email" class="text-xs text-gray-400"></p>
+                        </div>
+                        <p class="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-2">Assigned Modules</p>
+                        <div id="profile-module-list" class="max-h-72 overflow-y-auto"></div>
                     </div>
                 </div>
 
@@ -2483,6 +2694,14 @@
                         </div>
                     </div>
 
+                    <!-- ASSIGNED MODULES SUMMARY -->
+                    <div class="flex items-center justify-between mb-4 px-1">
+                        <p id="admin-assigned-summary" class="text-xs text-slate-500 font-bold">No modules assigned yet.</p>
+                        <button onclick="window.openAssignmentPicker()" class="px-3 py-1.5 rounded bg-allgood-secondary text-white text-[10px] font-bold uppercase hover:bg-allgood-accent transition-colors shadow-sm flex items-center gap-1">
+                            <i data-lucide="clipboard-list" class="w-3 h-3"></i> Manage Assignments
+                        </button>
+                    </div>
+
                     <!-- ROSTER TABLE (GLASS) -->
                     <div class="bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden flex flex-col h-[60vh]">
                         <!-- Toolbar -->
@@ -2490,7 +2709,13 @@
                             <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
                                 <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> <span id="admin-roster-title">Agent Roster</span>
                             </h3>
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 items-center">
+                                <select id="roster-filter-select" onchange="window.renderRosterRows(this.value)" class="px-2 py-1.5 rounded bg-white border border-gray-200 text-[10px] font-bold uppercase text-slate-500">
+                                    <option value="all">All Students</option>
+                                    <option value="completed_all">All Assigned Complete</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="not_started">Not Started</option>
+                                </select>
                                 <button id="admin-export-btn" onclick="window.exportRosterCSV()" class="px-3 py-1.5 rounded bg-white border border-gray-200 text-[10px] font-bold uppercase text-slate-500 hover:text-allgood-secondary hover:border-allgood-secondary transition-colors">
                                     Export CSV
                                 </button>
@@ -2499,8 +2724,8 @@
 
                         <!-- Table Headers -->
                         <div class="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50/50 border-b border-gray-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <div class="col-span-4">Agent Name</div>
-                            <div class="col-span-2">Status</div>
+                            <div class="col-span-4">Student Name</div>
+                            <div class="col-span-2">Assigned Progress</div>
                             <div class="col-span-2 text-center">Badges</div>
                             <div class="col-span-2 text-center">Last Active</div>
                             <div class="col-span-2 text-right">Actions</div>
