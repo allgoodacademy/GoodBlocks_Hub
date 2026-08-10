@@ -155,7 +155,7 @@
              // First-time teacher: immediately show them their new classroom code
              if (userDoc.role === 'teacher' && window._justGeneratedClassroomCode) {
                  window._justGeneratedClassroomCode = null;
-                 setTimeout(() => window.openClassroomModal(), 500);
+                 setTimeout(() => window.openTeacherDashboard(), 500);
              }
         }
 
@@ -191,65 +191,9 @@
             if (classroomMenuBtn) classroomMenuBtn.classList.toggle('hidden', role !== 'teacher');
         };
 
-        // --- CLASSROOM MODAL (teacher's code + roster) ---
-        window.openClassroomModal = async () => {
-            const menu = document.getElementById('menu-modal');
-            if (menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
-
-            const modal = document.getElementById('classroom-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-
-            const uid = localStorage.getItem('aa_uid');
-            if (!uid) return;
-            const userSnap = await getDoc(doc(db, 'artifacts', appId, 'users', uid));
-            const code = userSnap.exists() ? userSnap.data().classroomCode : null;
-
-            const codeDisplay = document.getElementById('classroom-code-display');
-            const rosterList = document.getElementById('classroom-roster-list');
-            const rosterCount = document.getElementById('classroom-roster-count');
-            if (!code) {
-                if (codeDisplay) codeDisplay.textContent = '------';
-                if (rosterList) rosterList.innerHTML = '<p class="text-xs text-gray-400 italic">No classroom code on file yet.</p>';
-                if (rosterCount) rosterCount.textContent = '0';
-                return;
-            }
-            if (codeDisplay) codeDisplay.textContent = code;
-
-            try {
-                const studentsQuery = query(collection(db, 'artifacts', appId, 'users'), where('classroomCode', '==', code), where('role', '==', 'student'));
-                const studentsSnap = await getDocs(studentsQuery);
-                if (rosterCount) rosterCount.textContent = studentsSnap.size;
-                if (rosterList) {
-                    if (studentsSnap.empty) {
-                        rosterList.innerHTML = '<p class="text-xs text-gray-400 italic">No students have joined yet.</p>';
-                    } else {
-                        rosterList.innerHTML = '';
-                        studentsSnap.forEach(sDoc => {
-                            const sData = sDoc.data();
-                            const row = document.createElement('div');
-                            row.className = 'flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-xs';
-                            row.innerHTML = `<span class="font-bold text-slate-700">${sData.displayName || 'Student'}</span><span class="text-gray-400">${sData.email || ''}</span>`;
-                            rosterList.appendChild(row);
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error("Roster fetch failed — this likely needs a Firestore security rule update to let a teacher query students by classroomCode.", e);
-                if (rosterList) rosterList.innerHTML = '<p class="text-xs text-red-400 italic">Couldn\'t load roster (permissions). See setup notes.</p>';
-            }
-            lucide.createIcons();
-        };
-
-        window.closeClassroomModal = () => {
-            const modal = document.getElementById('classroom-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-        };
-
         window.copyClassroomCode = () => {
-            const code = document.getElementById('classroom-code-display')?.textContent;
-            if (code && code !== '------') {
+            const code = document.getElementById('admin-stat-code')?.textContent;
+            if (code && code !== 'allgood.ac/tf/8821') {
                 navigator.clipboard.writeText(code);
                 showStatusMessage("Classroom code copied!", 'info');
             }
@@ -1367,71 +1311,7 @@
             }
         }
 
-        // --- NEW ADMIN FUNCTIONS ---
-        window.openAdminLogin = () => {
-            const menu = document.getElementById('menu-modal');
-            if (menu) {
-                menu.classList.add('hidden-modal');
-                menu.classList.remove('visible-modal');
-            }
-            const modal = document.getElementById('admin-login-modal');
-            modal.classList.remove('hidden-modal');
-            modal.classList.add('visible-modal');
-            sfx.click();
-            setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
-        };
-
-        window.closeAdminLogin = () => {
-            const modal = document.getElementById('admin-login-modal');
-            modal.classList.add('hidden-modal');
-            modal.classList.remove('visible-modal');
-            sfx.click();
-        };
-
-        window.handleAdminAuth = async (bypass = false) => {
-            sfx.click();
-            const input = document.getElementById('admin-password-input');
-            const val = input.value.trim();
-            const btn = document.getElementById('btn-admin-submit');
-            
-            // Bypass Logic (Opt-out)
-            if (bypass) {
-                window.openAdminDashboard();
-                return;
-            }
-
-            // Simple validation check for email format
-            if (val.includes('@') && val.length > 5) {
-                // Log email if we had a backend for it, for now just allow entry
-                // Could save to Firestore 'leads' collection here if needed later
-                window.openAdminDashboard();
-                input.value = ""; // Clear input
-            } else {
-                // Error feedback
-                btn.classList.add('bg-red-600');
-                btn.textContent = "INVALID FORMAT";
-                sfx.powerOff();
-                setTimeout(() => {
-                    btn.classList.remove('bg-red-600');
-                    btn.textContent = "AUTHENTICATE";
-                }, 1500);
-            }
-        };
-
-        window.openAdminDashboard = () => {
-            sfx.confirm();
-            window.closeAdminLogin();
-            
-            // Hide standard dashboard
-            document.getElementById('page-dashboard').style.display = 'none';
-            
-            // Show Admin Dashboard
-            const adminPage = document.getElementById('page-admin');
-            adminPage.style.display = 'block';
-            adminPage.classList.add('active');
-        };
-
-        window.closeAdminDashboard = () => {
+        window.closeTeacherDashboard = () => {
             sfx.nav();
             const adminPage = document.getElementById('page-admin');
             adminPage.style.display = 'none';
@@ -1439,6 +1319,132 @@
             
             // Restore standard dashboard
             document.getElementById('page-dashboard').style.display = 'block';
+        };
+
+        // --- REAL TEACHER DASHBOARD (reuses the admin page's UI, real data instead of demo rows) ---
+        let _currentRosterData = [];
+
+        window.openTeacherDashboard = async () => {
+            const menu = document.getElementById('menu-modal');
+            if (menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
+
+            const uid = localStorage.getItem('aa_uid');
+            if (!uid) return;
+
+            const userSnap = await getDoc(doc(db, 'artifacts', appId, 'users', uid));
+            const userData = userSnap.exists() ? userSnap.data() : null;
+            const code = userData ? userData.classroomCode : null;
+
+            if (!code) {
+                showStatusMessage("No classroom code on file for this account yet.", 'error');
+                return;
+            }
+
+            sfx.confirm();
+            document.getElementById('page-dashboard').style.display = 'none';
+            const adminPage = document.getElementById('page-admin');
+            adminPage.style.display = 'block';
+            adminPage.classList.add('active');
+
+            document.getElementById('admin-page-title').textContent = 'My Classroom';
+            document.getElementById('admin-page-subtitle').innerHTML = `Classroom Code: <span class="text-allgood-secondary font-mono">${code}</span>`;
+            document.getElementById('admin-stat1-label').textContent = 'Total Students';
+            document.getElementById('admin-stat2-label').textContent = 'Digital Decisions — Certified';
+            document.getElementById('admin-stat3-label').textContent = 'Classroom Code';
+            document.getElementById('admin-stat-code').textContent = code;
+            document.getElementById('admin-roster-title').textContent = 'Student Roster';
+
+            const rosterBody = document.getElementById('admin-roster-body');
+            rosterBody.innerHTML = '<p class="text-xs text-gray-400 italic p-4">Loading roster...</p>';
+            lucide.createIcons();
+
+            try {
+                const studentsQuery = query(collection(db, 'artifacts', appId, 'users'), where('classroomCode', '==', code), where('role', '==', 'student'));
+                const studentsSnap = await getDocs(studentsQuery);
+
+                document.getElementById('admin-stat-total').textContent = studentsSnap.size;
+
+                if (studentsSnap.empty) {
+                    rosterBody.innerHTML = '<p class="text-xs text-gray-400 italic p-4">No students have joined this classroom yet. Share your code to get started.</p>';
+                    document.getElementById('admin-stat-completion').textContent = '—';
+                    _currentRosterData = [];
+                    return;
+                }
+
+                const rosterRows = [];
+                let certifiedCount = 0;
+                rosterBody.innerHTML = ''; // clear "Loading roster..." now that we're about to render real rows
+
+                for (const sDoc of studentsSnap.docs) {
+                    const sData = sDoc.data();
+                    let status = 'Not Started';
+                    let statusClass = 'bg-slate-100 text-slate-500';
+                    let hasBadge = false;
+
+                    try {
+                        const scoresSnap = await getDocs(collection(db, 'artifacts', appId, 'users', sDoc.id, 'game_scores'));
+                        scoresSnap.forEach(scoreDoc => {
+                            const scoreData = scoreDoc.data();
+                            if (scoreData.gameName === 'Digital Decisions Challenge' && typeof scoreData.finalScore === 'number') {
+                                if (scoreData.finalScore >= 80) {
+                                    status = 'Certified'; statusClass = 'bg-emerald-100 text-emerald-700'; hasBadge = true;
+                                } else if (status !== 'Certified') {
+                                    status = 'In Progress'; statusClass = 'bg-amber-100 text-amber-700';
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Couldn't read a student's scores (permissions?) — showing them as Not Started.", e);
+                    }
+
+                    if (status === 'Certified') certifiedCount++;
+
+                    const lastActive = sData.lastLogin && sData.lastLogin.toDate ? sData.lastLogin.toDate().toLocaleDateString() : '—';
+                    rosterRows.push({ name: sData.displayName || 'Student', email: sData.email || '', status, lastActive });
+
+                    const initials = (sData.displayName || 'St').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                    const row = document.createElement('div');
+                    row.className = 'grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100';
+                    row.innerHTML = `
+                        <div class="col-span-4 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">${initials}</div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-700 truncate">${sData.displayName || 'Student'}</p>
+                                <p class="text-[10px] text-slate-400 truncate">${sData.email || ''}</p>
+                            </div>
+                        </div>
+                        <div class="col-span-2"><span class="${statusClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${status}</span></div>
+                        <div class="col-span-2 flex justify-center">${hasBadge ? '<i data-lucide="shield" class="w-4 h-4 text-allgood-primary"></i>' : '<span class="text-[9px] text-slate-300">—</span>'}</div>
+                        <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">${lastActive}</div>
+                        <div class="col-span-2 flex justify-end"><span class="text-slate-300"><i data-lucide="more-horizontal" class="w-4 h-4"></i></span></div>
+                    `;
+                    rosterBody.appendChild(row);
+                }
+
+                document.getElementById('admin-stat-completion').textContent = Math.round((certifiedCount / studentsSnap.size) * 100) + '%';
+                _currentRosterData = rosterRows;
+                lucide.createIcons();
+            } catch (e) {
+                console.error("Roster fetch failed — check that firestore.rules has been deployed with the teacher-classroom rules.", e);
+                rosterBody.innerHTML = '<p class="text-xs text-red-400 italic p-4">Couldn\'t load roster — this usually means the security rules update hasn\'t been deployed yet.</p>';
+            }
+        };
+
+        window.exportRosterCSV = () => {
+            if (!_currentRosterData.length) { showStatusMessage("No roster data to export yet.", 'info'); return; }
+            let csv = 'Name,Email,Status,Last Active\n';
+            _currentRosterData.forEach(r => {
+                csv += `"${r.name}","${r.email}","${r.status}","${r.lastActive}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'classroom-roster.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         };
 
         const startupScreen = document.getElementById('startup-screen');
@@ -1555,11 +1561,11 @@
 
         /* --- TABLET FRAME (FIXED CHASSIS MANDATE) --- */
         .tablet-frame {
-            height: 80vh;
+            height: 88vh;
             width: auto;
             aspect-ratio: 16/10;
-            max-width: 1100px;
-            max-height: 95vh;
+            max-width: min(1700px, 94vw);
+            max-height: 96vh;
             min-height: 0;
             min-width: 0;
             /* Brushed Aluminum & Depth Gradients - FIXED */
@@ -1933,61 +1939,11 @@
                     </div>
                 </div>
 
-                <!-- CLASSROOM MODAL: shows a teacher's join code + roster of students who've joined -->
-                <div id="classroom-modal" class="hidden-modal absolute inset-0 z-[3500] bg-slate-900/60 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="if(event.target === this) window.closeClassroomModal()">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
-                        <button onclick="window.closeClassroomModal()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-                        <i data-lucide="graduation-cap" class="w-10 h-10 text-allgood-secondary mx-auto mb-3"></i>
-                        <h3 class="text-xl font-heading font-bold text-allgood-dark mb-1">Your Classroom</h3>
-                        <p class="text-xs text-gray-500 mb-4">Share this code with your students so they can join.</p>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                            <p id="classroom-code-display" class="text-3xl font-mono font-bold tracking-[0.3em] text-allgood-primary">------</p>
-                            <button onclick="window.copyClassroomCode()" class="mt-2 text-[10px] font-bold text-allgood-secondary uppercase tracking-wide hover:underline">
-                                <i data-lucide="copy" class="w-3 h-3 inline-block mr-1 -mt-0.5"></i> Copy Code
-                            </button>
-                        </div>
-                        <div class="text-left">
-                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-2">Students Joined (<span id="classroom-roster-count">0</span>)</p>
-                            <div id="classroom-roster-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                                <p class="text-xs text-gray-400 italic">No students have joined yet.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- 2.5 STATUS MODAL -->
                 <div id="status-modal" class="hidden-modal absolute top-16 right-4 z-[500] flex items-center justify-center p-4 modal-transition pointer-events-none">
                     <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3 modal-content-base">
                         <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
                         <p id="status-content" class="text-sm font-body text-blue-800"></p>
-                    </div>
-                </div>
-
-                <!-- 2.7 ADMIN LOGIN MODAL (NEW - PROFESSIONAL) -->
-                <div id="admin-login-modal" class="hidden-modal absolute inset-0 z-[260] bg-slate-900/50 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="window.closeAdminLogin()">
-                    <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
-                        <button onclick="window.closeAdminLogin()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-
-                        <div class="mb-6 mt-2">
-                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i data-lucide="lock" class="w-6 h-6 text-allgood-secondary"></i>
-                            </div>
-                            <h2 class="text-xl font-heading font-bold text-allgood-dark">Administrator Access</h2>
-                            <p class="text-xs text-gray-500 mt-1">Please verify your credentials.</p>
-                        </div>
-                        
-                        <div class="text-left mb-4">
-                            <label class="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Admin Password</label>
-                            <input type="password" id="admin-password-input" class="w-full border border-gray-300 rounded p-3 text-gray-800 focus:ring-2 focus:ring-allgood-secondary focus:border-transparent outline-none transition-all font-body" placeholder="••••••••">
-                        </div>
-                        
-                        <button id="btn-admin-submit" onclick="window.handleAdminAuth()" class="w-full bg-allgood-secondary hover:bg-allgood-accent text-white font-bold py-3 rounded shadow-md transition-all font-body uppercase tracking-wide mb-3">
-                            Sign In
-                        </button>
-                        
-                        <button onclick="window.handleAdminAuth(true)" class="text-xs text-gray-400 hover:text-allgood-primary underline underline-offset-4 decoration-dotted font-body">
-                            Enter Preview Mode (Guest)
-                        </button>
                     </div>
                 </div>
 
@@ -2035,13 +1991,9 @@
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openProfileModal()">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
-                            <!-- TEACHER ENTRY: hidden unless this account's role is 'teacher' -->
-                            <button id="menu-btn-classroom" class="hidden w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openClassroomModal()">
+                            <!-- MY CLASSROOM: hidden unless this account's role is 'teacher' -->
+                            <button id="menu-btn-classroom" class="hidden w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openTeacherDashboard()">
                                 <i data-lucide="graduation-cap" class="w-4 h-4 mr-3 text-allgood-primary"></i>My Classroom
-                            </button>
-                            <!-- ADMIN ENTRY -->
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAdminLogin()">
-                                <i data-lucide="lock" class="w-4 h-4 mr-3 text-allgood-secondary"></i>Admin Console
                             </button>
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAboutModal()">
                                 <i data-lucide="info" class="w-4 h-4 mr-3 text-slate-500"></i>About Us
@@ -2478,32 +2430,20 @@
 
                 </div> <!-- End Dashboard Page -->
 
-                <!-- 5. NEW ADMIN PAGE (TASK FORCE MODE) -->
+                <!-- 5. MY CLASSROOM (TEACHER VIEW) -->
                 <div class="page" id="page-admin" style="display:none;">
-                    
-                    <!-- BETA BANNER -->
-                    <div class="bg-indigo-600 text-white px-4 py-3 rounded-lg shadow-md mb-6 flex items-start md:items-center justify-between gap-4 border border-indigo-500">
-                        <div class="flex items-center gap-3">
-                            <i data-lucide="flask-conical" class="w-5 h-5 flex-shrink-0 text-indigo-200"></i>
-                            <p class="text-xs md:text-sm font-bold leading-tight">
-                                <span class="opacity-75 uppercase tracking-wider text-[10px] block md:inline mb-1 md:mb-0 md:mr-2">System Notice:</span>
-                                COMING SOON: This functionality is in development. <a href="#" onclick="window.openMessageModal(); return false;" class="underline decoration-dotted underline-offset-2 hover:text-indigo-200">Send us a message</a> using the chat feature if you're interested in getting this for free as a beta participant.
-                            </p>
-                        </div>
-                        <button onclick="this.parentElement.style.display='none'" class="text-indigo-300 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                    
+
                     <!-- ADMIN TOP BAR -->
                     <div class="flex items-center justify-between mb-8">
                         <div>
                             <div class="flex items-center gap-3">
-                                <h1 class="text-2xl font-heading font-bold text-allgood-dark uppercase">Task Force Command</h1>
-                                <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-emerald-200">Plan Active</span>
+                                <h1 id="admin-page-title" class="text-2xl font-heading font-bold text-allgood-dark uppercase">My Classroom</h1>
+                                <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-emerald-200">Active</span>
                             </div>
-                            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Reporting Hub: <span class="text-allgood-secondary">4th Period Science Class</span></p>
+                            <p id="admin-page-subtitle" class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Loading classroom...</p>
                         </div>
                         <div class="flex items-center gap-2">
-                             <button onclick="window.closeAdminDashboard()" class="text-slate-500 hover:text-allgood-primary px-4 py-2 text-xs font-bold uppercase transition-all flex items-center gap-2">
+                             <button onclick="window.closeTeacherDashboard()" class="text-slate-500 hover:text-allgood-primary px-4 py-2 text-xs font-bold uppercase transition-all flex items-center gap-2">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> Return to OS
                             </button>
                         </div>
@@ -2514,8 +2454,8 @@
                         <!-- Stat 1 -->
                         <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all">
                             <div>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total Agents</span>
-                                <span class="block text-3xl font-heading font-bold text-slate-700">24</span>
+                                <span id="admin-stat1-label" class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total Agents</span>
+                                <span id="admin-stat-total" class="block text-3xl font-heading font-bold text-slate-700">24</span>
                             </div>
                             <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                                 <i data-lucide="users" class="w-5 h-5"></i>
@@ -2524,18 +2464,18 @@
                         <!-- Stat 2 -->
                         <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all">
                             <div>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Completion Rate</span>
-                                <span class="block text-3xl font-heading font-bold text-emerald-600">78%</span>
+                                <span id="admin-stat2-label" class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Completion Rate</span>
+                                <span id="admin-stat-completion" class="block text-3xl font-heading font-bold text-emerald-600">78%</span>
                             </div>
                             <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                                 <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
                             </div>
                         </div>
                         <!-- Stat 3 -->
-                        <div class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all cursor-pointer">
+                        <div id="admin-stat3-card" onclick="window.copyClassroomCode()" class="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-white/60 shadow-sm flex items-center justify-between group hover:bg-white/80 transition-all cursor-pointer">
                             <div>
-                                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Invite Link</span>
-                                <span class="block text-sm font-bold text-allgood-secondary mt-1 underline decoration-dotted">allgood.ac/tf/8821</span>
+                                <span id="admin-stat3-label" class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Invite Link</span>
+                                <span id="admin-stat-code" class="block text-sm font-bold text-allgood-secondary mt-1 underline decoration-dotted">allgood.ac/tf/8821</span>
                             </div>
                             <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-allgood-primary">
                                 <i data-lucide="copy" class="w-5 h-5"></i>
@@ -2548,14 +2488,11 @@
                         <!-- Toolbar -->
                         <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
                             <h3 class="font-bold text-slate-700 uppercase text-sm tracking-wide flex items-center gap-2">
-                                <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> Agent Roster
+                                <i data-lucide="list" class="w-4 h-4 text-slate-400"></i> <span id="admin-roster-title">Agent Roster</span>
                             </h3>
                             <div class="flex gap-2">
-                                <button class="px-3 py-1.5 rounded bg-white border border-gray-200 text-[10px] font-bold uppercase text-slate-500 hover:text-allgood-secondary hover:border-allgood-secondary transition-colors">
+                                <button id="admin-export-btn" onclick="window.exportRosterCSV()" class="px-3 py-1.5 rounded bg-white border border-gray-200 text-[10px] font-bold uppercase text-slate-500 hover:text-allgood-secondary hover:border-allgood-secondary transition-colors">
                                     Export CSV
-                                </button>
-                                <button class="px-3 py-1.5 rounded bg-allgood-primary text-white text-[10px] font-bold uppercase hover:bg-allgood-hover transition-colors shadow-sm flex items-center gap-1">
-                                    <i data-lucide="plus" class="w-3 h-3"></i> Add Agent
                                 </button>
                             </div>
                         </div>
@@ -2570,103 +2507,7 @@
                         </div>
 
                         <!-- Table Body (Scrollable) -->
-                        <div class="overflow-y-auto custom-scrollbar flex-grow p-2 space-y-1">
-                            
-                            <!-- Row 1 -->
-                            <div class="grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all group cursor-pointer border border-transparent hover:border-gray-100">
-                                <div class="col-span-4 flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">JD</div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-700">John Doe</p>
-                                        <p class="text-[10px] text-slate-400">john.doe@example.com</p>
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>
-                                </div>
-                                <div class="col-span-2 flex justify-center -space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-30" title="Cyber Agent"><i data-lucide="shield" class="w-3 h-3 text-allgood-primary"></i></div>
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-20" title="Operator"><i data-lucide="zap" class="w-3 h-3 text-yellow-500"></i></div>
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-10 text-[9px] font-bold text-slate-400">+2</div>
-                                </div>
-                                <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">
-                                    2h ago
-                                </div>
-                                <div class="col-span-2 flex justify-end">
-                                    <button class="text-slate-300 hover:text-allgood-secondary transition-colors"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
-
-                            <!-- Row 2 -->
-                            <div class="grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all group cursor-pointer border border-transparent hover:border-gray-100">
-                                <div class="col-span-4 flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold text-xs">AS</div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-700">Alice Smith</p>
-                                        <p class="text-[10px] text-slate-400">alice.s@example.com</p>
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Idle</span>
-                                </div>
-                                <div class="col-span-2 flex justify-center -space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-30"><i data-lucide="eye" class="w-3 h-3 text-slate-400"></i></div>
-                                </div>
-                                <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">
-                                    3d ago
-                                </div>
-                                <div class="col-span-2 flex justify-end">
-                                    <button class="text-slate-300 hover:text-allgood-secondary transition-colors"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
-
-                            <!-- Row 3 -->
-                            <div class="grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all group cursor-pointer border border-transparent hover:border-gray-100">
-                                <div class="col-span-4 flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center font-bold text-xs">MJ</div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-700">Marcus Jones</p>
-                                        <p class="text-[10px] text-slate-400">mjones@example.com</p>
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>
-                                </div>
-                                <div class="col-span-2 flex justify-center -space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-30"><i data-lucide="shield" class="w-3 h-3 text-allgood-primary"></i></div>
-                                    <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-20"><i data-lucide="zap" class="w-3 h-3 text-yellow-500"></i></div>
-                                </div>
-                                <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">
-                                    12m ago
-                                </div>
-                                <div class="col-span-2 flex justify-end">
-                                    <button class="text-slate-300 hover:text-allgood-secondary transition-colors"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
-
-                             <!-- Row 4 -->
-                             <div class="grid grid-cols-12 gap-4 px-4 py-3 items-center rounded-lg hover:bg-white hover:shadow-sm transition-all group cursor-pointer border border-transparent hover:border-gray-100">
-                                <div class="col-span-4 flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">SK</div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-700">Sarah Kim</p>
-                                        <p class="text-[10px] text-slate-400">skim@example.com</p>
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <span class="bg-red-100 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Behind</span>
-                                </div>
-                                <div class="col-span-2 flex justify-center -space-x-2">
-                                     <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center z-30 text-[9px] text-slate-300">0</div>
-                                </div>
-                                <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">
-                                    5d ago
-                                </div>
-                                <div class="col-span-2 flex justify-end">
-                                    <button class="text-slate-300 hover:text-allgood-secondary transition-colors"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
-
+                        <div id="admin-roster-body" class="overflow-y-auto custom-scrollbar flex-grow p-2 space-y-1">
                         </div>
                     </div>
 
