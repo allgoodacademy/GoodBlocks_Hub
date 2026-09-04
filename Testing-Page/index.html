@@ -80,33 +80,19 @@
         }
 
         // --- MODULE REGISTRY ---
-        // Single source of truth for every module in the library, used by classroom assignment
-        // and by generic per-module completion detection. Each module's completion signal is
-        // captured explicitly here because — as-built today — modules don't report a consistent
-        // shape to Firestore: some use `completed: true`, DDC uses a `finalScore` threshold,
-        // Jolene's uses either a `complete` flag or a score cutoff, and several use a `gameName`
-        // that doesn't match their display name below (e.g. AI Co-Pilot writes "AI Co-Pilot", not
-        // "The AI Co-Pilot"). Rather than guess, this maps each module to the exact gameName
-        // string(s) it's actually known to write, based on the existing student-facing badge logic.
+        // Single source of truth for every LIVE module in the library, used by classroom
+        // assignment and generic per-module completion detection. Everything else has been
+        // archived (moved out of public/, no longer hosted) — this registry only lists what's
+        // actually reachable, so a teacher can't accidentally assign a dead link.
+        //
+        // Completion rules below are confirmed against each module's actual Firestore writes,
+        // not guessed: DDC and Jolene's both gate on a finalScore threshold (no fake flags),
+        // the two Jodi's Schoolhouse pieces use an explicit `completed: true` signal.
         const MODULE_REGISTRY = [
             { id: 'ddc', name: 'Digital Decisions', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/digital-decisions',
               gameNames: ['Digital Decisions Challenge'], isComplete: (d) => typeof d.finalScore === 'number' && d.finalScore >= 80 },
             { id: 'jolene', name: "Jolene's Lemonade", category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge',
-              gameNames: ["Jolene's Lemonade", 'Jolenes Lemonade Challenge'], isComplete: (d) => d.complete === true || (typeof d.finalScore === 'number' && d.finalScore >= 800) },
-            { id: 'conflict', name: 'Conflict Resolution', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge',
-              gameNames: ['Conflict Resolution Challenge'], isComplete: (d) => d.completed === true },
-            { id: 'purposeful', name: 'Purposeful Communicator', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge',
-              gameNames: ['Purposeful Communicator', 'Purposeful Communicator Challenge'], isComplete: (d) => d.completed === true },
-            { id: 'story', name: 'Master Your Story', category: 'challenge', url: 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge',
-              gameNames: ['Master Your Story'], isComplete: (d) => d.completed === true },
-            { id: 'airport', name: 'Airport Navigator', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/airport-navigator',
-              gameNames: ['Airport Navigator'], isComplete: (d) => d.completed === true },
-            { id: 'defense', name: 'Digital Asset Defense', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense',
-              gameNames: ['Digital Asset Defense'], isComplete: (d) => d.completed === true },
-            { id: 'copilot', name: 'The AI Co-Pilot', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/aico-pilot',
-              gameNames: ['AI Co-Pilot', 'The AI Co-Pilot'], isComplete: (d) => d.completed === true },
-            { id: 'identity', name: 'Your Digital Identity', category: 'challenge', url: 'https://www.allgoodacademy.com/goodblocks/your-digital-identity',
-              gameNames: ['Your Digital Identity'], isComplete: (d) => d.completed === true },
+              gameNames: ['Jolenes Lemonade Challenge'], isComplete: (d) => typeof d.finalScore === 'number' && d.finalScore >= 800 },
             { id: 'rage', name: 'Rage Revenue', category: 'lesson', url: 'https://allgoodacademy.com/jsh/rage-revenue/',
               gameNames: ['Rage Revenue'], isComplete: (d) => d.completed === true },
             { id: 'finding', name: 'Finding Yourself', category: 'lesson', url: 'https://allgoodacademy.com/jsh/finding-yourself/',
@@ -115,17 +101,20 @@
         function getModuleById(id) { return MODULE_REGISTRY.find(m => m.id === id); }
 
         // Given one student's fetched game_scores docs, work out their status for a specific
-        // registry module: 'completed' | 'in_progress' | 'not_started'.
+        // registry module, plus the real badge artifact if one was earned (every module stores
+        // its actual certificate SVG under `badgeArtifact` or `badgeSVG` on the winning doc).
         function computeModuleStatus(moduleId, scoreDocs) {
             const mod = getModuleById(moduleId);
-            if (!mod) return 'not_started';
+            if (!mod) return { status: 'not_started', badgeSvg: null };
             let sawAttempt = false;
             for (const data of scoreDocs) {
                 if (!mod.gameNames.includes(data.gameName)) continue;
                 sawAttempt = true;
-                if (mod.isComplete(data)) return 'completed';
+                if (mod.isComplete(data)) {
+                    return { status: 'completed', badgeSvg: data.badgeArtifact || data.badgeSVG || null };
+                }
             }
-            return sawAttempt ? 'in_progress' : 'not_started';
+            return { status: sawAttempt ? 'in_progress' : 'not_started', badgeSvg: null };
         }
 
         async function writeUserDataToFirestore(user, name, email, isGuest) {
@@ -1459,10 +1448,10 @@
 
                     const moduleStatuses = {};
                     assignedModuleIds.forEach(moduleId => {
-                        const status = computeModuleStatus(moduleId, scoreDocs);
-                        moduleStatuses[moduleId] = status;
+                        const result = computeModuleStatus(moduleId, scoreDocs);
+                        moduleStatuses[moduleId] = result;
                         totalCompletionPairs++;
-                        if (status === 'completed') completedPairs++;
+                        if (result.status === 'completed') completedPairs++;
                     });
 
                     const lastActive = sData.lastLogin && sData.lastLogin.toDate ? sData.lastLogin.toDate().toLocaleDateString() : '—';
@@ -1498,7 +1487,7 @@
 
             const filtered = _currentRosterFull.filter(r => {
                 if (filter === 'all') return true;
-                const statuses = Object.values(r.moduleStatuses);
+                const statuses = Object.values(r.moduleStatuses).map(m => m.status);
                 if (filter === 'completed_all') return statuses.length > 0 && statuses.every(s => s === 'completed');
                 if (filter === 'in_progress') return statuses.some(s => s === 'in_progress' || s === 'completed') && !statuses.every(s => s === 'completed');
                 if (filter === 'not_started') return statuses.every(s => s === 'not_started');
@@ -1512,7 +1501,8 @@
 
             rosterBody.innerHTML = '';
             filtered.forEach(r => {
-                const completedCount = Object.values(r.moduleStatuses).filter(s => s === 'completed').length;
+                const completedCount = Object.values(r.moduleStatuses).filter(m => m.status === 'completed').length;
+                const hasAnyBadge = Object.values(r.moduleStatuses).some(m => m.badgeSvg);
                 const initials = (r.name || 'St').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 const progressLabel = `${completedCount}/${assignedCount} Complete`;
                 const progressClass = completedCount === assignedCount ? 'bg-emerald-100 text-emerald-700' : (completedCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500');
@@ -1529,7 +1519,7 @@
                         </div>
                     </div>
                     <div class="col-span-2"><span class="${progressClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${progressLabel}</span></div>
-                    <div class="col-span-2 flex justify-center">${completedCount > 0 ? '<i data-lucide="shield" class="w-4 h-4 text-allgood-primary"></i>' : '<span class="text-[9px] text-slate-300">—</span>'}</div>
+                    <div class="col-span-2 flex justify-center">${hasAnyBadge ? '<i data-lucide="shield" class="w-4 h-4 text-allgood-primary"></i>' : '<span class="text-[9px] text-slate-300">—</span>'}</div>
                     <div class="col-span-2 text-center text-[10px] text-slate-500 font-mono">${r.lastActive}</div>
                     <div class="col-span-2 flex justify-end"><span class="text-slate-400 text-[9px] font-bold uppercase hover:text-allgood-secondary">View Profile</span></div>
                 `;
@@ -1551,13 +1541,22 @@
             if (entries.length === 0) {
                 list.innerHTML = '<p class="text-xs text-gray-400 italic">No modules assigned.</p>';
             } else {
-                list.innerHTML = entries.map(([moduleId, status]) => {
+                list.innerHTML = entries.map(([moduleId, result]) => {
                     const mod = getModuleById(moduleId);
+                    const { status, badgeSvg } = result;
                     const statusClass = status === 'completed' ? 'bg-emerald-100 text-emerald-700' : status === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
                     const statusLabel = status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Not Started';
-                    return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2">
-                        <span class="text-xs font-bold text-slate-700">${mod ? mod.name : moduleId}</span>
-                        <span class="${statusClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${statusLabel}</span>
+                    // Real earned badge: render the module's own certificate SVG when available,
+                    // rather than a generic icon standing in for it.
+                    const badgeHtml = badgeSvg
+                        ? `<div class="mt-2 border border-slate-200 rounded-lg overflow-hidden bg-white p-1"><div class="w-full aspect-[3/2] overflow-hidden">${badgeSvg}</div></div>`
+                        : '';
+                    return `<div class="p-3 bg-slate-50 rounded-lg mb-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700">${mod ? mod.name : moduleId}</span>
+                            <span class="${statusClass} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">${statusLabel}</span>
+                        </div>
+                        ${badgeHtml}
                     </div>`;
                 }).join('');
             }
@@ -1620,7 +1619,7 @@
             const moduleIds = _currentAssignedModuleIds;
             let csv = 'Name,Email,Last Active,' + moduleIds.map(id => `"${(getModuleById(id)?.name || id)}"`).join(',') + '\n';
             _currentRosterFull.forEach(r => {
-                const statusCols = moduleIds.map(id => `"${r.moduleStatuses[id] || 'not_started'}"`).join(',');
+                const statusCols = moduleIds.map(id => `"${(r.moduleStatuses[id] && r.moduleStatuses[id].status) || 'not_started'}"`).join(',');
                 csv += `"${r.name}","${r.email}","${r.lastActive}",${statusCols}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -2238,7 +2237,7 @@
                         </div>
                         <div class="flex gap-6 md:gap-4 text-center md:text-right w-full md:w-auto justify-center md:justify-end">
                             <div>
-                                <span class="block text-2xl font-bold text-allgood-secondary leading-none">12</span>
+                                <span class="block text-2xl font-bold text-allgood-secondary leading-none">4</span>
                                 <span class="text-[10px] uppercase text-slate-400 font-bold">MODULES</span>
                             </div>
                             <div>
@@ -2262,89 +2261,8 @@
                         </button>
                     </div>
 
-                    <!-- TAB 1: CHALLENGES (merged GoodBlocks + Games & Sims) -->
+                    <!-- TAB 1: CHALLENGES -->
                     <div id="tab-challenges" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div onclick="window.launchCourse('Airport Navigator', 'https://www.allgoodacademy.com/goodblocks/airport-navigator', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100 flex-shrink-0 group-hover:bg-sky-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🛫</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Airport Navigator</h3>
-                                    <span class="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Master the logistical flow from curb to gate with zero friction.</p>
-                            </div>
-                        </div>
-                        
-                        <!-- UPDATED CARD: JONATHAN HURTADO'S COUNTDOWN TO KEYS -->
-                        <div class="mission-file status-locked p-5 flex items-start gap-4 group opacity-70">
-                            <div class="headshot-container flex-shrink-0 bg-slate-100">
-                                <!-- Headshot Image Replacement -->
-                                <img src="https://github.com/allgoodacademy/ImageAndAssets/blob/main/J.Hurtado_HeadShot.jpg?raw=true" 
-                                     alt="Jonathan Hurtado's Headshot"
-                                     onerror="this.onerror=null; this.src='https://placehold.co/64x64/334155/f8fafc?text=JH'" 
-                                     class="rounded object-cover w-full h-full">
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-500 text-lg mb-1 uppercase">Jonathan Hurtado's Countdown to Keys</h3>
-                                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Coming Soon</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Execute the 100-day protocol to secure your first home.</p>
-                            </div>
-                        </div>
-                        <!-- END UPDATED CARD -->
-
-                        <div onclick="window.launchCourse('Digital Asset Defense', 'https://www.allgoodacademy.com/goodblocks/digital-asset-defense', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center border border-blue-100 flex-shrink-0 group-hover:bg-blue-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🛡️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Digital Asset Defense</h3>
-                                    <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Secure wealth via wallet protocols and threat avoidance.</p>
-                            </div>
-                        </div>
-
-                        <!-- MOVED: The AI Co-Pilot (Kept Robot Emoji) -->
-                        <div onclick="window.launchCourse('The AI Co-Pilot', 'https://www.allgoodacademy.com/goodblocks/aico-pilot', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                            <div class="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center border border-cyan-100 flex-shrink-0 group-hover:bg-cyan-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🤖</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">The AI Co-Pilot</h3>
-                                    <span class="bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Integrate AI into your workflow in 15 minutes.</p>
-                            </div>
-                        </div>
-
-                        <div onclick="window.launchCourse('Your Digital Identity', 'https://www.allgoodacademy.com/goodblocks/your-digital-identity', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center border border-purple-100 flex-shrink-0 group-hover:bg-purple-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🧬</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Your Digital Identity</h3>
-                                    <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Audit your online footprint and secure your personal perimeter.</p>
-                            </div>
-                        </div>
-
-                        <!-- (formerly TAB 2: GAMES & SIMS — now merged into Challenges above) -->
-                        <!-- UPDATED ONCLICK URL AND ID (REMOVED APOSTROPHE FOR SAFE PARSING) -->
                         <div onclick="window.launchCourse('Jolenes Lemonade', 'https://www.allgoodacademy.com/educational-games/jolenes-lemonade-challenge', this)" 
                              class="mission-file status-ready p-5 flex items-start gap-4 group">
                              <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
@@ -2371,48 +2289,6 @@
                                     <span id="ddc-status-badge" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Active</span>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Make high-stakes choices in simulated online conflict scenarios.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Conflict Resolution', 'https://www.allgoodacademy.com/educational-games/conflict-resolution-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center border border-red-100 flex-shrink-0 group-hover:bg-red-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🌤️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Conflict Resolution</h3>
-                                    <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Identify triggers and neutralize tension in high-stress interactions.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Purposeful Communicator', 'https://www.allgoodacademy.com/educational-games/purposeful-communicator-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center border border-teal-100 flex-shrink-0 group-hover:bg-teal-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">🎙️</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Purposeful Communicator</h3>
-                                    <span class="bg-teal-100 text-teal-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Select precise language to drive outcomes and build consensus.</p>
-                            </div>
-                        </div>
-                        <div onclick="window.launchCourse('Master Your Story', 'https://www.allgoodacademy.com/educational-games/master-your-story-challenge', this)" 
-                             class="mission-file status-ready p-5 flex items-start gap-4 group">
-                             <!-- CHANGED: Rounded-full, shadow-sm, Emoji -->
-                            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center border border-rose-100 flex-shrink-0 group-hover:bg-rose-100 transition-colors shadow-sm">
-                                <span class="text-3xl emoji-badge">📖</span>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-slate-800 text-lg mb-1 uppercase">Master Your Story</h3>
-                                    <span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Ready</span>
-                                </div>
-                                <p class="text-xs text-slate-500 mb-3 leading-relaxed"><strong>Action:</strong> Craft and deliver a compelling personal narrative for business and life.</p>
                             </div>
                         </div>
                     </div>
