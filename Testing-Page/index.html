@@ -448,8 +448,6 @@
             localStorage.removeItem('aa_uid');
             localStorage.removeItem('aa_ddc_complete');
             localStorage.removeItem('aa_jlc_complete');
-            localStorage.removeItem('aa_identity_complete');
-            localStorage.removeItem('aa_defense_complete');
             localStorage.removeItem('aa_intel_sent');
             localStorage.removeItem('aa_finding_complete'); // NEW: Clear Finding status
 
@@ -566,8 +564,8 @@
             if (parseInt(launches) > 0) badgeCount++;
             if (localStorage.getItem('aa_ddc_complete') === 'true') badgeCount++;
             if (localStorage.getItem('aa_jlc_complete') === 'true') badgeCount++;
-            if (localStorage.getItem('aa_identity_complete') === 'true') badgeCount++;
-            if (localStorage.getItem('aa_defense_complete') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_intel_sent') === 'true') badgeCount++;
+            if (localStorage.getItem('aa_finding_complete') === 'true') badgeCount++;
 
             const statBadges = document.getElementById('profile-stat-badges');
             if(statBadges) statBadges.textContent = badgeCount;
@@ -807,14 +805,6 @@
                 // Store JLC Status
                 if (isJLCComplete) localStorage.setItem('aa_jlc_complete', 'true');
                 else localStorage.removeItem('aa_jlc_complete');
-                
-                // Store Identity Status
-                if (completedModules.has("Your Digital Identity")) localStorage.setItem('aa_identity_complete', 'true');
-                else localStorage.removeItem('aa_identity_complete');
-
-                // Store Defense Status (NEW)
-                if (completedModules.has("Digital Asset Defense")) localStorage.setItem('aa_defense_complete', 'true');
-                else localStorage.removeItem('aa_defense_complete');
 
                 // Store Finding Yourself Status (NEW - Badge 9)
                 if (completedModules.has("Finding Yourself")) localStorage.setItem('aa_finding_complete', 'true');
@@ -899,17 +889,11 @@
             const jlcComplete = localStorage.getItem('aa_jlc_complete') === 'true';
             if (jlcComplete) badgeCount++; // 5. Certified Entrepreneur
 
-            const identityComplete = localStorage.getItem('aa_identity_complete') === 'true';
-            if (identityComplete) badgeCount++; // 6. Identity Guardian
-
-            const defenseComplete = localStorage.getItem('aa_defense_complete') === 'true';
-            if (defenseComplete) badgeCount++; // 7. Asset Defender
-
             const intelSent = localStorage.getItem('aa_intel_sent') === 'true';
-            if (intelSent) badgeCount++; // 8. Intel Officer
+            if (intelSent) badgeCount++; // 6. Intel Officer
 
             const findingComplete = localStorage.getItem('aa_finding_complete') === 'true';
-            if (findingComplete) badgeCount++; // 9. Origin Scout
+            if (findingComplete) badgeCount++; // 7. Origin Scout
 
             // Update Header Display
             const badgeCountEl = document.getElementById('badge-count-display');
@@ -924,10 +908,6 @@
             updateBadgeSlot('badge-slot-4', ddcComplete);
             // Badge 5 (Entrepreneur - JLC)
             updateBadgeSlot('badge-slot-5', jlcComplete);
-            // Badge 6 (Identity Guardian)
-            updateBadgeSlot('badge-slot-6', identityComplete);
-            // Badge 7 (Asset Defender)
-            updateBadgeSlot('badge-slot-7', defenseComplete);
             // Badge 8 (Intel Officer)
             updateBadgeSlot('badge-slot-8', intelSent);
             // Badge 9 (Origin Scout)
@@ -2394,24 +2374,6 @@
                                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Founder</span>
                                     </div>
 
-                                    <!-- 6. Identity Guardian -->
-                                    <div id="badge-slot-6" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('identity', this)">
-                                        <div class="badge-token token-locked group-hover:scale-105">
-                                            <i data-lucide="fingerprint" class="badge-content w-8 h-8 text-slate-500"></i>
-                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Guardian</span>
-                                    </div>
-
-                                    <!-- 7. Asset Defender (NEW) -->
-                                    <div id="badge-slot-7" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('defense', this)">
-                                        <div class="badge-token token-locked group-hover:scale-105">
-                                            <i data-lucide="shield" class="badge-content w-8 h-8 text-slate-500"></i>
-                                            <div class="badge-lock absolute -top-1 -right-1 bg-slate-400 text-white rounded-full p-1"><i data-lucide="lock" class="w-3 h-3"></i></div>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Defender</span>
-                                    </div>
-
                                     <!-- 8. Intel Officer (NEW) -->
                                     <div id="badge-slot-8" class="flex flex-col items-center gap-2 group cursor-pointer" onclick="showBadgeDetails('intel', this)">
                                         <div class="badge-token token-locked group-hover:scale-105">
@@ -2438,41 +2400,6 @@
                                         <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
                                     </div>
 
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
-                                    </div>
-
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
-                                    </div>
-
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
-                                    </div>
-
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
-                                    </div>
-
-                                    <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
-                                        <div class="badge-token token-locked border-dashed border-slate-300">
-                                            <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Classified</span>
-                                    </div>
-                                    
                                     <div class="flex flex-col items-center gap-2 group cursor-pointer opacity-50 hover:opacity-80 transition-opacity" onclick="showBadgeDetails('classified', this)">
                                         <div class="badge-token token-locked border-dashed border-slate-300">
                                             <i data-lucide="lock" class="badge-content w-6 h-6 text-slate-300"></i>
