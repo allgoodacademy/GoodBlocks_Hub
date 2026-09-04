@@ -71,7 +71,6 @@
         window.userEarnedBadges = {};
 
         // --- TEACHER / STUDENT ROLE STATE ---
-        let selectedLoginRole = 'student'; // default; toggled by the login modal buttons
         function generateClassroomCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
             let code = '';
@@ -117,16 +116,16 @@
             return { status: sawAttempt ? 'in_progress' : 'not_started', badgeSvg: null };
         }
 
-        async function writeUserDataToFirestore(user, name, email, isGuest) {
+        async function writeUserDataToFirestore(user, name, email, isGuest, opts = {}) {
+             const silent = opts.silent === true;
              const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-             const role = selectedLoginRole; // 'student' or 'teacher', set by the login modal toggle
              
              if (isGuest && user.displayName !== name) {
                 await updateProfile(user, { displayName: name });
              }
 
-             // Check if this user already has a role/classroom on file (returning user) —
-             // don't regenerate a teacher's code or re-process a student's join code every login.
+             // Check if this user already has a role on file (returning user) — never
+             // downgrade an existing teacher back to student on a later login.
              const existingSnap = await getDoc(userRef);
              const existingData = existingSnap.exists() ? existingSnap.data() : null;
 
@@ -138,36 +137,10 @@
                  onboardingComplete: true
              };
 
-             if (existingData && existingData.role) {
-                 // Returning user — keep their existing role/classroom untouched
-                 userDoc.role = existingData.role;
-                 if (existingData.classroomCode) userDoc.classroomCode = existingData.classroomCode;
-             } else {
-                 userDoc.role = role;
-
-                 if (role === 'teacher') {
-                     const code = generateClassroomCode();
-                     const classroomRef = doc(db, 'artifacts', appId, 'classrooms', code);
-                     await setDoc(classroomRef, {
-                         teacherUid: user.uid,
-                         teacherName: name,
-                         createdAt: serverTimestamp()
-                     });
-                     userDoc.classroomCode = code; // a teacher's OWN classroom code (their roster's join code)
-                     window._justGeneratedClassroomCode = code;
-                 } else {
-                     const enteredCode = (document.getElementById('classroom-code-input')?.value || '').trim().toUpperCase();
-                     if (enteredCode) {
-                         const classroomRef = doc(db, 'artifacts', appId, 'classrooms', enteredCode);
-                         const classroomSnap = await getDoc(classroomRef);
-                         if (classroomSnap.exists()) {
-                             userDoc.classroomCode = enteredCode; // the classroom this student joined
-                         } else {
-                             showStatusMessage("Classroom code not found — you can still continue and add it later from your profile.", 'error');
-                         }
-                     }
-                 }
-             }
+             // Everyone defaults to student. Becoming a teacher is a deliberate, separate
+             // action (see window.upgradeToTeacher) — never a first-touch choice.
+             userDoc.role = (existingData && existingData.role) ? existingData.role : 'student';
+             if (existingData && existingData.classroomCode) userDoc.classroomCode = existingData.classroomCode;
 
              await setDoc(userRef, userDoc, { merge: true });
 
@@ -183,50 +156,103 @@
              // Show navbar
              document.querySelector('.navbar-content').classList.remove('opacity-0');
              
-             closeLoginModal();
              window.applyRoleUI(userDoc.role);
              
              window.startLaunchListener(user.uid);
              window.startDecisionsStatusListener(user.uid);
              window.startIntelListener(user.uid); // NEW: Start Intel Check
 
-             // First-time teacher: immediately show them their new classroom code
-             if (userDoc.role === 'teacher' && window._justGeneratedClassroomCode) {
-                 window._justGeneratedClassroomCode = null;
-                 setTimeout(() => window.openTeacherDashboard(), 500);
+             if (!silent) {
+                 // This was a real identification (name/email or Google), not the invisible
+                 // power-up sign-in — close the modal, mark them identified, and resume
+                 // whatever course launch triggered this prompt in the first place.
+                 closeLoginModal();
+                 localStorage.setItem('aa_identified', 'true');
+                 window.resumePendingLaunch();
              }
         }
 
-        // Toggles which role is selected on the login modal, and shows/hides the classroom-code field
-        // (only students join a classroom by code — teachers get one generated for them).
-        window.setLoginRole = (role) => {
-            selectedLoginRole = role;
-            const studentBtn = document.getElementById('role-btn-student');
-            const teacherBtn = document.getElementById('role-btn-teacher');
-            const codeInput = document.getElementById('classroom-code-input');
-            const activeClasses = ['bg-white', 'text-allgood-primary', 'shadow-sm'];
-            const inactiveClasses = ['text-gray-500'];
-
-            if (role === 'teacher') {
-                teacherBtn.classList.add(...activeClasses);
-                teacherBtn.classList.remove(...inactiveClasses);
-                studentBtn.classList.remove(...activeClasses);
-                studentBtn.classList.add(...inactiveClasses);
-                if (codeInput) codeInput.classList.add('hidden');
-            } else {
-                studentBtn.classList.add(...activeClasses);
-                studentBtn.classList.remove(...inactiveClasses);
-                teacherBtn.classList.remove(...activeClasses);
-                teacherBtn.classList.add(...inactiveClasses);
-                if (codeInput) codeInput.classList.remove('hidden');
+        // Called the instant someone powers up with no existing session — creates a real,
+        // trackable identity behind the scenes with zero visible form. Their real name/email
+        // is only asked for later, at the moment they actually launch a course.
+        window.silentSignIn = async () => {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                const user = userCredential.user;
+                await writeUserDataToFirestore(user, 'Agent Learner', null, true, { silent: true });
+            } catch (error) {
+                console.error("Silent sign-in failed:", error);
+                showStatusMessage("Connection failed. Check network or rules.", 'error');
             }
-            if(window.sfx && window.sfx.tick) window.sfx.tick();
         };
 
-        // Reveals/hides role-specific UI (currently just the "My Classroom" menu entry) after login.
+        // If a course launch was interrupted to ask "who's launching this?", this resumes
+        // it once that question is answered — so identifying yourself and launching feels
+        // like one motion, not two separate steps.
+        window.resumePendingLaunch = () => {
+            if (window._pendingLaunch) {
+                const { courseName, url, element } = window._pendingLaunch;
+                window._pendingLaunch = null;
+                window.launchCourse(courseName, url, element);
+            }
+        };
+
+        // Updates the classroom menu entry's label based on current role — always visible,
+        // but reads differently depending on whether you're already a teacher.
         window.applyRoleUI = (role) => {
-            const classroomMenuBtn = document.getElementById('menu-btn-classroom');
-            if (classroomMenuBtn) classroomMenuBtn.classList.toggle('hidden', role !== 'teacher');
+            const label = document.getElementById('menu-classroom-label');
+            if (label) label.textContent = role === 'teacher' ? 'My Classroom' : 'Set Up a Classroom';
+        };
+
+        // Smart entry point: teachers land in their existing classroom, everyone else is
+        // offered the (entirely optional) chance to become one.
+        window.openClassroomEntry = async () => {
+            const uid = localStorage.getItem('aa_uid');
+            const role = localStorage.getItem('aa_role');
+            if (!uid) return;
+
+            if (role === 'teacher') {
+                window.openTeacherDashboard();
+            } else {
+                const menu = document.getElementById('menu-modal');
+                if (menu) { menu.classList.add('hidden-modal'); menu.classList.remove('visible-modal'); }
+                const modal = document.getElementById('become-teacher-modal');
+                if (modal) { modal.classList.remove('hidden-modal'); modal.classList.add('visible-modal'); }
+            }
+        };
+
+        window.closeBecomeTeacherModal = () => {
+            const modal = document.getElementById('become-teacher-modal');
+            if (modal) { modal.classList.add('hidden-modal'); modal.classList.remove('visible-modal'); }
+        };
+
+        // Deliberate, separate upgrade action — never triggered as part of normal signup.
+        window.upgradeToTeacher = async () => {
+            const uid = localStorage.getItem('aa_uid');
+            if (!uid) return;
+            const userRef = doc(db, 'artifacts', appId, 'users', uid);
+
+            try {
+                const userSnap = await getDoc(userRef);
+                const name = (userSnap.exists() && userSnap.data().displayName) || localStorage.getItem('aa_username') || 'Teacher';
+
+                const code = generateClassroomCode();
+                await setDoc(doc(db, 'artifacts', appId, 'classrooms', code), {
+                    teacherUid: uid,
+                    teacherName: name,
+                    createdAt: serverTimestamp()
+                });
+                await setDoc(userRef, { role: 'teacher', classroomCode: code }, { merge: true });
+
+                localStorage.setItem('aa_role', 'teacher');
+                window.applyRoleUI('teacher');
+                window.closeBecomeTeacherModal();
+                showStatusMessage("Classroom created!", 'info');
+                setTimeout(() => window.openTeacherDashboard(), 400);
+            } catch (e) {
+                console.error("Failed to create classroom:", e);
+                showStatusMessage("Couldn't create your classroom — please try again.", 'error');
+            }
         };
 
         window.copyClassroomCode = () => {
@@ -293,12 +319,16 @@
         };
 
         window.launchCourse = async (courseName, url, element) => {
-            if (!auth.currentUser) {
+            const isIdentified = localStorage.getItem('aa_identified') === 'true';
+
+            if (!auth.currentUser || !isIdentified) {
+                // Stash what they were trying to do so it resumes automatically once they
+                // answer the "who's launching this?" prompt — feels like one motion, not two.
+                window._pendingLaunch = { courseName, url, element };
                 const loginModal = document.getElementById('login-modal');
                 if (loginModal) {
                     loginModal.classList.remove('hidden-modal');
                     loginModal.classList.add('visible-modal');
-                    showStatusMessage("Please sign in to launch modules.", 'info');
                 }
                 return;
             }
@@ -648,6 +678,32 @@
             
             window.toggleProfileEdit(false);
         }
+
+        // Lets a student join a classroom anytime from their Profile — no longer forced
+        // into the first-touch login form, since it's genuinely optional.
+        window.joinClassroom = async () => {
+            const input = document.getElementById('profile-classroom-input');
+            const statusEl = document.getElementById('profile-classroom-status');
+            const code = (input?.value || '').trim().toUpperCase();
+            if (!code) return;
+
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const classroomSnap = await getDoc(doc(db, 'artifacts', appId, 'classrooms', code));
+                if (!classroomSnap.exists()) {
+                    if (statusEl) { statusEl.textContent = "Code not found — double check with your teacher."; statusEl.className = "text-[10px] text-red-500 mt-1"; }
+                    return;
+                }
+                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), { classroomCode: code }, { merge: true });
+                if (statusEl) { statusEl.textContent = "Joined! Your teacher can now see your progress."; statusEl.className = "text-[10px] text-emerald-600 mt-1"; }
+                if (window.sfx) window.sfx.confirm();
+            } catch (e) {
+                console.error("Failed to join classroom:", e);
+                if (statusEl) { statusEl.textContent = "Something went wrong — please try again."; statusEl.className = "text-[10px] text-red-500 mt-1"; }
+            }
+        };
 
         window.initModuleElements = function() {
             window.allModuleElements = {};
@@ -1239,6 +1295,13 @@
             const dashboard = document.getElementById('page-dashboard');
 
             if (storedName && storedUID) {
+                // Migration shim: anyone with a real name already on file predates the
+                // "identified" flag — treat them as identified rather than re-prompting
+                // people who already gave their name under the old flow.
+                if (localStorage.getItem('aa_identified') !== 'true' && storedName !== 'Agent Learner') {
+                    localStorage.setItem('aa_identified', 'true');
+                }
+
                 window.updateUI(storedName);
                 if (dashboard) {
                     dashboard.classList.add('active');
@@ -1631,11 +1694,11 @@
                     window.restoreSessionState();
                     window.initDashboard(); 
                 } else {
-                    const loginModal = document.getElementById('login-modal');
-                    if (loginModal) {
-                        loginModal.classList.remove('hidden-modal');
-                        loginModal.classList.add('visible-modal');
-                    }
+                    // New visitor: no form, no interruption — sign in silently and go
+                    // straight to the dashboard. Their real name is asked for later,
+                    // only when they actually launch something.
+                    window.silentSignIn();
+                    window.initDashboard();
                 }
                 
                 setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
@@ -2049,10 +2112,10 @@
                 <div id="login-modal" class="absolute inset-0 z-[4000] bg-allgood-dark/95 flex items-center justify-center p-6 hidden-modal modal-transition backdrop-blur-sm">
                     <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-allgood-primary">
                         <div class="mb-6"><h2 class="text-3xl font-heading font-bold text-allgood-dark">Allgood<span class="text-allgood-primary">Academy</span></h2></div>
-                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">Welcome</h2>
+                        <h2 class="text-xl font-bold text-allgood-dark mb-2 font-heading">One Quick Thing</h2>
                         
                         <div class="flex items-center justify-center gap-2 mb-6 relative">
-                            <p class="text-gray-500 text-sm font-body">Please sign in to start.</p>
+                            <p class="text-gray-500 text-sm font-body">Who's launching this?</p>
                             <button id="policy-trigger" class="group relative flex items-center text-allgood-primary hover:text-allgood-hover transition-colors focus:outline-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                                 <span class="text-xs font-bold underline decoration-dotted underline-offset-2">Why?</span>
@@ -2067,21 +2130,8 @@
                             </button>
                         </div>
 
-                        <!-- Role toggle: determines whether this account is a Student or Teacher -->
-                        <div class="flex bg-gray-100 rounded-lg p-1 mb-4" id="role-toggle-wrapper">
-                            <button type="button" id="role-btn-student" onclick="window.setLoginRole('student')" class="flex-1 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all bg-white text-allgood-primary shadow-sm">
-                                <i data-lucide="user" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> Student
-                            </button>
-                            <button type="button" id="role-btn-teacher" onclick="window.setLoginRole('teacher')" class="flex-1 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all text-gray-500">
-                                <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> Teacher
-                            </button>
-                        </div>
-
                         <input type="text" id="user-name-input" placeholder="Your Name (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-3 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
-
-                        <!-- Shown only for Students: optional classroom join code -->
-                        <input type="text" id="classroom-code-input" placeholder="Classroom Code (Optional)" maxlength="8" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body uppercase tracking-widest text-center">
+                        <input type="email" id="user-email-input" placeholder="Your Email (Optional)" class="w-full border border-gray-300 rounded p-3 mb-6 focus:ring-2 focus:ring-allgood-primary focus:border-transparent outline-none transition-all font-body">
 
                         <button id="btn-guest-login" onclick="window.handleGuestLogin()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-3 rounded shadow-md transition-transform transform hover:scale-[1.02] active:scale-[0.98] font-body uppercase">
                             Enter Dashboard
@@ -2110,6 +2160,18 @@
                     <div class="bg-white rounded-lg shadow-xl p-4 max-w-xs w-full text-left border-l-4 border-blue-500 flex items-center space-x-3 modal-content-base">
                         <i id="status-icon" data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0"></i>
                         <p id="status-content" class="text-sm font-body text-blue-800"></p>
+                    </div>
+                </div>
+
+                <!-- BECOME A TEACHER MODAL: deliberate, separate confirmation - never bundled into signup -->
+                <div id="become-teacher-modal" class="hidden-modal absolute inset-0 z-[3600] bg-slate-900/60 flex items-center justify-center p-6 modal-transition backdrop-blur-sm" onclick="if(event.target === this) window.closeBecomeTeacherModal()">
+                    <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center border-t-4 border-allgood-secondary relative" onclick="event.stopPropagation()">
+                        <button onclick="window.closeBecomeTeacherModal()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        <i data-lucide="graduation-cap" class="w-10 h-10 text-allgood-secondary mx-auto mb-3"></i>
+                        <h3 class="text-lg font-heading font-bold text-allgood-dark mb-1">Set Up a Classroom?</h3>
+                        <p class="text-xs text-gray-500 mb-5">This gives you a classroom code to share with students, and a roster where you can see their progress. You can do this anytime — no rush.</p>
+                        <button onclick="window.upgradeToTeacher()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-2.5 rounded shadow-md text-xs uppercase tracking-wide mb-2">Yes, Set It Up</button>
+                        <button onclick="window.closeBecomeTeacherModal()" class="w-full text-gray-400 hover:text-gray-600 text-xs font-bold uppercase py-2">Not Right Now</button>
                     </div>
                 </div>
 
@@ -2181,9 +2243,10 @@
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openProfileModal()">
                                 <i data-lucide="user" class="w-4 h-4 mr-3 text-allgood-secondary"></i>My Profile
                             </button>
-                            <!-- MY CLASSROOM: hidden unless this account's role is 'teacher' -->
-                            <button id="menu-btn-classroom" class="hidden w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openTeacherDashboard()">
-                                <i data-lucide="graduation-cap" class="w-4 h-4 mr-3 text-allgood-primary"></i>My Classroom
+                            <!-- CLASSROOM ENTRY: always visible. Smart destination - teachers land in their
+                                 classroom, everyone else gets the option to set one up. -->
+                            <button id="menu-btn-classroom" class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openClassroomEntry()">
+                                <i data-lucide="graduation-cap" class="w-4 h-4 mr-3 text-allgood-primary"></i><span id="menu-classroom-label">Set Up a Classroom</span>
                             </button>
                             <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-600 font-bold flex items-center transition-colors uppercase" onclick="window.openAboutModal()">
                                 <i data-lucide="info" class="w-4 h-4 mr-3 text-slate-500"></i>About Us
@@ -2617,6 +2680,18 @@
                                 <p class="text-sm font-bold text-allgood-secondary" id="profile-rank-display">FIELD AGENT</p>
                             </div>
                         </div>
+
+                        <!-- JOIN A CLASSROOM: optional, available anytime, not forced at signup -->
+                        <div class="mt-3 w-full">
+                            <div class="bg-white border border-gray-200 rounded p-3 shadow-sm text-left">
+                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Have a Classroom Code?</p>
+                                <div class="flex gap-2">
+                                    <input type="text" id="profile-classroom-input" placeholder="e.g. 2RP878" maxlength="8" class="flex-1 min-w-0 border border-gray-300 rounded p-2 text-xs uppercase tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-allgood-secondary/50">
+                                    <button onclick="window.joinClassroom()" class="bg-allgood-secondary text-white px-3 rounded text-[10px] font-bold uppercase hover:bg-allgood-accent shrink-0">Join</button>
+                                </div>
+                                <p id="profile-classroom-status" class="text-[10px] text-gray-400 mt-1"></p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right: Mission Log & Stats -->
@@ -2855,37 +2930,6 @@
                 });
             }
             
-            // Startup Screen Listener
-            const startupScreen = document.getElementById('startup-screen');
-        if(startupScreen) {
-            startupScreen.addEventListener('click', () => {
-                if(window.sfx && window.sfx.powerOn) {
-                    window.sfx.powerOn(); 
-                } else if (window.initAudio) {
-                    window.initAudio();
-                }
-                
-                // FORCE VIDEO START REMOVED (Static Mode Active)
-                
-                startupScreen.style.opacity = '0';
-                
-                const storedUID = localStorage.getItem('aa_uid');
-                    const storedName = localStorage.getItem('aa_username');
-                    
-                    if (storedName && storedUID) {
-                        window.restoreSessionState();
-                        window.initDashboard(); 
-                    } else {
-                        const loginModal = document.getElementById('login-modal');
-                        if (loginModal) {
-                            loginModal.classList.remove('hidden-modal');
-                            loginModal.classList.add('visible-modal');
-                        }
-                    }
-                    
-                    setTimeout(() => { startupScreen.style.display = 'none'; }, 700);
-                });
-            }
         });
 
         window.openAboutModal = () => {
