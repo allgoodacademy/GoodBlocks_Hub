@@ -219,6 +219,57 @@
             .mobile-wb { display: none !important; }
         }
 
+        /* ============================ MOBILE ============================
+           The whole file was desktop overrides on an untuned mobile base. These rules are
+           scoped to phones only and fix what that left behind. */
+        @media (max-width: 767px) {
+
+            /* .jodi-wrapper is a ROW on mobile, and #jodi-recall is a direct child of it - so
+               the moment the recall button appeared it became a third column squeezing the
+               avatar and bubble. Wrapping drops it onto its own line instead. */
+            .jodi-wrapper { flex-wrap: wrap; }
+            #jodi-recall { flex-basis: 100%; order: 5; margin-top: 6px; padding: 8px 0; }
+
+            .sidebar-jodi { padding: 10px 10px 6px; }
+            .jodi-avatar.jodi-stage { width: 92px; height: 92px; margin-right: 12px; }
+            .jodi-bubble { max-height: 26vh; font-size: 0.82rem; padding: 12px 13px; }
+
+            /* Tap targets. Everything below was 10-11px text with 4-6px padding, which lands
+               well under a comfortable thumb target on a phone. */
+            .page { padding: 16px 14px 44px; }
+
+            /* Case 2 - three verdict buttons could not sit side by side at this width without
+               truncating, so they stack full-width and get real height. */
+            .src-verdicts { flex-direction: column; }
+            .vbtn { width: 100%; text-align: center; padding: 11px 8px; font-size: 11px; }
+            .src-inspect { display: block; width: 100%; text-align: left; padding: 10px 0; font-size: 12px; }
+            .src-card { padding: 14px; }
+
+            /* Case 5 - Clear / Restart / Lock could not share one row. */
+            #act-list .act-opt { padding: 13px; }
+            .case5-controls { flex-wrap: wrap; }
+            .case5-controls #act-lock { flex-basis: 100%; order: 3; margin-top: 8px; padding: 14px; }
+
+            /* Case 6 - a 190px feed ate too much of a short screen. */
+            #lobby-feed { height: 150px; }
+            .tool-btn { padding: 12px 4px; font-size: 10px; }
+            /* Any focusable text field under 16px makes iOS zoom the whole page on focus,
+               which then leaves the layout scrolled sideways. Applies to the rating textarea
+               on the final screen too, not just the lobby. */
+            #lobby-reply, #case7-feedback-text { font-size: 16px; }
+
+            /* Three tool buttons across a 320px screen - tighten the gutter so the labels
+               aren't the thing that has to give. */
+            #page-6 .grid-cols-3 { gap: 6px; }
+
+            /* Case 3 / 4 */
+            .check-opt { padding: 13px; }
+            #hop-actions button { padding: 13px; }
+
+            /* Reset links sat at 10px with almost no padding. */
+            .case-reset { padding: 10px 6px; font-size: 11px; }
+        }
+
         @keyframes pulseRing {
             0% { transform: scale(0.95); opacity: 0.8; }
             50% { transform: scale(1.15); opacity: 0.2; }
@@ -638,7 +689,7 @@
                         <div id="src-list" class="space-y-2 mb-4"></div>
 
                                                 <div class="flex justify-center pt-1 pb-2">
-                            <button onclick="window.resetCase2()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                            <button onclick="window.resetCase2()" class="case-reset flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
                                 <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Start this over
                             </button>
                         </div>
@@ -711,7 +762,7 @@
                         </div>
 
                                                 <div class="flex justify-center pt-1 pb-2">
-                            <button onclick="window.resetCase3()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                            <button onclick="window.resetCase3()" class="case-reset flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
                                 <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Follow it again
                             </button>
                         </div>
@@ -771,7 +822,7 @@
                         </div>
 
                                                 <div class="flex justify-center pt-1 pb-2">
-                            <button onclick="window.resetCase4()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                            <button onclick="window.resetCase4()" class="case-reset flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
                                 <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset the checks
                             </button>
                         </div>
@@ -817,9 +868,9 @@
                         <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Tap actions in the order he should do them &mdash; each one tells you what it costs</p>
                         <div id="act-list" class="space-y-2 mb-3"></div>
 
-                        <div class="flex gap-2 mb-4">
-                            <button onclick="window.clearActions()" class="text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Clear</button>
-                            <button onclick="window.resetCase5()" class="text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Restart</button>
+                        <div class="case5-controls flex gap-2 mb-4">
+                            <button onclick="window.clearActions()" class="case-reset text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Clear</button>
+                            <button onclick="window.resetCase5()" class="case-reset text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Restart</button>
                             <button id="act-lock" onclick="window.lockActions()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest disabled:opacity-40" disabled>
                                 Lock it in
                             </button>
@@ -884,7 +935,7 @@
                         </div>
 
                                                 <div class="flex justify-center pt-1 pb-2">
-                            <button onclick="window.resetCase6()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                            <button onclick="window.resetCase6()" class="case-reset flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
                                 <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Fresh lobby
                             </button>
                         </div>
