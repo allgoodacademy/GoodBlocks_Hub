@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Jodi's Schoolhouse: Privacy &amp; Security</title>
+    <title>Jodi's Schoolhouse: Digital Citizenship</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,19 +12,65 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-    <!-- Mock App State -->
-    <script>
+    <!-- Shared identity/login module — see /js/auth-core.js. Must load before the inline
+         module script below (module scripts execute in document order, same as defer). -->
+    <script type="module" src="/js/auth-core.js"></script>
+
+    <!-- Shared identify gate (age question / Sign In / Recruit Code) — see
+         /js/identity-gate.js. Runs the same gate whether this GoodBlock is reached from
+         the Lab Pack hub or opened directly by a bookmarked/shared link. -->
+    <script type="module" src="/js/identity-gate.js"></script>
+
+    <!-- FIREBASE — Firestore query helpers only. Identity/init lives in auth-core.js. -->
+    <script type="module">
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        const appId = window.AuthCore.appId;
+        const auth = window.AuthCore.auth;
+        const db = window.AuthCore.db;
+
         window.currentUserName = "Agent Learner";
-        window.sessionId = "session_demo_" + Date.now();
+        window.currentUserEmail = "";
+        window.sessionId = "session_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
 
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                window.currentUserName = user.displayName || "Agent Learner";
+                window.currentUserEmail = user.email || "";
+
+                // Restore real progress for a returning visit — same canonical
+                // module_progress doc every GoodBlock uses, so exiting mid-case doesn't
+                // restart the whole lab on the next visit.
+                if (window.AuthCore && window.AuthCore.loadModuleProgress) {
+                    const progress = await window.AuthCore.loadModuleProgress('digital-citizenship');
+                    if (progress && window.restoreModuleProgress) window.restoreModuleProgress(progress);
+                }
+            }
+        });
+
+        // Completion write — same game_scores shape every other GoodBlock/module uses, so
+        // the dashboard's MODULE_REGISTRY can compute a real completed/in_progress/
+        // not_started status for this GoodBlock. No numeric score here (this is a lab, not
+        // a graded quiz), so completion is just a flag, set once Case 6 is actually reached.
         window.logModuleCompletion = async () => {
-            console.log("Mock: Privacy & Security module completion logged.");
+            const user = auth.currentUser;
+            if (!user) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'game_scores', window.sessionId), {
+                    gameName: "Digital Citizenship",
+                    completed: true,
+                    lastUpdated: serverTimestamp(),
+                    user: { uid: user.uid, displayName: window.currentUserName, email: window.currentUserEmail || null }
+                }, { merge: true });
+            } catch (e) { console.error("[DC] Completion write failed", e); }
         };
+    </script>
 
+    <script>
         function playSfx(name) {
             if (window.sfx && typeof window.sfx[name] === 'function') window.sfx[name]();
         }
-
     </script>
 
     <!-- Tailwind Config -->
@@ -40,15 +86,19 @@
                         'allgood-hover': '#EB8D69',
                         'jodi-warmth': '#FBF6EE',
                         'jodi-border': '#E8DFCE',
-                        /* PER-GOODBLOCK IDENTITY - Privacy & Security.
-                           Deliberately NOT teal: teal is Social Intelligence's accent (#357889)
-                           and reusing it would blur the two on the Lab Pack hub. Deliberately
-                           not green either: green is this chassis's correct-state feedback
-                           colour, and this GoodBlock leans on right/wrong states in three
-                           separate Cases. Indigo stays clear of both and of the Allgood gold. */
-                        'gb-accent': '#6D5EC4',
-                        'gb-accent-dark': '#5646A8',
-                        'gb-accent-light': '#EEEBFA'
+                        /* PER-GOODBLOCK IDENTITY - Digital Citizenship.
+                           Accents are deliberately INDEPENDENT of the DDC category colours.
+                           Not green (DDC's own digital_citizenship colour): green is this
+                           chassis's correct-state feedback colour and this GoodBlock is dense
+                           with right/wrong states. Not teal (#357889, Social Intelligence) and
+                           not indigo (#6D5EC4, Privacy & Security). Deep blue reads scholarly,
+                           which suits a pack about sources and credit.
+                           RESERVED NOTE: Professional Brand still needs an accent and cannot
+                           take indigo - its DDC category colour is already P&S's shipped one.
+                           Plum and bronze are unclaimed. */
+                        'gb-accent': '#2B5FA8',
+                        'gb-accent-dark': '#1E4680',
+                        'gb-accent-light': '#E8EFF9'
                     },
                     fontFamily: {
                         'heading': ['Georgia', 'serif'],
@@ -98,6 +148,7 @@
             background-color: #FBF6EE; border-bottom: 1px solid #E8DFCE;
             display: flex; align-items: flex-end; padding: 10px; position: relative; z-index: 10;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
         }
 
         .content-column {
@@ -116,7 +167,9 @@
         .continue-prompt { display: none; }
         .continue-prompt.ready { display: flex; animation: fadeIn 0.4s ease-out; }
 
-        .jodi-wrapper { display: flex; flex-direction: row; align-items: center; width: 100%; max-width: 600px; margin: 0 auto; }
+        /* min-height:0 lets this flex child actually shrink; without it a long bubble grows the
+           wrapper past the sidebar and the top of her speech gets clipped under the header. */
+        .jodi-wrapper { display: flex; flex-direction: row; align-items: center; width: 100%; max-width: 600px; margin: 0 auto; min-height: 0; max-height: 100%; }
         .jodi-avatar.jodi-stage { width: 120px; height: 120px; flex-shrink: 0; margin-right: 15px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1)); }
         .jodi-avatar.jodi-stage svg { width: 100%; height: 100%; display: block; }
 
@@ -127,9 +180,15 @@
             transform-origin: bottom left; opacity: 0; transition: opacity 0.3s;
         }
         .jodi-bubble.visible { opacity: 1; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        /* A long line scrolls INSIDE the bubble. Previously it expanded the bubble instead,
+           pushing Jodi down and clipping the first lines behind the header. */
+        .jodi-bubble { max-height: 30vh; overflow-y: auto; overscroll-behavior: contain; }
+        .jodi-bubble::-webkit-scrollbar { width: 5px; }
+        .jodi-bubble::-webkit-scrollbar-thumb { background-color: #D8CDBA; border-radius: 3px; }
+        .jodi-bubble::-webkit-scrollbar-track { background: transparent; }
 
         #jodi-whiteboard { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; overflow: hidden; transition: opacity 0.3s ease, max-height 0.3s ease; }
-        #jodi-whiteboard.wb-populated { opacity: 1; max-height: 320px; padding-top: 1rem; padding-bottom: 1rem; margin-bottom: 0.75rem; }
+        #jodi-whiteboard.wb-populated { opacity: 1; max-height: min(320px, 38vh); overflow-y: auto; padding-top: 1rem; padding-bottom: 1rem; margin-bottom: 0.75rem; }
         @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
         @media (min-width: 768px) {
@@ -141,11 +200,13 @@
             }
             .content-column { width: 75%; }
             .jodi-wrapper { flex-direction: column-reverse; align-items: center; width: 100%; }
-            .jodi-avatar.jodi-stage { width: 200px; height: 200px; margin-right: 0; margin-top: 20px; }
+            /* Scales down in short windows instead of forcing the column to overflow. */
+            .jodi-avatar.jodi-stage { width: min(200px, 26vh); height: min(200px, 26vh); margin-right: 0; margin-top: 20px; }
             .jodi-bubble.tucked { opacity: 0 !important; max-height: 0; margin-bottom: 0; padding: 0; border-width: 0; overflow: hidden; pointer-events: none; }
             .jodi-bubble {
                 border-radius: 16px; border-bottom-left-radius: 16px; border-bottom-right-radius: 0;
                 margin-bottom: 10px; text-align: center; font-size: 0.95rem;
+                max-height: 46vh;
             }
             .jodi-bubble::after {
                 content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
@@ -174,38 +235,40 @@
             border: 1px solid #E5E7EB;
         }
 
-        /* ---- Case 2: Scam Sort (one card at a time) ----
-           Deliberately NOT drag-and-drop. Dragging needs the item and its target on screen
-           together, which on a phone meant a five-card list plus two bins - too tall to see,
-           and a fiddly gesture on top of it. One card with two buttons keeps the thing that
-           mattered pedagogically (commit before you get told anything) and drops the thing
-           that was only ever a desktop convenience. */
-        .sort-choice { transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; }
-        .sort-choice:active { transform: scale(0.97); }
-        .sort-dot { width: 8px; height: 8px; border-radius: 999px; background-color: #d1d5db; transition: background-color 0.25s ease; }
-        .sort-dot.done-correct { background-color: #059669; }
-        .sort-dot.done-wrong { background-color: #D97706; }
-        .sort-dot.current { background-color: #6D5EC4; transform: scale(1.3); }
-        #sort-card { animation: fadeIn 0.35s ease-out; }
+        /* ---- Case 2: Evidence stack ---- */
+        .src-card { transition: border-color .15s ease, background-color .15s ease, transform .12s ease; cursor: pointer; }
+        .src-card:active { transform: scale(.99); }
+        .src-card.in-stack { border-color: #2B5FA8; background-color: #E8EFF9; }
+        .src-card.inspected { border-color: #cbd5e1; }
+        .vbtn { transition: border-color .12s ease, background-color .12s ease, color .12s ease; }
+        .vbtn.picked { border-color: #2B5FA8; background-color: #2B5FA8; color: #fff; }
+        #hold-bar-fill { height: 100%; width: 0%; border-radius: 999px; background-color: #dc2626; transition: width .35s ease, background-color .35s ease; }
 
-        /* Jodi is clickable: her whiteboard covers her original line, so tapping her brings
-           it back. Without this the intro is simply unreachable after the first interaction. */
-        .jodi-avatar.jodi-stage { cursor: pointer; }
-        .jodi-avatar.jodi-stage:hover { filter: drop-shadow(2px 4px 10px rgba(109,94,196,0.35)); }
+        /* ---- Case 3: Credit trail ---- */
+        .hop-frame { animation: fadeIn .35s ease-out; }
+        .hop-dot { width: 9px; height: 9px; border-radius: 999px; background-color: #d1d5db; transition: background-color .25s ease; }
+        .hop-dot.visited { background-color: #2B5FA8; }
+        .hop-dot.origin { background-color: #059669; }
 
-        /* ---- Case 3: Permission toggles ---- */
-        .perm-switch { width: 46px; height: 26px; border-radius: 999px; background-color: #cbd5e1; position: relative; transition: background-color 0.2s ease; flex-shrink: 0; }
-        .perm-switch.on { background-color: #6D5EC4; }
-        .perm-switch .knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s ease; }
-        .perm-switch.on .knob { transform: translateX(20px); }
+        /* ---- Case 4: Pick your checks ---- */
+        .check-opt { transition: border-color .15s ease, background-color .15s ease; cursor: pointer; }
+        .check-opt.used { border-color: #2B5FA8; background-color: #E8EFF9; cursor: default; }
+        .check-opt.spent { opacity: .45; pointer-events: none; }
 
-        /* ---- Case 4: Password meter ---- */
-        #pw-meter-fill { height: 100%; width: 0%; border-radius: 999px; transition: width 0.35s ease, background-color 0.35s ease; background-color: #dc2626; }
+        /* ---- Case 5: Action ordering ---- */
+        .act-opt { transition: border-color .15s ease, background-color .15s ease; cursor: pointer; }
+        .act-opt.chosen { border-color: #2B5FA8; background-color: #E8EFF9; }
+        .act-seq { width: 22px; height: 22px; border-radius: 999px; background-color: #2B5FA8; color: #fff;
+                   font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 
-        /* ---- Case 5: Fishing checklist ---- */
-        .fish-item { transition: background-color 0.15s ease, border-color 0.15s ease; cursor: pointer; }
-        .fish-item.checked-correct { border-color: #059669; background-color: #ECFDF5; }
-        .fish-item.checked-wrong { border-color: #D97706; background-color: #FFFBEB; }
+        /* ---- Case 6: Toxic lobby ---- */
+        #lobby-feed { height: 190px; overflow-y: auto; scroll-behavior: smooth; }
+        #lobby-feed::-webkit-scrollbar { width: 5px; }
+        #lobby-feed::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        .lobby-msg { animation: fadeIn .25s ease-out; }
+        .tool-btn { transition: transform .12s ease, border-color .15s ease, background-color .15s ease; }
+        .tool-btn:active { transform: scale(.96); }
+        .tool-btn.done { border-color: #059669; background-color: #ECFDF5; color: #065f46; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-allgood-dark font-body overflow-y-auto">
@@ -214,24 +277,23 @@
 
         <!-- STARTUP SCREEN -->
         <!--
-            Per-GoodBlock identity, changed as ONE set (gradient + glow + icon), per the chassis
-            rule. Icon is `search-check` - verified against the live Lucide library, not recalled
-            from memory. It is reused verbatim on the completion badge in Case 6 so that "what
-            you see before you start" and "what you earn for finishing" are the same mark.
-            Why not shield-check: a shield is the most generic possible security icon and says
-            nothing about this GoodBlock's actual angle, which is verifying before trusting.
+            Per-GoodBlock identity, changed as ONE set (gradient + glow + icon).
+            Icon is `globe` - verified real Lucide, and deliberately the SAME icon the live DDC
+            uses for its digital_citizenship category, so the assessment and the lab read as the
+            same topic. The COLOUR deliberately does not match DDC's green: icon carries
+            recognition, colour carries differentiation between the four packs.
         -->
-        <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-[#1e1b3a] via-[#171432] to-[#0b0918]">
+        <div id="startup-screen" class="absolute inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-700 ease-in-out bg-gradient-to-br from-[#10203f] via-[#0c1830] to-[#050a14]">
             <!-- Per-module accent glow -->
-            <div class="absolute inset-0 opacity-40" style="background: radial-gradient(circle at 50% 35%, rgba(109,94,196,0.35), transparent 60%);"></div>
+            <div class="absolute inset-0 opacity-40" style="background: radial-gradient(circle at 50% 35%, rgba(43,95,168,0.35), transparent 60%);"></div>
             <div class="group flex flex-col items-center justify-center text-center h-full w-full relative">
                 <div class="flex-grow flex flex-col items-center justify-center px-4">
                     <div class="relative flex flex-col items-center">
                         <div class="absolute inset-0 bg-white/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                        <i data-lucide="search-check" class="w-24 h-24 text-white mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(109,94,196,0.6)]"></i>
+                        <i data-lucide="globe" class="w-24 h-24 text-white mb-6 relative z-10 drop-shadow-[0_0_15px_rgba(43,95,168,0.6)]"></i>
                         <h2 class="text-xl md:text-2xl font-heading font-bold text-gray-300 mb-1 relative z-10 tracking-widest uppercase">Allgood Academy</h2>
                         <h1 class="text-4xl md:text-6xl font-heading font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter relative z-10">Jodi's Schoolhouse</h1>
-                        <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10">GoodBlock: Privacy &amp; Security</p>
+                        <p class="mt-4 text-allgood-primary font-bold text-lg relative z-10 bg-white/10 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10">GoodBlock: Digital Citizenship</p>
                     </div>
                     <p class="mt-16 text-white/60 text-xs tracking-[0.4em] uppercase font-bold group-hover:text-white transition-colors animate-pulse">CLICK TO POWER UP</p>
                 </div>
@@ -243,11 +305,11 @@
             <div class="w-full px-4 flex items-center justify-between h-full">
                 <div class="flex items-center overflow-hidden">
                     <div class="flex shrink-0 items-center bg-allgood-primary rounded-full px-3 py-1 shadow-sm mr-2">
-                        <span class="text-xs font-bold text-white font-heading tracking-tight truncate max-w-[140px]">Privacy &amp; Security</span>
+                        <span class="text-xs font-bold text-white font-heading tracking-tight truncate max-w-[140px]">Digital Citizenship</span>
                     </div>
                     <div class="flex shrink-0 items-center bg-black/20 rounded-full px-3 py-1 border border-white/10 shadow-inner backdrop-blur-sm">
                         <span class="text-[10px] uppercase tracking-wider text-white/60 mr-2 font-heading font-bold">Case</span>
-                        <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 6</span>
+                        <span id="header-page-indicator" class="text-xs font-bold text-white font-body tabular-nums">1 / 7</span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-1 shrink-0 relative">
@@ -472,7 +534,7 @@
                         </div>
                     </div>
                     <div id="jodi-bubble" class="jodi-bubble">
-                        Well hey there &mdash; come sit down a minute. Today's a little different.
+                        Well hey now &mdash; pull up a chair.
                     </div>
                     <!-- DESKTOP whiteboard: starts fully collapsed. Expands only once she has
                          something to write down, and the bubble above tucks away when it does. -->
@@ -497,33 +559,37 @@
                     <div class="page-inner">
                     <div class="max-w-2xl mx-auto pt-8 px-4 sm:px-8 flex flex-col justify-center py-4">
                         <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Before We Start</span>
-                        <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1 mb-4">One Saturday, Four Moments</h2>
-                        <p class="text-sm text-gray-600 mb-4 leading-relaxed">Today we follow one person through one ordinary day. Nothing dramatic happens to her. Nobody hacks anything. She just runs into four small moments that were counting on her not to look twice.</p>
+                        <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1 mb-4">One Week, Five Moments</h2>
+                        <p class="text-sm text-gray-600 mb-4 leading-relaxed">Pete has a research project due Friday and a phone in his pocket like everybody else. Five moments across five days &mdash; and every one of them turns on the same small lie we all tell ourselves: <em>I found it, so I can use it.</em></p>
                         <div class="mb-6 card-shimmer rounded-xl p-4 border flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-gb-accent-light border border-gb-accent/30 flex items-center justify-center shrink-0">
                                 <i data-lucide="user" class="w-5 h-5 text-gb-accent-dark"></i>
                             </div>
                             <div>
-                                <p class="text-sm font-bold text-gray-900">Priya</p>
-                                <p class="text-xs text-gray-500">One ordinary Saturday, start to finish.</p>
+                                <p class="text-sm font-bold text-gray-900">Pete</p>
+                                <p class="text-xs text-gray-500">Monday to Friday. One project, one feed.</p>
                             </div>
                         </div>
                         <div class="space-y-3 mb-8">
                             <div class="flex items-start gap-3 card-shimmer rounded-xl p-4 border">
                                 <div class="w-8 h-8 rounded-lg bg-gb-accent-light text-gb-accent-dark flex items-center justify-center shrink-0 font-bold text-sm">1</div>
-                                <div><p class="text-sm font-bold text-gray-900">What every scam actually asks for</p><p class="text-xs text-gray-500 mt-0.5">It isn't your money first. It's your hurry.</p></div>
+                                <div><p class="text-sm font-bold text-gray-900">How much proof is actually enough</p><p class="text-xs text-gray-500 mt-0.5">Spoiler: it isn't about how many sources you have.</p></div>
                             </div>
                             <div class="flex items-start gap-3 card-shimmer rounded-xl p-4 border">
                                 <div class="w-8 h-8 rounded-lg bg-gb-accent-light text-gb-accent-dark flex items-center justify-center shrink-0 font-bold text-sm">2</div>
-                                <div><p class="text-sm font-bold text-gray-900">Asking is free, granting isn't</p><p class="text-xs text-gray-500 mt-0.5">Why "is this app shady" is the wrong question entirely.</p></div>
+                                <div><p class="text-sm font-bold text-gray-900">Who actually made this</p><p class="text-xs text-gray-500 mt-0.5">The first place you saw something is almost never where it came from.</p></div>
                             </div>
                             <div class="flex items-start gap-3 card-shimmer rounded-xl p-4 border">
                                 <div class="w-8 h-8 rounded-lg bg-gb-accent-light text-gb-accent-dark flex items-center justify-center shrink-0 font-bold text-sm">3</div>
-                                <div><p class="text-sm font-bold text-gray-900">Clever isn't the same as strong</p><p class="text-xs text-gray-500 mt-0.5">The password trick everybody thinks is smart, measured honestly.</p></div>
+                                <div><p class="text-sm font-bold text-gray-900">Which check settles it</p><p class="text-xs text-gray-500 mt-0.5">Some ways of checking feel reassuring and prove nothing.</p></div>
                             </div>
                             <div class="flex items-start gap-3 card-shimmer rounded-xl p-4 border">
                                 <div class="w-8 h-8 rounded-lg bg-gb-accent-light text-gb-accent-dark flex items-center justify-center shrink-0 font-bold text-sm">4</div>
-                                <div><p class="text-sm font-bold text-gray-900">Friendly is a tactic too</p><p class="text-xs text-gray-500 mt-0.5">How to hear what a nice message is actually asking you for.</p></div>
+                                <div><p class="text-sm font-bold text-gray-900">When you already know</p><p class="text-xs text-gray-500 mt-0.5">Saying nothing is a choice too, and somebody else pays for it.</p></div>
+                            </div>
+                            <div class="flex items-start gap-3 card-shimmer rounded-xl p-4 border">
+                                <div class="w-8 h-8 rounded-lg bg-gb-accent-light text-gb-accent-dark flex items-center justify-center shrink-0 font-bold text-sm">5</div>
+                                <div><p class="text-sm font-bold text-gray-900">Not taking the bait</p><p class="text-xs text-gray-500 mt-0.5">Walking away and closing the door aren't the same thing.</p></div>
                             </div>
                         </div>
                         <div id="continue-1" class="continue-prompt ready items-center justify-center pt-4">
@@ -540,49 +606,41 @@
                     </div>
                 </div>
 
-                <!-- CASE 2: THE SCAM SORT -->
+                <!-- CASE 2: THE SOURCE CHECK -->
                 <div class="page" id="page-2">
                     <div class="page-inner">
                     <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-8 flex flex-col justify-center py-4">
                         <div class="mb-5">
-                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 2: 9:40 AM</span>
-                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Scam Sort</h2>
-                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Priya's still in bed, thumbing through everything that piled up overnight. Five things, one at a time. <strong>Call it before you're told anything</strong> &mdash; that's the whole point. You don't get to un-see a link after you've tapped it.</p>
+                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 2: Tuesday</span>
+                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Source Check</h2>
+                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Pete's writing about the 1930s Dust Bowl. He's found six things online. Build him a stack that would actually hold up &mdash; and watch the bar, because it doesn't care how <em>many</em> you add.</p>
                         </div>
 
-                        <div class="flex items-center justify-between mb-3">
-                            <span id="sort-counter" class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Item 1 of 5</span>
-                            <div id="sort-dots" class="flex items-center gap-1.5"></div>
+                        <div class="card-shimmer rounded-2xl p-4 border mb-4">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">The claim he wants to make</p>
+                            <p class="text-sm font-bold text-gray-900 leading-relaxed">"Federal soil conservation programs measurably reduced dust storms by the late 1930s."</p>
                         </div>
 
-                        <div id="sort-card" class="card-shimmer rounded-2xl p-4 border-2 border-gray-200 mb-3 min-h-[110px]">
-                            <p id="sort-sender" class="text-[10px] font-mono text-gray-400"></p>
-                            <p id="sort-text" class="text-sm text-gray-800 font-bold mt-1 leading-relaxed"></p>
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Does this hold?</span>
+                                <span id="hold-label" class="text-[11px] font-bold text-red-600">Nothing yet</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden"><div id="hold-bar-fill"></div></div>
+                            <p class="text-[10px] text-gray-400 mt-1.5">Look at each one, then say what it's good for. <span id="src-progress" class="font-bold">0 of 7 judged</span></p>
                         </div>
 
-                        <div id="sort-choices" class="grid grid-cols-2 gap-3 mb-3">
-                            <button onclick="window.answerSort('legit')" class="sort-choice rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:border-emerald-500 text-emerald-800 font-bold py-3.5 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="circle-check" class="w-4 h-4"></i> Legit
+                        <div id="src-list" class="space-y-2 mb-4"></div>
+
+                                                <div class="flex justify-center pt-1 pb-2">
+                            <button onclick="window.resetCase2()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Start this over
                             </button>
-                            <button onclick="window.answerSort('scam')" class="sort-choice rounded-xl border-2 border-red-200 bg-red-50 hover:border-red-500 text-red-800 font-bold py-3.5 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="circle-alert" class="w-4 h-4"></i> Scam
-                            </button>
                         </div>
 
-                        <div id="sort-verdict" class="hidden mb-3 text-center">
-                            <span id="sort-verdict-label" class="text-xs font-bold uppercase tracking-widest"></span>
-                        </div>
-
-                        <!-- MOBILE mechanism box: same content the desktop whiteboard receives -->
                         <div id="mobile-wb-2" class="mobile-wb hidden bg-slate-900 rounded-xl p-4 text-white text-xs space-y-1 mb-4">
-                            <strong class="mobile-wb-title text-indigo-300 block text-sm font-heading"></strong>
+                            <strong class="mobile-wb-title text-blue-300 block text-sm font-heading"></strong>
                             <p class="mobile-wb-desc text-slate-300 leading-relaxed"></p>
-                        </div>
-
-                        <div id="sort-next-wrap" class="hidden justify-center mb-2">
-                            <button id="sort-next" onclick="window.nextSort()" class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-full shadow text-xs uppercase tracking-widest transition-transform hover:scale-105">
-                                Next <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                            </button>
                         </div>
 
                         <div id="continue-2" class="continue-prompt items-center justify-center pt-2">
@@ -599,73 +657,62 @@
                     </div>
                 </div>
 
-                <!-- CASE 3: THE PERMISSION CALIBRATION -->
+                <!-- CASE 3: THE CREDIT TRAIL -->
                 <div class="page" id="page-3">
                     <div class="page-inner">
                     <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-8 flex flex-col justify-center py-4">
                         <div class="mb-5">
-                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 3: 1:15 PM</span>
-                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Permission Calibration</h2>
-                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Priya's phone light died, so she grabs a free flashlight app. It installs, then immediately asks for five things. Here's the question that matters, and it is <em>not</em> "is this app shady": <strong>does each thing it's asking for match the one job it does?</strong></p>
+                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 3: Wednesday</span>
+                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Credit Trail</h2>
+                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Pete wants an illustration for his title slide. He found this one on a big account with two million followers. <strong>Click back</strong> and see whether that's really where it came from.</p>
                         </div>
 
-                        <div class="card-shimmer rounded-2xl p-4 border mb-4">
-                            <div class="flex items-center gap-3 mb-1">
-                                <div class="w-11 h-11 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-                                    <i data-lucide="flashlight" class="w-5 h-5 text-amber-600"></i>
-                                </div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span id="hop-counter" class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Where he found it</span>
+                            <div id="hop-dots" class="flex items-center gap-1.5"></div>
+                        </div>
+
+                        <div id="hop-card" class="hop-frame card-shimmer rounded-2xl p-4 border-2 border-gray-200 mb-3">
+                            <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                                <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4 text-gray-500"></i></div>
                                 <div>
-                                    <p class="text-sm font-bold text-gray-900">FlashLite</p>
-                                    <p class="text-[11px] text-gray-500">Turns your phone light on and off. That's the whole app.</p>
+                                    <p id="hop-handle" class="text-sm font-bold text-gray-900"></p>
+                                    <p id="hop-meta" class="text-[10px] text-gray-400"></p>
                                 </div>
+                            </div>
+                            <div class="rounded-xl bg-gradient-to-br from-amber-100 via-orange-100 to-yellow-50 border border-amber-200 h-24 flex items-center justify-center mb-3 relative overflow-hidden">
+                                <i data-lucide="image" class="w-8 h-8 text-amber-700/50"></i>
+                                <span id="hop-watermark" class="absolute bottom-1 right-2 text-[9px] font-mono text-amber-900/40"></span>
+                            </div>
+                            <p id="hop-evidence" class="text-xs text-gray-600 leading-relaxed"></p>
+                        </div>
+
+                        <div id="hop-actions" class="flex flex-col sm:flex-row gap-2 mb-3">
+                            <button id="hop-back" onclick="window.hopBack()" class="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i> Click back one more
+                            </button>
+                            <button id="hop-stop" onclick="window.hopStop()" class="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-gray-200 hover:border-gb-accent text-gray-700 font-bold py-3 rounded-xl text-xs uppercase tracking-widest">
+                                This is the creator
+                            </button>
+                        </div>
+
+                        <div id="attrib-zone" class="hidden mb-3">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">How does he credit it?</p>
+                            <div class="space-y-2">
+                                <button onclick="window.chooseAttrib('none')" class="w-full text-left card-shimmer rounded-xl p-3 border-2 border-gray-200 hover:border-gb-accent text-sm text-gray-800">Just use it &mdash; it's all over the internet anyway</button>
+                                <button onclick="window.chooseAttrib('vague')" class="w-full text-left card-shimmer rounded-xl p-3 border-2 border-gray-200 hover:border-gb-accent text-sm text-gray-800">Add "credit to the creator" under the slide</button>
+                                <button onclick="window.chooseAttrib('named')" class="w-full text-left card-shimmer rounded-xl p-3 border-2 border-gray-200 hover:border-gb-accent text-sm text-gray-800">Name the artist, link the original post, ask permission</button>
                             </div>
                         </div>
 
-                        <div id="perm-list" class="space-y-2 mb-4">
-                            <div class="perm-row card-shimmer rounded-xl p-3 border flex items-center gap-3" data-perm="camera">
-                                <i data-lucide="camera" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-gray-900">Camera</p>
-                                    <p class="text-[11px] text-gray-500">"Required to operate the flash"</p>
-                                </div>
-                                <button class="perm-switch on" aria-label="Toggle Camera permission"><span class="knob"></span></button>
-                            </div>
-                            <div class="perm-row card-shimmer rounded-xl p-3 border flex items-center gap-3" data-perm="flashlight">
-                                <i data-lucide="flashlight" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-gray-900">Flashlight / Torch</p>
-                                    <p class="text-[11px] text-gray-500">"Required to turn the light on"</p>
-                                </div>
-                                <button class="perm-switch on" aria-label="Toggle Flashlight permission"><span class="knob"></span></button>
-                            </div>
-                            <div class="perm-row card-shimmer rounded-xl p-3 border flex items-center gap-3" data-perm="contacts">
-                                <i data-lucide="users" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-gray-900">Contacts</p>
-                                    <p class="text-[11px] text-gray-500">"To help you share FlashLite with friends"</p>
-                                </div>
-                                <button class="perm-switch on" aria-label="Toggle Contacts permission"><span class="knob"></span></button>
-                            </div>
-                            <div class="perm-row card-shimmer rounded-xl p-3 border flex items-center gap-3" data-perm="location">
-                                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-gray-900">Location (always)</p>
-                                    <p class="text-[11px] text-gray-500">"To improve your local experience"</p>
-                                </div>
-                                <button class="perm-switch on" aria-label="Toggle Location permission"><span class="knob"></span></button>
-                            </div>
-                            <div class="perm-row card-shimmer rounded-xl p-3 border flex items-center gap-3" data-perm="microphone">
-                                <i data-lucide="mic" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-gray-900">Microphone</p>
-                                    <p class="text-[11px] text-gray-500">"For voice-activated lighting"</p>
-                                </div>
-                                <button class="perm-switch on" aria-label="Toggle Microphone permission"><span class="knob"></span></button>
-                            </div>
+                                                <div class="flex justify-center pt-1 pb-2">
+                            <button onclick="window.resetCase3()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Follow it again
+                            </button>
                         </div>
 
                         <div id="mobile-wb-3" class="mobile-wb hidden bg-slate-900 rounded-xl p-4 text-white text-xs space-y-1 mb-4">
-                            <strong class="mobile-wb-title text-indigo-300 block text-sm font-heading"></strong>
+                            <strong class="mobile-wb-title text-blue-300 block text-sm font-heading"></strong>
                             <p class="mobile-wb-desc text-slate-300 leading-relaxed"></p>
                         </div>
 
@@ -683,50 +730,49 @@
                     </div>
                 </div>
 
-                <!-- CASE 4: THE PASSWORD PRESSURE TEST -->
+                <!-- CASE 4: THE ONE YOU'VE NEVER HEARD OF -->
                 <div class="page" id="page-4">
                     <div class="page-inner">
                     <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-8 flex flex-col justify-center py-4">
                         <div class="mb-5">
-                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 4: 4:30 PM</span>
-                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Password Pressure Test</h2>
-                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">This one's different. Nobody's coming after Priya here &mdash; she's just setting up a new account, and reaching for the same password habit she's had since she was eleven. Type in the box. The number underneath is an honest estimate against a machine guessing offline.</p>
+                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 4: Thursday</span>
+                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The One You've Never Heard Of</h2>
+                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Pete's friend Della shared this. It looks good, she's earnest, and he's never heard of it. He's got time for <strong>three checks</strong> before class &mdash; pick the ones that would actually settle it.</p>
                         </div>
 
-                        <div class="card-shimmer rounded-2xl p-5 border mb-4">
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-2">Choose a password</label>
-                            <input id="pw-input" type="text" autocomplete="off" spellcheck="false" placeholder="start typing..." class="w-full border-2 border-gray-200 rounded-lg px-3 py-3 text-base font-mono text-gray-800 focus:outline-none focus:border-gb-accent transition-colors">
+                        <div class="card-shimmer rounded-2xl p-4 border mb-4">
+                            <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                                <div class="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0"><i data-lucide="heart" class="w-4 h-4 text-rose-500"></i></div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">Della shared this</p>
+                                    <p class="text-[10px] text-gray-400">@brightpaws_rescue_fund &middot; 4,102 followers</p>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-800 leading-relaxed">Every $10 pulls one more dog off the street before winter. We're 88% to goal. Link in bio. 🐾</p>
+                        </div>
 
-                            <div class="mt-4">
-                                <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div id="pw-meter-fill"></div>
-                                </div>
-                                <div class="flex items-start gap-2 mt-3">
-                                    <!-- Container, not a bare <i>: Lucide REPLACES the <i> with an
-                                         <svg> on first render, so mutating data-lucide on it later
-                                         does not reliably re-render. Rewriting innerHTML does. -->
-                                    <span id="pw-icon-wrap" class="shrink-0 mt-0.5"><i data-lucide="circle-alert" class="w-5 h-5 text-red-500"></i></span>
-                                    <div>
-                                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Estimated time to crack</p>
-                                        <p id="pw-time" class="text-lg font-heading font-bold text-gray-900 leading-tight">&mdash;</p>
-                                        <p id="pw-note" class="text-[11px] text-gray-500 mt-0.5"></p>
-                                    </div>
-                                </div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Choose your checks</span>
+                            <span id="checks-left" class="text-[11px] font-bold text-gb-accent">3 left</span>
+                        </div>
+                        <div id="check-list" class="space-y-2 mb-4"></div>
+
+                        <div id="share-zone" class="hidden mb-3">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">So what does he do?</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="window.decideShare(true)" class="rounded-xl border-2 border-gray-200 bg-white hover:border-gb-accent text-gray-700 font-bold py-3 text-xs uppercase tracking-widest">Share it</button>
+                                <button onclick="window.decideShare(false)" class="rounded-xl border-2 border-gray-200 bg-white hover:border-gb-accent text-gray-700 font-bold py-3 text-xs uppercase tracking-widest">Don't share</button>
                             </div>
                         </div>
 
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Or try one of Priya's</p>
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <button class="pw-preset text-xs font-mono bg-white border border-gray-200 hover:border-gb-accent rounded-lg px-3 py-2 transition-colors" data-pw="priya12">priya12</button>
-                            <button class="pw-preset text-xs font-mono bg-white border border-gray-200 hover:border-gb-accent rounded-lg px-3 py-2 transition-colors" data-pw="P@ssw0rd!">P@ssw0rd!</button>
-                            <button class="pw-preset text-xs font-mono bg-white border border-gray-200 hover:border-gb-accent rounded-lg px-3 py-2 transition-colors" data-pw="Tr0ub4dor&amp;3">Tr0ub4dor&amp;3</button>
-                            <button class="pw-preset text-xs font-mono bg-white border border-gray-200 hover:border-gb-accent rounded-lg px-3 py-2 transition-colors" data-pw="purple tractor mango stapler">purple tractor mango stapler</button>
-                            <button class="pw-preset text-xs font-mono bg-white border border-gray-200 hover:border-gb-accent rounded-lg px-3 py-2 transition-colors" data-pw="purple tractor mango stapler window">purple tractor mango stapler window</button>
+                                                <div class="flex justify-center pt-1 pb-2">
+                            <button onclick="window.resetCase4()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset the checks
+                            </button>
                         </div>
-                        <p class="text-[11px] text-gray-500 mb-4 leading-relaxed">Those last two are the same idea &mdash; one is a single word longer. Try them back to back.</p>
 
                         <div id="mobile-wb-4" class="mobile-wb hidden bg-slate-900 rounded-xl p-4 text-white text-xs space-y-1 mb-4">
-                            <strong class="mobile-wb-title text-indigo-300 block text-sm font-heading"></strong>
+                            <strong class="mobile-wb-title text-blue-300 block text-sm font-heading"></strong>
                             <p class="mobile-wb-desc text-slate-300 leading-relaxed"></p>
                         </div>
 
@@ -744,67 +790,38 @@
                     </div>
                 </div>
 
-                <!-- CASE 5: THE DM REDIRECT -->
+                <!-- CASE 5: THE ONE YOU KNOW IS FAKE -->
                 <div class="page" id="page-5">
                     <div class="page-inner">
                     <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-8 flex flex-col justify-center py-4">
                         <div class="mb-5">
-                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 5: 8:05 PM</span>
-                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The DM Redirect</h2>
-                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Last one. A message lands from somebody Priya doesn't know, and it is <em>perfectly friendly</em>. Don't decide what to do yet. First, read it properly and name exactly what it's reaching for.</p>
+                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 5: Thursday, 9:40 PM</span>
+                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The One You Know Is Fake</h2>
+                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Different post, and this time there's no mystery &mdash; Pete <em>already knows</em> this one's a scam; it was in the news last month. Della doesn't. And it's climbing. <strong>Build his response in order.</strong></p>
                         </div>
 
-                        <div class="card-shimmer rounded-2xl p-4 border mb-5">
-                            <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
-                                <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                                    <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-gray-900">@jaydn_hoops27</p>
-                                    <p class="text-[10px] text-gray-400">Not following you &middot; Joined 3 days ago</p>
-                                </div>
+                        <div class="card-shimmer rounded-2xl p-4 border mb-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-bold text-gray-900">Della's post</p>
+                                <span id="spread-count" class="text-[11px] font-mono font-bold text-rose-600">41 shares</span>
                             </div>
-                            <p class="text-sm text-gray-800 leading-relaxed">hey!! i think we got a mutual friend 😅 wait do u go to westfield or the other one? anyway i was gonna ask u something &mdash; u free rn? or is ur mom n them around lol. where u at rn</p>
+                            <p class="text-sm text-gray-800 leading-relaxed">"Please donate, they lost everything in the fire 💔 every share helps"</p>
+                            <p class="text-[10px] text-gray-400 mt-2">Flagged as a known fundraising scam &middot; reported in local news, Oct 14</p>
                         </div>
 
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Check everything this message is actually fishing for</p>
-                        <div id="fish-list" class="space-y-2 mb-4">
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="school" data-correct="yes">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">Which school she goes to</p>
-                            </div>
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="lastname" data-correct="no">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">Her last name</p>
-                            </div>
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="alone" data-correct="yes">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">Whether an adult is home with her</p>
-                            </div>
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="phone" data-correct="no">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">Her phone number</p>
-                            </div>
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="where" data-correct="yes">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">Where she physically is right now</p>
-                            </div>
-                            <div class="fish-item card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3" data-fish="opinion" data-correct="no">
-                                <div class="fish-box w-5 h-5 rounded border-2 border-gray-300 shrink-0"></div>
-                                <p class="text-sm text-gray-800">What she thinks of the mutual friend</p>
-                            </div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Tap actions in the order he should do them</p>
+                        <div id="act-list" class="space-y-2 mb-3"></div>
+
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="window.clearActions()" class="text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Clear</button>
+                            <button id="act-lock" onclick="window.lockActions()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest disabled:opacity-40" disabled>
+                                Lock it in
+                            </button>
                         </div>
 
                         <div id="mobile-wb-5" class="mobile-wb hidden bg-slate-900 rounded-xl p-4 text-white text-xs space-y-1 mb-4">
-                            <strong class="mobile-wb-title text-indigo-300 block text-sm font-heading"></strong>
+                            <strong class="mobile-wb-title text-blue-300 block text-sm font-heading"></strong>
                             <p class="mobile-wb-desc text-slate-300 leading-relaxed"></p>
-                        </div>
-
-                        <div id="block-zone" class="hidden mb-4">
-                            <button id="block-btn" onclick="window.blockAccount()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl shadow-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform hover:scale-[1.01]">
-                                <i data-lucide="shield-x" class="w-4 h-4"></i> Block &amp; Report @jaydn_hoops27
-                            </button>
-                            <p id="block-done" class="hidden text-center text-xs text-emerald-700 font-bold mt-2">Blocked and reported. Nothing sent, nothing given.</p>
                         </div>
 
                         <div id="continue-5" class="continue-prompt items-center justify-center pt-2">
@@ -821,13 +838,73 @@
                     </div>
                 </div>
 
-                <!-- CASE 6: HANDOFF -->
+                <!-- CASE 6: THE TOXIC LOBBY -->
                 <div class="page" id="page-6">
+                    <div class="page-inner">
+                    <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-8 flex flex-col justify-center py-4">
+                        <div class="mb-5">
+                            <span class="text-xs font-bold uppercase tracking-widest text-gb-accent">Case 6: Friday</span>
+                            <h2 class="text-2xl sm:text-3xl font-heading font-bold text-gray-900 mt-1">The Toxic Lobby</h2>
+                            <p class="text-sm text-gray-600 mt-2 leading-relaxed">Project's turned in. Pete's playing a match, and one player won't let up. The reply box is right there and it works. So are three other buttons most people never touch.</p>
+                        </div>
+
+                        <div class="card-shimmer rounded-2xl border overflow-hidden mb-3">
+                            <div class="flex items-center justify-between px-3 py-2 bg-slate-900">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-300">Match chat</span>
+                                <span id="lobby-heat" class="text-[10px] font-mono font-bold text-slate-400">quiet</span>
+                            </div>
+                            <div id="lobby-feed" class="p-3 space-y-2 bg-slate-50"></div>
+                        </div>
+
+                        <div class="flex gap-2 mb-3">
+                            <input id="lobby-reply" type="text" placeholder="Say something back..." class="flex-1 border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-gb-accent">
+                            <button onclick="window.lobbyReply()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-4 rounded-xl text-xs uppercase tracking-widest">Send</button>
+                        </div>
+
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Or use the tools</p>
+                        <div class="grid grid-cols-3 gap-2 mb-4">
+                            <button id="tool-report" onclick="window.lobbyTool('report')" class="tool-btn rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-bold py-3 text-[11px] uppercase tracking-widest flex flex-col items-center gap-1">
+                                <i data-lucide="flag" class="w-4 h-4"></i> Report
+                            </button>
+                            <button id="tool-mute" onclick="window.lobbyTool('mute')" class="tool-btn rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-bold py-3 text-[11px] uppercase tracking-widest flex flex-col items-center gap-1">
+                                <i data-lucide="volume-x" class="w-4 h-4"></i> Mute
+                            </button>
+                            <button id="tool-block" onclick="window.lobbyTool('block')" class="tool-btn rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-bold py-3 text-[11px] uppercase tracking-widest flex flex-col items-center gap-1">
+                                <i data-lucide="ban" class="w-4 h-4"></i> Block
+                            </button>
+                        </div>
+
+                                                <div class="flex justify-center pt-1 pb-2">
+                            <button onclick="window.resetCase6()" class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Fresh lobby
+                            </button>
+                        </div>
+
+                        <div id="mobile-wb-6" class="mobile-wb hidden bg-slate-900 rounded-xl p-4 text-white text-xs space-y-1 mb-4">
+                            <strong class="mobile-wb-title text-blue-300 block text-sm font-heading"></strong>
+                            <p class="mobile-wb-desc text-slate-300 leading-relaxed"></p>
+                        </div>
+
+                        <div id="continue-6" class="continue-prompt items-center justify-center pt-2">
+                            <button onclick="window.advanceFromPage(6)" class="flex items-center gap-2 bg-allgood-primary hover:bg-allgood-hover text-white font-bold px-6 py-3 rounded-full shadow-lg text-xs uppercase tracking-wide transition-transform hover:scale-105">
+                                Continue <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    </div>
+                    <div class="lock-overlay absolute inset-0 items-center justify-center bg-white/50 backdrop-blur-[1px] z-10">
+                        <div class="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase tracking-wide bg-white px-4 py-2 rounded-full shadow-md border border-gray-200">
+                            <i data-lucide="lock" class="w-3.5 h-3.5"></i> Complete the case above to unlock
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CASE 7: HANDOFF -->
+                <div class="page" id="page-7">
                     <div class="page-inner">
                     <div class="max-w-3xl mx-auto pt-10 px-4 sm:px-8 flex flex-col justify-center py-4 items-center text-center">
 
-                        <!-- RATING: shown first. Collapses once submitted, revealing the badge below. -->
-                        <div id="case6-rating" class="mb-6 w-full max-w-md">
+                        <div id="case7-rating" class="mb-6 w-full max-w-md">
                             <h2 class="text-2xl font-heading font-bold text-gray-900 mb-1">Before You Go</h2>
                             <p class="text-sm text-gray-500 mb-4">How was this one?</p>
                             <div class="flex justify-center gap-1 mb-4">
@@ -837,30 +914,29 @@
                                 <button onclick="window.selectCaseRating(4)" class="star-btn text-4xl text-gray-300 hover:text-amber-400 transition-colors leading-none" data-star="4">★</button>
                                 <button onclick="window.selectCaseRating(5)" class="star-btn text-4xl text-gray-300 hover:text-amber-400 transition-colors leading-none" data-star="5">★</button>
                             </div>
-                            <textarea id="case6-feedback-text" placeholder="Anything you want to tell us? (optional)" class="w-full border border-gray-200 rounded-lg p-3 text-xs text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-gb-accent/40" rows="2"></textarea>
-                            <button id="case6-submit-btn" onclick="window.finalizeCaseRating()" class="hidden mt-3 bg-allgood-primary hover:bg-allgood-hover text-white font-bold px-6 py-2 rounded-full text-xs uppercase tracking-wide shadow-md transition-transform hover:scale-105">
+                            <textarea id="case7-feedback-text" placeholder="Anything you want to tell us? (optional)" class="w-full border border-gray-200 rounded-lg p-3 text-xs text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-gb-accent/40" rows="2"></textarea>
+                            <button id="case7-submit-btn" onclick="window.finalizeCaseRating()" class="hidden mt-3 bg-allgood-primary hover:bg-allgood-hover text-white font-bold px-6 py-2 rounded-full text-xs uppercase tracking-wide shadow-md transition-transform hover:scale-105">
                                 Submit
                             </button>
                         </div>
 
-                        <!-- BADGE + NEXT STEP: hidden until a rating is submitted -->
-                        <div id="case6-reveal" class="w-full hidden">
+                        <div id="case7-reveal" class="w-full hidden">
                             <div class="mb-6">
-                                <span class="text-xs font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">Privacy Lab Cleared</span>
-                                <h2 class="text-3xl sm:text-4xl font-heading font-bold text-gray-900 mt-4">You Checked Before You Trusted</h2>
-                                <p class="text-sm text-gray-600 max-w-md mx-auto mt-3 leading-relaxed">One feed, one flashlight, one password, one stranger &mdash; and not one of them announced itself.</p>
+                                <span class="text-xs font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">Citizenship Lab Cleared</span>
+                                <h2 class="text-3xl sm:text-4xl font-heading font-bold text-gray-900 mt-4">Finding It Is Where The Work Starts</h2>
+                                <p class="text-sm text-gray-600 max-w-md mx-auto mt-3 leading-relaxed">A stack of sources, four clicks back to an artist nobody had named, two charities that looked alike and weren't, and a lobby he never typed a word into.</p>
                             </div>
 
                             <div class="card-shimmer rounded-2xl p-8 shadow-md border border-gb-accent/30 mb-8 max-w-lg w-full relative overflow-hidden mx-auto">
                                 <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-gb-accent/5 rounded-full pointer-events-none"></div>
-                                <!-- Same icon as the startup screen, deliberately: what you see
-                                     before you start and what you earn for finishing are one mark. -->
-                                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-gb-accent-light to-indigo-100 border-4 border-gb-accent/40 shadow-inner flex items-center justify-center">
-                                    <i data-lucide="search-check" class="w-10 h-10 text-gb-accent-dark drop-shadow-sm"></i>
+                                <!-- Same icon as the startup screen, deliberately. -->
+                                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-gb-accent-light to-blue-100 border-4 border-gb-accent/40 shadow-inner flex items-center justify-center">
+                                    <i data-lucide="globe" class="w-10 h-10 text-gb-accent-dark drop-shadow-sm"></i>
                                 </div>
                                 <span class="text-[10px] font-bold uppercase tracking-widest text-gb-accent block mb-1">MINTED IN DOSSIER</span>
-                                <h3 class="text-xl font-heading font-bold text-gray-900 mb-2">Privacy &amp; Security Foundation</h3>
-                                <p class="text-xs text-gray-600 mb-6 leading-relaxed">Covers the principles behind <strong>9 scenarios</strong> in the flagship 30-scenario Digital Decisions assessment.</p>
+                                <h3 class="text-xl font-heading font-bold text-gray-900 mb-2">Digital Citizenship Foundation</h3>
+                                <!-- 7 verified against the live DDC SCENARIO_DATA (digital_citizenship = 7). Do not estimate. -->
+                                <p class="text-xs text-gray-600 mb-6 leading-relaxed">Covers the principles behind <strong>7 scenarios</strong> in the flagship 30-scenario Digital Decisions assessment.</p>
 
                                 <button onclick="window.returnToLabPack()" class="w-full bg-allgood-primary hover:bg-allgood-hover text-white font-bold py-4 rounded-xl shadow-lg transition-transform transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider text-xs flex items-center justify-center gap-2">
                                     <span>Check Out What's Next</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>
@@ -881,7 +957,6 @@
 
             </div>
         </div>
-
         <!-- Footer -->
         <footer class="footer-content flex items-center justify-center px-6 border-t border-gray-200 bg-white z-20 relative shrink-0">
             <div id="flex-progress-bar" class="absolute top-0 left-0 h-1 bg-gray-200 w-full"><div id="flex-progress-fill" class="h-full bg-allgood-primary w-0 transition-all duration-300"></div></div>
@@ -914,7 +989,7 @@
 
     </div>
     <script>
-        const CASE_TITLES = ["One Saturday, Four Moments", "The Scam Sort", "The Permission Calibration", "The Password Pressure Test", "The DM Redirect", "Handoff"];
+        const CASE_TITLES = ["One Week, Five Moments", "The Source Check", "The Credit Trail", "The One You've Never Heard Of", "The One You Know Is Fake", "The Toxic Lobby", "Handoff"];
 
         window.openCaseMenu = () => {
             const list = document.getElementById('case-menu-list');
@@ -946,9 +1021,9 @@
     </script>
 
     <script>
-        const TOTAL_PAGES = 6;
+        const TOTAL_PAGES = 7;
         let highestUnlocked = 0; // index of the highest unlocked page (0 = Case 1)
-        let pageCompletion = { 0: true, 1: false, 2: false, 3: false, 4: false, 5: true };
+        let pageCompletion = { 0: true, 1: false, 2: false, 3: false, 4: false, 5: false, 6: true };
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
@@ -968,12 +1043,13 @@
         };
 
         const jodiScript = [
-            { text: "Well hey there — come sit down a minute. Today's a little different. We're not meeting three people; we're following one. Her name's Priya, and this is just her Saturday.", mood: 'happy' },
-            { text: "Priya's still in bed, thumbing through everything that piled up overnight. Five things. Put each one in a pile before I tell you anything — that's the whole point. You don't get to un-see a link after you've tapped it.", mood: 'neutral' },
-            { text: "Afternoon now. Her phone light died, so she grabbed a free flashlight app, and it's already asking for five things. Don't ask me whether it's shady. Ask whether each thing it wants matches the one job it does.", mood: 'neutral' },
-            { text: "Nobody's after her in this one — she's just making a new account, reaching for the same password habit she's had since she was eleven. Type in that box and watch the number underneath. It doesn't flatter anybody.", mood: 'neutral' },
-            { text: "Last one, and it's the friendliest thing she's read all day. Same trap as that gift card this morning, different face — it needs her to answer before she thinks. Don't decide what to do yet. Just name what it's reaching for.", mood: 'neutral' },
-            { text: "So that was a Saturday. One feed, one flashlight, one password, one stranger — and not a single one of them announced itself.", mood: 'happy' }
+            { text: "Well hey now — pull up a chair. This week we're following Pete. He's got a research project due Friday and a phone in his pocket like everybody else. Five moments, five days, and every one of them turns on the same little lie: I found it, so I can use it.", mood: 'happy' },
+            { text: "Tuesday. Pete's writing about the Dust Bowl and he's got six things pulled up. Build him a stack that'd actually hold up — and keep an eye on that bar, because it does not care how many you throw at it.", mood: 'neutral' },
+            { text: "Wednesday. He needs a picture for his title slide, and he found a good one on an account with two million followers. Now — is that where it came from, or just where he happened to see it? Click on back and find out.", mood: 'neutral' },
+            { text: "Thursday. His friend Della shared a rescue fundraiser. Looks lovely, she means well, and Pete's never heard of it. He's got time for three checks before class. Choose carefully — some of these feel reassuring and settle absolutely nothing.", mood: 'neutral' },
+            { text: "Same night, different post. And this time there's no mystery — Pete already knows this one's a scam, it was in the news. Della doesn't know. And it's climbing. Question isn't whether to tell her, sugar. It's what else, and in what order.", mood: 'neutral' },
+            { text: "Friday. Project's in, and Pete's just playing a match. One fella in the lobby won't let up. That reply box works just fine — so do three buttons most folks never touch.", mood: 'neutral' },
+            { text: "So that's a week.", mood: 'happy' }
         ];
 
         // ---- Jodi recall state ----
@@ -1027,14 +1103,12 @@
             // decorative - the character bible's trait applied to a one-day narrative shape.
             let displayText = script.text;
             if (pageIndex === TOTAL_PAGES - 1) {
-                const callbacks = {
-                    prize: "That gift card was the first thing you called this morning — a prize she never entered.",
-                    clock: "That countdown was the first thing you called this morning — a clock somebody else made up.",
-                    link: "That shortened link was the first thing you called this morning — a door you couldn't see through."
-                };
-                const opener = firstScamCaught ? callbacks[firstScamCaught] + " " : "";
-                displayText = opener + "One feed, one flashlight, one password, one stranger — not one of them announced itself. Looking safe and being safe are two different animals, and the only thing standing between them is somebody willing to check.";
+                const opener = firstGoodSource
+                    ? `That ${firstGoodSource} was the first thing you told him to keep, back on Tuesday. `
+                    : "";
+                displayText = opener + "A stack of sources, four clicks back to an artist nobody had named, two charities that looked exactly alike and weren't, and a lobby he never typed a word into. Same little lie underneath every one of them: I found it, so it's mine to use. Finding a thing is where the work starts — not where it ends.";
             }
+
             // Remember this Case's opening line. Once she turns to the whiteboard it is
             // covered up, and without this it would be permanently unreachable.
             currentIntro = { text: displayText, mood: script.mood };
@@ -1061,11 +1135,47 @@
         window.advanceFromPage = function(pageNum) {
             if (pageNum > highestUnlocked) {
                 highestUnlocked = pageNum;
+                pageCompletion[pageNum - 1] = true;
                 window.renderLocks();
                 window.playPageIntro(pageNum);
+                if (window.AuthCore && window.AuthCore.saveModuleProgress) {
+                    window.AuthCore.saveModuleProgress('digital-citizenship', {
+                        highestUnlocked, pageCompletion,
+                    });
+                }
             }
+            // Case 6's chat feed is time-driven, so it must not start until the student can
+            // actually see it - otherwise the provocation plays out behind a lock overlay.
+            if (pageNum + 1 === 6 && window.startLobby) window.startLobby();
             const nextPageEl = document.getElementById(`page-${pageNum + 1}`);
             if (nextPageEl) nextPageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        // Rehydrates a returning visit's progress (see the onAuthStateChanged load above) —
+        // unlocks/marks-complete every case they'd already cleared and jumps straight to
+        // wherever they left off, instead of restarting the whole lab from Case 1.
+        window.restoreModuleProgress = function(data) {
+            if (!data) return;
+            if (typeof data.highestUnlocked === 'number' && data.highestUnlocked > highestUnlocked) {
+                highestUnlocked = data.highestUnlocked;
+            }
+            if (data.pageCompletion && typeof data.pageCompletion === 'object') {
+                pageCompletion = { ...pageCompletion, ...data.pageCompletion };
+            }
+            window.renderLocks();
+            for (let i = 1; i < TOTAL_PAGES; i++) {
+                if (pageCompletion[i]) {
+                    const prompt = document.getElementById(`continue-${i + 1}`);
+                    if (prompt) prompt.classList.add('ready');
+                }
+            }
+            if (window.lucide) window.lucide.createIcons();
+            if (highestUnlocked > 0) {
+                setTimeout(() => {
+                    const pageEl = document.getElementById(`page-${highestUnlocked + 1}`);
+                    if (pageEl) pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 800);
+            }
         };
 
         // Routes one mechanism explanation to BOTH surfaces: the desktop whiteboard in Jodi's
@@ -1156,460 +1266,624 @@
             if (window.lucide) window.lucide.createIcons();
         };
 
-        /* ===================== CASE 2: THE SCAM SORT =====================
-           Judgment call: deciding whether something is worth engaging with BEFORE you've
-           clicked it. One item at a time, two buttons - a commitment is still required ahead
-           of any feedback, which is the part that mattered. Drag-and-drop was dropped because
-           it required the whole list AND both bins on screen together, which does not fit a
-           phone, and because dragging was never the thing being taught.
-           Anything missed comes back for a second pass, so the Case still gates on all five
-           being called correctly, and every single answer teaches on the spot. */
+        /* ===================== CASE 2: THE SOURCE CHECK =====================
+           Judgment call: how much evidence is enough, and what each source is actually good FOR.
 
-        const SORT_ITEMS = [
-            { id: 'prize',  answer: 'scam',  sender: '@rewards-centre-official',        text: '\u{1F389} CONGRATS! You\u2019ve been selected for a $500 gift card. Claim yours now!' },
-            { id: 'nadia',  answer: 'legit', sender: 'Nadia (saved contact)',           text: 'finished the playlist for tonight lol \u2014 open.spotify.com/playlist/saturday-drive' },
-            { id: 'clock',  answer: 'scam',  sender: 'security-alert@acc0unts-verify.net', text: 'Your account will be permanently deleted in 23:14. Verify immediately.' },
-            { id: 'school', answer: 'legit', sender: 'notices@westfield.k12.us',        text: 'Monday schedule change: first bell moves to 8:45. No action needed.' },
-            { id: 'link',   answer: 'scam',  sender: '@user_88241 (not following you)', text: 'you HAVE to see this \u{1F62D} bit.ly/x9k2mq' }
+           REDESIGNED after playtest. v1 let a student tap the two obviously-good sources and
+           finish in about four seconds - the bar filled before Jodi had explained a single
+           weak source, so the whole teaching payload was skippable. Two changes fix that:
+
+           1. INSPECT FIRST. A source's credibility isn't printed on it. You have to look at
+              who wrote it, what it cites, and where it got its information - which is the
+              actual research skill, rather than reading a label off a card.
+           2. THREE VERDICTS, NOT TWO. "Cite it" / "Real, but not evidence here" / "Leave it
+              out". The middle verdict is the point: a Reddit thread and a faithful reprint are
+              both genuine, and neither is evidence for THIS claim. Discrediting them outright
+              would teach the wrong lesson.
+
+           GATE: skill-practice. Completion needs a correct verdict on all seven, so the bar
+           can go green early without ending the Case. Wrong verdicts teach immediately. */
+
+        const SOURCES = [
+            { id: 'univ', label: 'University of Oklahoma history department page', hint: 'ou.edu',
+              verdict: 'cite', credible: true, family: 'academic', shortName: 'university page',
+              found: 'Written by a named faculty member. Cites the 1938 USDA survey and two county records you can go read yourself.',
+              title: 'It Shows Its Work', desc: 'Credible does not mean "sounds authoritative". It means you can follow it further down. A named author and real citations let you keep going past this page.' },
+            { id: 'ency', label: 'Britannica entry on the Dust Bowl', hint: 'britannica.com',
+              verdict: 'cite', credible: true, family: 'reference', shortName: 'encyclopedia entry',
+              found: 'Signed by a named author, edited before publication, sources listed at the bottom.',
+              title: 'A Place To Stand', desc: 'An encyclopedia is not the end of research, but it is a real place to stand while you look further. Signed, edited, and it points you onward.' },
+            { id: 'usda', label: 'USDA soil conservation archive, 1938 report', hint: 'archives.gov',
+              verdict: 'cite', credible: true, family: 'primary', shortName: 'USDA report',
+              found: 'The agency itself, writing at the time, with the survey numbers in it. This is the document the others are describing.',
+              title: 'The Thing Itself', desc: 'A primary record is the actual agency at the actual time. Everything else on this page is somebody describing this. It is independent of all of them, which is exactly why it counts on its own.' },
+            { id: 'news', label: 'State Historical Society newsletter', hint: 'okhistory.org',
+              verdict: 'notevidence', credible: true, family: 'academic', shortName: 'historical society piece',
+              found: 'Reputable society - and the article is the OU department page, reprinted word for word, with credit at the bottom.',
+              title: 'An Echo, Not A Witness', desc: 'Perfectly respectable and completely redundant. Citing this next to the OU page does not give Pete a second opinion; it gives him the same opinion twice. A second source has to be able to disagree.' },
+            { id: 'forum', label: 'Reddit: "my great-grandpa lived through it"', hint: 'r/history',
+              verdict: 'notevidence', credible: false, family: 'testimony',
+              found: 'A detailed family account - dust in the food, school closures. No name, no date, no way to check it. Answers a different question than the one Pete asked.',
+              title: 'Real, And The Wrong Question', desc: 'This is not junk. It is testimony, and testimony is evidence for "what was it like", not for "did federal programs work". To use it, Pete would need a name and a date, and to line it up against a record that can confirm it. Then it becomes a primary source - for a different claim.' },
+            { id: 'blog', label: "DustBowlFacts.net \u2014 'Everything They Never Told You'", hint: 'dustbowlfacts.net',
+              verdict: 'out', credible: false, family: 'blog',
+              found: 'No author anywhere. No sources. An ad between every paragraph.',
+              title: 'Nobody Wrote This', desc: 'It might even be right - but there is no way to find out, and "I could not tell it was wrong" is not the same as checking. With no author and no sources, there is nothing to follow.' },
+            { id: 'blog2', label: 'PrairieTruth blog', hint: 'prairietruth.blog',
+              verdict: 'out', credible: false, family: 'blog',
+              found: 'Its one citation is DustBowlFacts.net - the other blog on this page.',
+              title: 'One Rumour, Two Hats', desc: 'Look where it got its information: the blog Pete already looked at. Two pages agreeing are not two sources when one copied the other. That is one rumour wearing two hats.' }
         ];
 
-        let sortQueue = SORT_ITEMS.map(i => i.id);
-        let sortPos = 0;
-        let sortMissed = [];
-        let sortAnswered = false;
-        let sortRetryRound = false;
-        let firstScamCaught = null;
+        const VERDICTS = [
+            { id: 'cite',       label: 'Cite it' },
+            { id: 'notevidence', label: 'Real, but not evidence here' },
+            { id: 'out',        label: 'Leave it out' }
+        ];
 
-        const SORT_CONTENT = {
-            prize: {
-                correct: { title: "The Prize That Picked You", desc: "She never entered anything. A prize you didn\u2019t enter isn\u2019t luck, it\u2019s bait \u2014 the winning is the hook, and the claim form is the actual product." },
-                missed:  { title: "Worth A Second Look", desc: "Ask one question of any prize: when did she enter? She didn\u2019t. Nobody selects a stranger for $500. The excitement is doing a job here, and the job is stopping her from asking that question." }
-            },
-            clock: {
-                correct: { title: "The Clock That Isn\u2019t Real", desc: "That timer exists for one reason: to end the part of the conversation where she thinks. Real services don\u2019t delete accounts in twenty-three minutes. Urgency is the tell." },
-                missed:  { title: "Worth A Second Look", desc: "Look at the countdown again, and at that sender address \u2014 acc0unts-verify.net, with a zero in it. A real company gives you notice. A timer that short isn\u2019t a deadline, it\u2019s a crowbar." }
-            },
-            link: {
-                correct: { title: "The Door You Can\u2019t See Through", desc: "A shortened link hides where it goes until she\u2019s already there. From an account that isn\u2019t following her, with no context beyond \u2018you HAVE to see this\u2019 \u2014 the hiding is the whole point." },
-                missed:  { title: "Worth A Second Look", desc: "She could read exactly where Nadia\u2019s link went. She can\u2019t read where this one goes, and it\u2019s from an account she\u2019s never met. When you can\u2019t see the destination, the destination is the warning." }
-            },
-            nadia: {
-                correct:      { title: "This One Holds Up", desc: "A saved contact, a link she can read end to end, and it fits a conversation she was already having. Nothing hidden, nothing rushed." },
-                overCautious: { title: "Careful Is Good. Checking Is Better.", desc: "Look at what this one isn\u2019t doing. Nobody\u2019s rushing her. She can read exactly where that link goes. And it came from somebody already in her phone. Being suspicious isn\u2019t the skill \u2014 checking is. This one holds up." }
-            },
-            school: {
-                correct:      { title: "This One Holds Up", desc: "A readable address on the school\u2019s own domain, and it asks her for nothing at all. \u2018No action needed\u2019 is a phrase scams almost never use, because the whole point of a scam is the action." },
-                overCautious: { title: "Careful Is Good. Checking Is Better.", desc: "Read it once more \u2014 it doesn\u2019t want anything from her. No link, no login, no hurry. If flagging this one felt safe, notice the cost: treat everything as a threat and you stop being able to tell which things actually are." }
+        let srcInspected = {};
+        let srcVerdict = {};
+        let firstGoodSource = null;
+
+        window.inspectSource = (id) => {
+            if (srcInspected[id]) return;
+            const s = SOURCES.find(x => x.id === id);
+            srcInspected[id] = true;
+            const el = document.querySelector(`#src-list [data-src="${id}"]`);
+            if (el) {
+                el.classList.add('inspected');
+                el.querySelector('.src-found').textContent = s.found;
+                el.querySelector('.src-found').classList.remove('hidden');
+                el.querySelector('.src-verdicts').classList.remove('hidden');
+                el.querySelector('.src-inspect').classList.add('hidden');
             }
+            window.updateWhiteboard(s.title, s.desc, 2);
+            window.sayJodi('Alright, look at what he actually found there. Then tell me what it is good for.', 'thinking');
+            if (window.sfx) window.sfx.click();
         };
 
-        const SORT_BUBBLES = {
-            correctScam:  { text: "Mm-hmm. Caught it. Look at the board \u2014 I want you to see the exact machinery on that one.", mood: 'happy' },
-            missedScam:   { text: "Mm, let\u2019s sit with that one a second. I don\u2019t think you\u2019re careless \u2014 I think it was built not to look like anything. Come here, let me show you.", mood: 'thinking' },
-            correctLegit: { text: "Right. And notice you didn\u2019t just flag everything that moved. That matters more than you\u2019d think.", mood: 'happy' },
-            overCautious: { text: "Careful \u2014 I like that instinct, don\u2019t lose it. But come look at what this one isn\u2019t doing.", mood: 'thinking' }
+        window.setVerdict = (id, v) => {
+            if (!srcInspected[id]) return;
+            const s = SOURCES.find(x => x.id === id);
+            srcVerdict[id] = v;
+            const el = document.querySelector(`#src-list [data-src="${id}"]`);
+            if (el) {
+                el.querySelectorAll('.vbtn').forEach(btn => {
+                    btn.classList.toggle('picked', btn.dataset.v === v);
+                });
+                el.classList.toggle('in-stack', v === 'cite');
+            }
+            if (v === 'cite' && s.credible && !firstGoodSource && s.shortName) firstGoodSource = s.shortName;
+
+            if (v !== s.verdict) {
+                // Wrong verdicts teach on the spot; they never just bounce.
+                const why = {
+                    cite: 'Citing that one would put weight on something that cannot hold it. Read what he found again.',
+                    notevidence: 'That one is stronger than "not evidence" - it can carry the claim directly.',
+                    out: 'Careful - throwing that one out is too harsh. It is real; it is just answering a different question.'
+                };
+                window.updateWhiteboard('Not Quite That', why[v] || 'Have another look at what he found.', 2);
+                window.sayJodi('Mm - sit with that one a second. Look again at what he actually found.', 'thinking');
+            }
+            if (window.sfx) window.sfx.click();
+            window.evaluateStack();
         };
 
-        function currentSortItem() {
-            const id = sortQueue[sortPos];
-            return SORT_ITEMS.find(i => i.id === id);
-        }
+        window.evaluateStack = () => {
+            const cited = SOURCES.filter(s => srcVerdict[s.id] === 'cite');
+            const credible = cited.filter(s => s.credible);
+            // Independence, not headcount: two sources from one family count once.
+            const independent = new Set(credible.map(s => s.family)).size;
 
-        window.renderSortCard = () => {
-            const item = currentSortItem();
-            if (!item) return;
-            sortAnswered = false;
-            document.getElementById('sort-sender').textContent = item.sender;
-            document.getElementById('sort-text').textContent = item.text;
-            document.getElementById('sort-counter').textContent = sortRetryRound
-                ? `Second look \u2014 ${sortPos + 1} of ${sortQueue.length}`
-                : `Item ${sortPos + 1} of ${sortQueue.length}`;
-            document.getElementById('sort-choices').classList.remove('hidden');
-            document.getElementById('sort-verdict').classList.add('hidden');
-            document.getElementById('sort-next-wrap').classList.add('hidden');
-            document.getElementById('sort-next-wrap').classList.remove('flex');
-            const card = document.getElementById('sort-card');
-            card.className = 'card-shimmer rounded-2xl p-4 border-2 border-gray-200 mb-3 min-h-[110px]';
-            void card.offsetWidth; // restart the entry animation
-            window.renderSortDots();
-        };
+            const fill = document.getElementById('hold-bar-fill');
+            const label = document.getElementById('hold-label');
+            fill.style.width = `${Math.min(100, independent * 50)}%`;
+            let color = '#dc2626', text = 'Nothing yet', tone = 'text-red-600';
+            if (independent === 1) {
+                color = '#d97706'; tone = 'text-amber-600';
+                text = credible.length > 1 ? 'Two sources, one origin' : 'One source standing alone';
+            } else if (independent >= 2) { color = '#059669'; text = 'This would hold up'; tone = 'text-emerald-600'; }
+            else if (cited.length > 0) { text = 'Nothing checkable yet'; }
+            fill.style.backgroundColor = color;
+            label.textContent = text;
+            label.className = `text-[11px] font-bold ${tone}`;
 
-        window.renderSortDots = () => {
-            const dots = document.getElementById('sort-dots');
-            dots.innerHTML = '';
-            sortQueue.forEach((id, i) => {
-                const d = document.createElement('div');
-                d.className = 'sort-dot' + (i === sortPos ? ' current' : '');
-                dots.appendChild(d);
-            });
-        };
-
-        window.answerSort = (choice) => {
-            if (sortAnswered) return; // one call per card; Next moves on
-            const item = currentSortItem();
-            if (!item) return;
-            sortAnswered = true;
-            const correct = (choice === item.answer);
-
-            const card = document.getElementById('sort-card');
-            card.className = `card-shimmer rounded-2xl p-4 border-2 mb-3 min-h-[110px] ${correct ? 'border-emerald-500 bg-emerald-50' : 'border-amber-500 bg-amber-50'}`;
-
-            const verdict = document.getElementById('sort-verdict');
-            const label = document.getElementById('sort-verdict-label');
-            verdict.classList.remove('hidden');
-            label.className = `text-xs font-bold uppercase tracking-widest ${correct ? 'text-emerald-700' : 'text-amber-700'}`;
-            label.textContent = correct ? 'Called it' : 'Let\u2019s look again';
-
-            let panel, bubble;
-            const content = SORT_CONTENT[item.id];
-            if (item.answer === 'scam') {
-                if (correct) {
-                    if (!firstScamCaught) firstScamCaught = item.id;
-                    panel = content.correct; bubble = SORT_BUBBLES.correctScam;
-                } else {
-                    panel = content.missed; bubble = SORT_BUBBLES.missedScam;
-                }
-            } else {
-                if (correct) { panel = content.correct; bubble = SORT_BUBBLES.correctLegit; }
-                else { panel = content.overCautious; bubble = SORT_BUBBLES.overCautious; }
+            if (credible.length >= 2 && independent === 1) {
+                window.updateWhiteboard('Two Sources, One Origin',
+                    'Both are respectable and one is a word-for-word reprint of the other. Counting them twice counts the same claim twice. The bar needs a source that could disagree.', 2);
+                window.sayJodi('Now look - two good ones, and that bar barely moved. One of those is a reprint of the other. That is not a second opinion, that is an echo.', 'thinking');
             }
 
-            if (!correct && !sortMissed.includes(item.id)) sortMissed.push(item.id);
-
-            document.getElementById('sort-choices').classList.add('hidden');
-            const nextWrap = document.getElementById('sort-next-wrap');
-            nextWrap.classList.remove('hidden');
-            nextWrap.classList.add('flex');
-
-            window.updateWhiteboard(panel.title, panel.desc, 2);
-            window.sayJodi(bubble.text, bubble.mood);
-            if (window.sfx) { correct ? window.sfx.tick() : window.sfx.click(); }
-            if (window.lucide) window.lucide.createIcons();
-        };
-
-        window.nextSort = () => {
-            sortPos++;
-            if (sortPos < sortQueue.length) { window.renderSortCard(); return; }
-
-            if (sortMissed.length > 0) {
-                // Second pass over only the ones that got past them. The Case still gates on
-                // all five being called correctly - it just teaches instead of dead-ending.
-                sortQueue = sortMissed.slice();
-                sortMissed = [];
-                sortPos = 0;
-                sortRetryRound = true;
-                window.sayJodi("Alright \u2014 let\u2019s take another run at the ones that slipped by. Now that you know what they were doing, see if they still look the same.", 'neutral');
-                window.renderSortCard();
-                return;
-            }
-
-            window.finishCase2();
+            const done = SOURCES.every(s => srcVerdict[s.id] === s.verdict);
+            document.getElementById('src-progress').textContent =
+                `${SOURCES.filter(s => srcVerdict[s.id]).length} of ${SOURCES.length} judged`;
+            if (done) window.finishCase2();
         };
 
         window.finishCase2 = () => {
-            document.getElementById('sort-choices').classList.add('hidden');
-            document.getElementById('sort-next-wrap').classList.add('hidden');
-            document.getElementById('sort-next-wrap').classList.remove('flex');
-            document.getElementById('sort-counter').textContent = 'All five called';
-            document.getElementById('sort-card').className = 'card-shimmer rounded-2xl p-4 border-2 border-emerald-500 bg-emerald-50 mb-3 min-h-[110px]';
-            document.getElementById('sort-sender').textContent = '';
-            document.getElementById('sort-text').textContent = 'Three scams, two real messages, all five called correctly.';
-            if (!pageCompletion[1]) {
-                window.updateWhiteboard(
-                    "Same Trick, Three Costumes",
-                    "One promised her something. One rushed her. One hid where it was going. Every one of them needed her to move before she looked. That\u2019s the con \u2014 not the prize, not the timer, not the link. The hurry.",
-                    2
-                );
-                window.sayJodi("Look at that. Now \u2014 I want you to notice something about the three you tossed. One promised her something. One rushed her. One hid where it was going. Different costumes, same trick: every last one of them needed her to move before she looked. That\u2019s the whole con. Not the prize, not the timer, not the link \u2014 the hurry.", 'happy');
-                window.markReady(1);
-            }
+            if (pageCompletion[1]) return;
+            window.updateWhiteboard('Two That Do Not Talk To Each Other',
+                'The bar was never a number of sources. It is whether they would know independently - and whether each one answers the question actually being asked.', 2);
+            window.sayJodi('There it is. And notice what you did with the middle two - you did not throw them in the bin. A family story and a reprint are both real; they just are not evidence for this. That is the part most folks get wrong in the other direction. What Pete needed was two that do not get their information from each other.', 'happy');
+            window.markReady(1);
+        };
+
+        window.resetCase2 = () => {
+            srcInspected = {}; srcVerdict = {}; firstGoodSource = null;
+            initCase2();
+            window.evaluateStack();
+            window.sayJodi('Fresh start. Look at each one before you judge it.', 'neutral');
+            if (window.sfx) window.sfx.click();
         };
 
         function initCase2() {
-            window.renderSortCard();
-        }
-
-        /* ===================== CASE 3: THE PERMISSION CALIBRATION =====================
-           Judgment call: not "is this permission bad" but "does this permission match what
-           this app actually does". Five individual proportionality calls, each measured
-           against one stated purpose - deliberately including one that IS justified, so the
-           exercise can't be passed by reflexively denying everything. */
-
-        let permState = { camera: true, flashlight: true, contacts: true, location: true, microphone: true };
-
-        const PERM_CONTENT = {
-            camera: {
-                title: "The Excuse That Sounds Technical",
-                desc: "FlashLite says it needs the camera to run the flash. It doesn't. Both Android and iOS expose a torch control that works without camera access. This is a real excuse used by real flashlight apps, and what it actually buys them is a live camera feed.",
-                bubble: "Now this is the sneaky one. It sounds technical enough that most folks just nod. Look at the board."
-            },
-            flashlight: {
-                title: "This One It Actually Needs",
-                desc: "This is the app doing its job. Deny this and you've got an app that can't turn on a light — which is the whole app. Not every request is an overreach, and treating them all the same is its own kind of mistake.",
-                bubble: "Careful now — that's the one thing it genuinely needs. Turn that off and you've just got a very rude icon."
-            },
-            contacts: {
-                title: "The List Is The Product",
-                desc: "Her contact list is every name, number and email of everyone she knows — none of whom agreed to anything. It's the single most resold item on this screen, and 'to help you share with friends' is the oldest wrapper it comes in.",
-                bubble: "Notice she'd be handing over everybody else's information too. Nobody asked them."
-            },
-            location: {
-                title: "Always Means Always",
-                desc: "'Always' isn't a snapshot, it's a subscription. Logged over weeks it draws where she sleeps, where she studies, and what she does on a Saturday — from an app whose entire function is a light that doesn't move.",
-                bubble: "'To improve your local experience.' A flashlight. Improve it how, exactly?"
-            },
-            microphone: {
-                title: "No Job Requires This",
-                desc: "There's no version of turning on a light that needs to hear the room. When a permission has no possible connection to the stated purpose, you don't need to work out what it's for — the mismatch is the answer.",
-                bubble: "Voice-activated lighting. Mm. And she'd be handing over a live microphone for it."
-            }
-        };
-
-        window.togglePerm = (perm, btn) => {
-            permState[perm] = !permState[perm];
-            btn.classList.toggle('on', permState[perm]);
-            const content = PERM_CONTENT[perm];
-            window.updateWhiteboard(content.title, content.desc, 3);
-            window.sayJodi(content.bubble, 'thinking');
-            if (window.sfx) window.sfx.click();
-            window.checkCase3Complete();
-        };
-
-        window.checkCase3Complete = () => {
-            const done = permState.flashlight && !permState.camera && !permState.contacts && !permState.location && !permState.microphone;
-            if (done && !pageCompletion[2]) {
-                window.updateWhiteboard(
-                    "Proportionality, Not Suspicion",
-                    "She didn't shut it all off — she left the one thing the app needed to do its job. The question was never whether the app is shady. It's whether what it asks for matches what it's for.",
-                    3
-                );
-                window.sayJodi("There it is. And notice what you didn't do — you didn't shut it all off. You left the one thing it actually needed to do its job. That's the part folks miss. The question was never 'is this app shady.' It's 'does what it's asking for match what it's for.' A flashlight needs a light. It does not need to know where she is, who she knows, or what she sounds like.", 'happy');
-                window.markReady(2);
-            }
-        };
-
-        function initCase3() {
-            document.querySelectorAll('#perm-list .perm-row').forEach(row => {
-                const perm = row.dataset.perm;
-                const btn = row.querySelector('.perm-switch');
-                btn.addEventListener('click', () => window.togglePerm(perm, btn));
+            const list = document.getElementById('src-list');
+            list.innerHTML = '';
+            SOURCES.forEach(s => {
+                const d = document.createElement('div');
+                d.className = 'src-card card-shimmer rounded-xl p-3 border-2 border-gray-200';
+                d.dataset.src = s.id;
+                d.innerHTML = `
+                    <p class="text-sm font-bold text-gray-900 leading-snug">${s.label}</p>
+                    <p class="text-[11px] text-gray-400 font-mono mt-0.5">${s.hint}</p>
+                    <button class="src-inspect mt-2 text-[11px] font-bold uppercase tracking-widest text-gb-accent hover:text-gb-accent-dark">Look at it &rarr;</button>
+                    <p class="src-found hidden text-[11px] text-gray-700 mt-2 pt-2 border-t border-gb-accent/20 italic"></p>
+                    <div class="src-verdicts hidden flex flex-wrap gap-1.5 mt-2">
+                        ${VERDICTS.map(v => `<button class="vbtn text-[10px] font-bold uppercase tracking-wide border-2 border-gray-200 rounded-lg px-2 py-1.5 text-gray-600" data-v="${v.id}">${v.label}</button>`).join('')}
+                    </div>`;
+                d.querySelector('.src-inspect').addEventListener('click', (e) => { e.stopPropagation(); window.inspectSource(s.id); });
+                d.querySelectorAll('.vbtn').forEach(btn => {
+                    btn.addEventListener('click', (e) => { e.stopPropagation(); window.setVerdict(s.id, btn.dataset.v); });
+                });
+                list.appendChild(d);
             });
         }
 
-        /* ===================== CASE 4: THE PASSWORD PRESSURE TEST =====================
-           Judgment call: believing a "clever" password is strong, versus understanding what
-           actually makes one hard to guess. Live typing with an instant quantified consequence
-           - the one interaction here that had to be direct manipulation, because the concept
-           is fundamentally about a measurable quantity. */
+        /* ===================== CASE 3: THE CREDIT TRAIL =====================
+           Judgment call: "I found it online" is not "it's free", and finding the real origin
+           takes effort almost everyone skips. Mechanic is a BACKWARD TRACE - unlike anything
+           built - and it practises the actual behaviour: most people stop at the first place
+           they saw a thing. */
 
-        const GUESSES_PER_SECOND = 1e10; // offline attack against a fast hash
-        const LEET_MAP = { '@': 'a', '4': 'a', '0': 'o', '3': 'e', '1': 'l', '!': 'i', '$': 's', '5': 's', '7': 't', '8': 'b' };
-        const COMMON_WORDS = ['password', 'priya', 'qwerty', 'letmein', 'dragon', 'monkey', 'football', 'baseball',
-            'iloveyou', 'welcome', 'sunshine', 'princess', 'troubador', 'troubadour', 'superman', 'batman',
-            'shadow', 'master', 'admin', 'login', 'abcdef', 'flashlight'];
+        const HOPS = [
+            { handle: '@DailyArtVibes', meta: '2.1M followers · posted Nov 3',
+              watermark: '', evidence: "No credit anywhere in the caption. 2.1 million followers, and the post just says “incredible work” with no name attached.",
+              title: "Where He Found It", desc: "Big accounts repost constantly. Follower count tells you how far something travelled - never where it started." },
+            { handle: '@art.reposts.daily', meta: '400K followers · posted Oct 28',
+              watermark: '', evidence: "Posted six days earlier than the one before it. There’s a faint edge along the bottom where something was cropped off.",
+              title: "Earlier, And Cropped", desc: "The date moved backwards, which means this isn't the origin either. And something used to be along that bottom edge - a crop is usually where a signature went." },
+            { handle: '@moodboard_1997', meta: '12K followers · posted Oct 22',
+              watermark: 'r.oke', evidence: "Screenshot of a screenshot — you can see the compression. Part of a watermark survived in the corner: “r.oke”.",
+              title: "A Watermark, Half Alive", desc: "Each repost degrades the image a little more. That fragment in the corner is the artist's name surviving three rounds of screenshotting. Nearly there." },
+            { handle: '@r.oke.draws', meta: '1,840 followers · posted Oct 19 · original file',
+              watermark: 'r.oke', evidence: "Full resolution, complete watermark, and a caption describing how she made it. Posted before every other version.",
+              title: "The Actual Artist", desc: "Earliest date, highest resolution, complete watermark, and she talks about making it. Four hops back from where Pete started - and she has 1,840 followers to the first account's two million.", origin: true }
+        ];
 
-        function normalizeLeet(s) {
-            let subs = 0;
-            let out = '';
-            for (const ch of s.toLowerCase()) {
-                if (LEET_MAP[ch]) { out += LEET_MAP[ch]; subs++; }
-                else out += ch;
-            }
-            return { text: out, subs };
-        }
+        let hopIndex = 0;
+        let hopReachedOrigin = false;
 
-        function estimateEntropy(pw) {
-            if (!pw) return { bits: 0, note: '' };
+        window.renderHop = () => {
+            const h = HOPS[hopIndex];
+            document.getElementById('hop-handle').textContent = h.handle;
+            document.getElementById('hop-meta').textContent = h.meta;
+            document.getElementById('hop-watermark').textContent = h.watermark || '';
+            document.getElementById('hop-evidence').textContent = h.evidence;
+            document.getElementById('hop-counter').textContent = hopIndex === 0
+                ? 'Where he found it' : `${hopIndex} click${hopIndex > 1 ? 's' : ''} back`;
+            const card = document.getElementById('hop-card');
+            card.classList.remove('hop-frame'); void card.offsetWidth; card.classList.add('hop-frame');
+            document.getElementById('hop-back').classList.toggle('hidden', hopIndex >= HOPS.length - 1);
+            const dots = document.getElementById('hop-dots');
+            dots.innerHTML = '';
+            HOPS.forEach((_, i) => {
+                const d = document.createElement('div');
+                d.className = 'hop-dot' + (i < hopIndex ? ' visited' : '') + (i === HOPS.length - 1 && hopReachedOrigin ? ' origin' : '');
+                dots.appendChild(d);
+            });
+            window.updateWhiteboard(h.title, h.desc, 3);
+        };
 
-            // A passphrase of real words is measured by WORD count, not character count -
-            // measuring it per-character would flatter it dishonestly and break the lesson.
-            const tokens = pw.trim().split(/[\s\-_.]+/).filter(t => t.length > 0);
-            const isPassphrase = tokens.length >= 3 && tokens.every(t => /^[a-zA-Z]{3,}$/.test(t));
-            if (isPassphrase) {
-                const bits = tokens.length * Math.log2(20000);
-                return {
-                    bits,
-                    // Four random words is genuinely NOT enough against a fast offline hash.
-                    // Saying otherwise here would teach a comfortable falsehood, so the note
-                    // changes with the actual number rather than praising any passphrase.
-                    note: bits >= 66
-                        ? `${tokens.length} unrelated words. Length is doing the work here, not cleverness.`
-                        : `${tokens.length} unrelated words — better, but still short. Watch what one more word does.`
-                };
-            }
+        window.hopBack = () => {
+            if (hopIndex >= HOPS.length - 1) return;
+            hopIndex++;
+            if (hopIndex === HOPS.length - 1) hopReachedOrigin = true;
+            window.renderHop();
+            window.sayJodi(hopIndex === HOPS.length - 1
+                ? "Well now. Full resolution, whole watermark, and she's talking about making it. That's her."
+                : "Mm — earlier date than the last one. So that account didn't make it either. Keep going.",
+                hopIndex === HOPS.length - 1 ? 'happy' : 'thinking');
+            if (window.sfx) window.sfx.click();
+        };
 
-            let charset = 0;
-            if (/[a-z]/.test(pw)) charset += 26;
-            if (/[A-Z]/.test(pw)) charset += 26;
-            if (/[0-9]/.test(pw)) charset += 10;
-            if (/[^a-zA-Z0-9]/.test(pw)) charset += 33;
-            let bits = pw.length * Math.log2(Math.max(charset, 2));
-            let note = '';
-
-            const norm = normalizeLeet(pw);
-            const hit = COMMON_WORDS.find(w => norm.text.includes(w));
-            if (hit) {
-                // A guessing tool tries dictionary words WITH their obvious substitutions first,
-                // so swapping a for @ buys roughly one bit, not a whole new alphabet.
-                const extra = Math.max(0, pw.length - hit.length);
-                bits = Math.min(bits, 8 + 2 * norm.subs + 3 * extra);
-                note = norm.subs > 0
-                    ? `Built on "${hit}" with symbol swaps. Guessing tools try those swaps first — they're the first thing tried, not the last.`
-                    : `Built on "${hit}", which sits near the top of every guessing list.`;
-            } else if (pw.length < 10) {
-                note = 'Short. Length matters more than any single trick.';
-            }
-            return { bits, note };
-        }
-
-        function formatCrackTime(seconds) {
-            if (seconds < 1) return 'Instantly';
-            const units = [
-                [60, 'seconds'], [60, 'minutes'], [24, 'hours'], [365, 'days'], [1000, 'years']
-            ];
-            let v = seconds, labels = ['seconds', 'minutes', 'hours', 'days', 'years'], i = 0;
-            const divisors = [60, 60, 24, 365, 1000];
-            while (i < divisors.length - 1 && v >= divisors[i]) { v = v / divisors[i]; i++; }
-            if (i === divisors.length - 1 && v >= 1000) {
-                const millennia = v / 1000;
-                if (millennia > 1e9) return 'Longer than the universe has existed';
-                return `${Math.round(millennia).toLocaleString()} thousand years`;
-            }
-            const rounded = v < 10 ? Math.round(v * 10) / 10 : Math.round(v);
-            return `${rounded.toLocaleString()} ${labels[i]}`;
-        }
-
-        window.evaluatePassword = () => {
-            const pw = document.getElementById('pw-input').value;
-            const timeEl = document.getElementById('pw-time');
-            const noteEl = document.getElementById('pw-note');
-            const fill = document.getElementById('pw-meter-fill');
-            const iconWrap = document.getElementById('pw-icon-wrap');
-
-            if (!pw) {
-                timeEl.textContent = '—';
-                noteEl.textContent = '';
-                fill.style.width = '0%';
-                fill.style.backgroundColor = '#dc2626';
+        window.hopStop = () => {
+            if (hopIndex < HOPS.length - 1) {
+                // Stopping early is corrected by evidence, not by being told "wrong".
+                const next = HOPS[hopIndex + 1];
+                window.updateWhiteboard("Check The Date Behind It",
+                    `Look one click further back: ${next.handle} posted it earlier. If somebody else had it before them, they didn't make it. This is exactly where most people stop.`, 3);
+                window.sayJodi("Mm, hold on. Click back one more and look at the date — somebody had it before them. That's the spot where most folks quit looking.", 'thinking');
+                if (window.sfx) window.sfx.click();
                 return;
             }
-
-            const { bits, note } = estimateEntropy(pw);
-            const seconds = Math.pow(2, bits) / 2 / GUESSES_PER_SECOND;
-            timeEl.textContent = formatCrackTime(seconds);
-            noteEl.textContent = note;
-
-            const pct = Math.min(100, (bits / 80) * 100);
-            fill.style.width = `${pct}%`;
-            let color = '#dc2626';
-            if (bits >= 66) color = '#059669';
-            else if (bits >= 50) color = '#d97706';
-            else if (bits >= 30) color = '#ea580c';
-            fill.style.backgroundColor = color;
-
-            const strong = bits >= 66;
-            iconWrap.innerHTML = `<i data-lucide="${strong ? 'lock' : 'circle-alert'}" class="w-5 h-5 ${strong ? 'text-emerald-600' : 'text-red-500'}"></i>`;
-            if (window.lucide) window.lucide.createIcons();
-
-            window.checkCase4Complete(bits);
+            document.getElementById('hop-actions').classList.add('hidden');
+            document.getElementById('attrib-zone').classList.remove('hidden');
+            window.sayJodi("Alright — that's her. Now: how does he use it?", 'neutral');
         };
 
-        window.checkCase4Complete = (bits) => {
-            // ~66 bits is roughly a century of offline guessing at the rate modelled above.
-            if (bits >= 66 && !pageCompletion[3]) {
-                window.updateWhiteboard(
-                    "Length Beats Cleverness",
-                    "Symbol substitution feels clever because it's hard for a person to read. It isn't hard for a machine to guess — those swaps are the first thing tried. Four or five unrelated words are easier to remember AND enormously harder to crack.",
-                    4
-                );
-                window.sayJodi("There we go. And here's the part that stings a little: the one that felt clever was the weakest thing on the list. Swapping an A for an @ doesn't fool a machine — that's the first thing it tries. What actually beats it is boring old length. A passphrase you can remember, that nobody would ever put together.", 'happy');
-                window.markReady(3);
+        window.chooseAttrib = (kind) => {
+            if (kind === 'none') {
+                window.updateWhiteboard("Found Isn't Free",
+                    "Being easy to find is not the same as being free to use. She drew it; whether it's convenient doesn't enter into it.", 3);
+                window.sayJodi("Mm. It being easy to find doesn't make it his. She sat down and drew that.", 'thinking');
+                return;
             }
-        };
-
-        function initCase4() {
-            const input = document.getElementById('pw-input');
-            input.addEventListener('input', window.evaluatePassword);
-            document.querySelectorAll('.pw-preset').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    input.value = btn.dataset.pw;
-                    window.evaluatePassword();
-                    if (window.sfx) window.sfx.click();
-                });
-            });
-        }
-
-        /* ===================== CASE 5: THE DM REDIRECT =====================
-           Judgment call: NOT "should she reply" - a two-button choice where one button is
-           obviously safe answers itself. The real skill is naming exactly what a friendly
-           message is reaching for, so the checklist offers six candidates and only three are
-           actually in the message. Blocking is the natural consequence, not the graded step. */
-
-        let fishState = {};
-
-        const FISH_CONTENT = {
-            school: { title: "Where She Can Be Found", desc: "\"do u go to westfield or the other one\" — phrased like small talk, but it narrows her to one building, five days a week, at predictable times." },
-            alone: { title: "Whether Anyone Would Notice", desc: "\"is ur mom n them around lol\" — the 'lol' is doing a lot of work. This is a question about supervision, and there is no friendly reason for a stranger to need the answer." },
-            where: { title: "Where She Is Right Now", desc: "\"where u at rn\" — not where she lives, which would sound alarming. Where she is this minute, which sounds casual and is worth more." },
-            wrong: { title: "Read It Once More", desc: "That one isn't actually in the message. The skill here is naming exactly what's being asked, not everything that could have been — because if you flag everything, you can't tell anyone which part was the dangerous bit." }
-        };
-
-        window.toggleFish = (el) => {
-            const id = el.dataset.fish;
-            const isCorrect = el.dataset.correct === 'yes';
-            fishState[id] = !fishState[id];
-
-            const box = el.querySelector('.fish-box');
-            el.classList.remove('checked-correct', 'checked-wrong');
-            box.innerHTML = '';
-            if (fishState[id]) {
-                el.classList.add(isCorrect ? 'checked-correct' : 'checked-wrong');
-                box.innerHTML = isCorrect
-                    ? '<i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>'
-                    : '<i data-lucide="circle-alert" class="w-4 h-4 text-amber-600"></i>';
-                const content = isCorrect ? FISH_CONTENT[id] : FISH_CONTENT.wrong;
-                window.updateWhiteboard(content.title, content.desc, 5);
-                window.sayJodi(isCorrect
-                    ? "That's one. Read it back and you'll hear it — it's asking, it's just asking sweetly."
-                    : "Mm, go back and read it again. That one's not in there. I know it feels safer to flag everything, but naming it exactly is the skill.",
-                    isCorrect ? 'thinking' : 'neutral');
-                if (window.sfx) window.sfx.click();
+            if (kind === 'vague') {
+                window.updateWhiteboard("A Shrug With A Bow On It",
+                    "“Credit to the creator” credits nobody. You just spent four clicks learning her actual handle - the whole point was to be able to name her.", 3);
+                window.sayJodi("'Credit to the creator.' Now who is that, exactly? You just did four clicks of work to learn her name — use it.", 'thinking');
+                return;
             }
-            if (window.lucide) window.lucide.createIcons();
-            window.checkCase5Complete();
-        };
-
-        window.checkCase5Complete = () => {
-            const items = document.querySelectorAll('#fish-list .fish-item');
-            let ok = true;
-            items.forEach(el => {
-                const shouldBe = el.dataset.correct === 'yes';
-                if (!!fishState[el.dataset.fish] !== shouldBe) ok = false;
-            });
-            if (ok && !pageCompletion[4]) {
-                window.updateWhiteboard(
-                    "Not A Conversation. A Checklist.",
-                    "Three questions, all friendly, and not one of them about her. Where she goes, where she is, and who's home. Together they're not curiosity — they're a form somebody else is filling out.",
-                    5
-                );
-                window.sayJodi("Mhm. Three questions, real friendly, and not one of them was actually about her — they were about where she goes, where she is, and who's home. That's not a conversation. That's a checklist somebody else is filling out. And now that you can see it for what it is, you know exactly what to do with it.", 'happy');
-                document.getElementById('block-zone').classList.remove('hidden');
-                if (window.lucide) window.lucide.createIcons();
-                window.markReady(4);
-            }
-        };
-
-        window.blockAccount = () => {
-            document.getElementById('block-btn').classList.add('opacity-50', 'pointer-events-none');
-            document.getElementById('block-done').classList.remove('hidden');
-            window.sayJodi("Good. And she never had to be rude about it — she just didn't answer a single question. That's the whole move.", 'happy');
+            document.getElementById('attrib-zone').classList.add('hidden');
+            window.updateWhiteboard("Four Hops Back",
+                "Named, linked, and asked. That's the whole obligation - and it took four clicks, which is roughly four clicks more than almost anyone does.", 3);
+            window.sayJodi("Four hops. That's what it took. And every single person in that chain figured somebody else had already done the checking. That's how a thing ends up everywhere with nobody's name on it — not malice, just four people in a row who didn't click back once.", 'happy');
+            window.markReady(2);
             if (window.sfx) window.sfx.success();
         };
 
-        function initCase5() {
-            document.querySelectorAll('#fish-list .fish-item').forEach(el => {
-                el.addEventListener('click', () => window.toggleFish(el));
+        window.resetCase3 = () => {
+            hopIndex = 0; hopReachedOrigin = false;
+            document.getElementById('hop-actions').classList.remove('hidden');
+            document.getElementById('attrib-zone').classList.add('hidden');
+            window.renderHop();
+            window.sayJodi('Back to where he found it. Follow it again.', 'neutral');
+            if (window.sfx) window.sfx.click();
+        };
+
+        function initCase3() { window.renderHop(); }
+
+        /* ===================== CASE 4: THE ONE YOU'VE NEVER HEARD OF =====================
+           Judgment call: not "should I check" but "what would actually settle this?" The
+           three-check limit is the mechanic - it forces ranking instead of exhaustive
+           clicking, and it exposes that two of the options feel reassuring and prove nothing. */
+
+        const CHECKS = [
+            { id: 'register', label: 'Look it up in the charity register', decisive: true,
+              result: "No registration on file under that name, in any state.",
+              title: "Ask Whose Job It Is", desc: "A charity register exists precisely so nobody has to take a stranger's word for it. This is the check that actually settles the question - and it takes about forty seconds." },
+            { id: 'searchscam', label: 'Search the name plus the word "scam"', decisive: true,
+              result: "Three posts from last month, different cities, same photos, different charity name each time.",
+              title: "The Same Photos, New Name", desc: "The dogs in those pictures are real dogs - they're just somebody else's, reused with a new name in each city. Searching a name against the word 'scam' costs ten seconds." },
+            { id: 'age', label: "Check when the account was created", decisive: true,
+              result: "Created 19 days ago. 4,102 followers, almost all in the last week.",
+              title: "Nineteen Days Old", desc: "A rescue that's been saving dogs for years doesn't have a nineteen-day-old account with a follower spike. Account age is public, and it's one tap." },
+            { id: 'shares', label: 'See who else has shared it', decisive: false,
+              result: "Forty-one shares. You recognise six of the names.",
+              title: "Popular Isn't Verified", desc: "Forty-one people sharing something means forty-one people trusted it - most of them because somebody they knew shared it first. That's how a thing spreads, not how it gets checked." },
+            { id: 'about', label: 'Read their About page', decisive: false,
+              result: "Warm, well-written, a mission statement and three testimonials.",
+              title: "Anyone Can Write That", desc: "The About page is written by the same people asking for the money. A convincing story is the cheapest thing on this list to produce." },
+            { id: 'friend', label: 'Ask Della if it\'s real', decisive: false,
+              result: "“omg yes my cousin donated!! it’s legit”",
+              title: "She's The One Who Got Fooled", desc: "Della is downstream of the same post. Asking her feels like verifying and is actually just asking the question again, one person over." },
+            { id: 'logo', label: 'See whether the logo looks professional', decisive: false,
+              result: "Clean, modern, looks like any real nonprofit's.",
+              title: "Nine Dollars", desc: "A professional-looking logo costs about nine dollars and twenty minutes. Design quality has never been evidence of anything, and scams know that better than anyone." }
+        ];
+
+        let checksUsed = [];
+        // Starts at 3. If all three are spent on checks that settle nothing, Pete gets one
+        // more rather than the student hitting a dead end with no way to finish the Case -
+        // the extra check IS the lesson landing, not a consolation prize.
+        let checkLimit = 3;
+
+        window.runCheck = (id) => {
+            if (checksUsed.includes(id) || checksUsed.length >= checkLimit) return;
+            const c = CHECKS.find(x => x.id === id);
+            checksUsed.push(id);
+
+            const el = document.querySelector(`#check-list [data-check="${id}"]`);
+            if (el) {
+                el.classList.add('used');
+                const r = document.createElement('p');
+                r.className = 'text-[11px] text-gray-700 mt-1.5 pt-1.5 border-t border-gb-accent/20 italic';
+                r.textContent = c.result;
+                el.appendChild(r);
+            }
+            document.getElementById('checks-left').textContent = `${checkLimit - checksUsed.length} left`;
+            window.updateWhiteboard(c.title, c.desc, 4);
+            window.sayJodi(c.decisive
+                ? "Now that one actually told you something. Look at the board."
+                : "Mm. Feels like checking, doesn't it? Look at what it actually proved.",
+                'thinking');
+            if (window.sfx) window.sfx.click();
+
+            if (checksUsed.length >= checkLimit) {
+                document.querySelectorAll('#check-list .check-opt:not(.used)').forEach(n => n.classList.add('spent'));
+                document.getElementById('share-zone').classList.remove('hidden');
+            }
+        };
+
+        window.decideShare = (share) => {
+            const decisive = checksUsed.filter(id => CHECKS.find(c => c.id === id).decisive).length;
+            if (share) {
+                window.updateWhiteboard("Sharing Is Vouching",
+                    "Passing it on puts Pete's name behind it. Everyone who sees it now trusts it partly because he did - which is exactly how it reached him.", 4);
+                window.sayJodi("Mm. When he shares it, he's not just passing it along — he's lending it his name. That's how it got to him in the first place.", 'thinking');
+                return;
+            }
+            if (decisive === 0) {
+                window.updateWhiteboard("Right Answer, No Evidence",
+                    "Not sharing was correct - but none of those checks actually established anything. Being right by instinct doesn't transfer to the next post, because there's nothing to carry over. Here's one more check - spend it on something that could settle it.", 4);
+                window.sayJodi("You landed right, but look at what you leaned on. None of those three actually settled it — a hunch won't travel to the next one. Go on, I'll give you one more. Spend it on something that could actually answer the question.", 'thinking');
+                // Reopen the board with one extra check so this can't dead-end.
+                checkLimit = checksUsed.length + 1;
+                document.getElementById('checks-left').textContent = '1 left';
+                document.getElementById('share-zone').classList.add('hidden');
+                document.querySelectorAll('#check-list .check-opt:not(.used)').forEach(n => n.classList.remove('spent'));
+                return;
+            }
+            window.updateWhiteboard("Ask The People Whose Job It Is",
+                "The decisive checks all had one thing in common: they asked something outside the post. The register, the search, the account age. The reassuring ones all asked the post about itself.", 4);
+            window.sayJodi("And look which ones actually told you anything. Not the logo — anybody can buy a nice logo for nine dollars. Not asking Della; she's the one who got fooled. The register told you, because the register is somebody whose whole job is knowing. Ask the person whose job it is.", 'happy');
+            window.markReady(3);
+        };
+
+        window.resetCase4 = () => {
+            checksUsed = []; checkLimit = 3;
+            document.getElementById('checks-left').textContent = '3 left';
+            document.getElementById('share-zone').classList.add('hidden');
+            initCase4();
+            window.sayJodi('Three checks again. Pick the ones that could actually settle it.', 'neutral');
+            if (window.sfx) window.sfx.click();
+        };
+
+        function initCase4() {
+            const list = document.getElementById('check-list');
+            list.innerHTML = '';
+            CHECKS.forEach(c => {
+                const d = document.createElement('div');
+                d.className = 'check-opt card-shimmer rounded-xl p-3 border-2 border-gray-200';
+                d.dataset.check = c.id;
+                d.innerHTML = `<p class="text-sm text-gray-800">${c.label}</p>`;
+                d.addEventListener('click', () => window.runCheck(c.id));
+                list.appendChild(d);
             });
+        }
+
+        /* ===================== CASE 5: THE ONE YOU KNOW IS FAKE =====================
+           Judgment call: he already knows. What does he owe his friend, and what does he owe
+           the strangers who might donate before it comes down?
+           DELIBERATELY NOT a private-vs-public choice - Social Intelligence already teaches
+           that, and repeating it here would be a reskin. The private message is treated as
+           settled; the real question is what ELSE and in what ORDER. The distinct pressure is
+           third parties: waiting has a cost that isn't Pete's to bear. */
+
+        const ACTIONS = [
+            { id: 'dm',     label: 'Message Della privately', good: true },
+            { id: 'report', label: 'Report the post to the platform', good: true },
+            { id: 'public', label: 'Comment publicly that it\'s a scam', good: false },
+            { id: 'group',  label: 'Warn the group chat', good: false },
+            { id: 'wait',   label: 'Wait and see if anyone else says something', good: false }
+        ];
+
+        let actSeq = [];
+        let spreadTimer = null;
+        let spreadCount = 41;
+
+        window.toggleAction = (id) => {
+            const i = actSeq.indexOf(id);
+            if (i >= 0) actSeq.splice(i, 1); else actSeq.push(id);
+            window.renderActions();
+            if (window.sfx) window.sfx.click();
+        };
+
+        window.renderActions = () => {
+            ACTIONS.forEach(a => {
+                const el = document.querySelector(`#act-list [data-act="${a.id}"]`);
+                if (!el) return;
+                const pos = actSeq.indexOf(a.id);
+                el.classList.toggle('chosen', pos >= 0);
+                const badge = el.querySelector('.act-seq');
+                if (pos >= 0) { badge.textContent = pos + 1; badge.classList.remove('hidden'); badge.classList.add('flex'); }
+                else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
+            });
+            document.getElementById('act-lock').disabled = actSeq.length === 0;
+        };
+
+        window.clearActions = () => {
+            actSeq = [];
+            document.getElementById('act-lock').disabled = true;
+            window.renderActions();
+            if (window.sfx) window.sfx.click();
+        };
+
+        window.lockActions = () => {
+            if (!actSeq.length) return;
+            const hasDM = actSeq.includes('dm');
+            const hasReport = actSeq.includes('report');
+            const hasPublic = actSeq.includes('public');
+            const waited = actSeq.includes('wait');
+
+            if (hasPublic) {
+                window.updateWhiteboard("A Comment Is Fuel",
+                    "Commenting pushes the post back up the feed. More people see it, and Della gets corrected in front of all of them. It's the one action that makes both problems worse.", 5);
+                window.sayJodi("Mm — a public comment bumps that post right back up the feed. More eyes on it, not fewer. And Della gets corrected in front of every one of them.", 'thinking');
+                return;
+            }
+            if (waited && !hasReport) {
+                window.updateWhiteboard("Waiting Has A Price",
+                    "Every hour it stays up, more strangers see it. Waiting isn't neutral here - it just moves the cost onto people who'll never know Pete had the chance to stop it.", 5);
+                window.sayJodi("Waiting costs somebody. Not him — that's the part that makes it easy to do.", 'thinking');
+                return;
+            }
+            if (!hasDM || !hasReport) {
+                window.updateWhiteboard("One Of These Isn't Enough",
+                    hasDM
+                      ? "Telling Della protects Della. It doesn't take the post down, and it doesn't reach the people already scrolling past it."
+                      : "Reporting takes the post down. It also means Della finds out from a notification instead of from her friend.", 5);
+                window.sayJodi(hasDM
+                    ? "Telling her is right. But that post is still sitting there for everybody else."
+                    : "Reporting it works. But then she hears it from a notification instead of from you.", 'thinking');
+                return;
+            }
+            if (spreadTimer) { clearInterval(spreadTimer); spreadTimer = null; }
+            const dmFirst = actSeq.indexOf('dm') < actSeq.indexOf('report');
+            window.updateWhiteboard("Both. And The Order Is The Point.",
+                dmFirst
+                  ? "Telling her first means she takes it down herself and hears it from a friend. Reporting after covers the strangers. That's both duties, in the order that costs least."
+                  : "Reporting first is defensible - it stops the spread soonest. The trade is that Della learns it from the platform rather than from you.", 5);
+            window.sayJodi("Both. That's the answer — and it's the ordering that people miss. Telling her protects her. Reporting it protects everybody scrolling past it at two in the morning who's never going to know your name. You don't have to pick which one of those matters.", 'happy');
+            window.markReady(4);
+        };
+
+        function initCase5() {
+            const list = document.getElementById('act-list');
+            list.innerHTML = '';
+            ACTIONS.forEach(a => {
+                const d = document.createElement('div');
+                d.className = 'act-opt card-shimmer rounded-xl p-3 border-2 border-gray-200 flex items-center gap-3';
+                d.dataset.act = a.id;
+                d.innerHTML = `<span class="act-seq hidden shrink-0"></span><p class="text-sm text-gray-800">${a.label}</p>`;
+                d.addEventListener('click', () => window.toggleAction(a.id));
+                list.appendChild(d);
+            });
+            window.renderActions();
+        }
+
+        /* ===================== CASE 6: THE TOXIC LOBBY =====================
+           Judgment call: engaging feeds it - but the answer is not passivity, it's tools most
+           people never touch. Success is measured by USING the tools, not by withholding:
+           "success = do nothing" is indistinguishable from a kid who put the phone down, and
+           reads as a gotcha. Replying is permitted and has a real consequence.
+           CONTENT NOTE: the abuse is IMPLIED, never written. Escalation is conveyed through
+           volume, speed, caps and reactions - not slurs or specific insults. This is for kids;
+           the feeling is the teaching content, not the words. */
+
+        const LOBBY_LINES = [
+            { who: 'RIPTIDE_92', text: 'lol what was that', heat: 1 },
+            { who: 'RIPTIDE_92', text: 'seriously? you again', heat: 1 },
+            { who: 'RIPTIDE_92', text: 'this guy is USELESS', heat: 2 },
+            { who: 'RIPTIDE_92', text: '[message hidden — reported language]', heat: 3 },
+            { who: 'RIPTIDE_92', text: 'SAY SOMETHING THEN', heat: 3 },
+            { who: 'RIPTIDE_92', text: '[message hidden — reported language]', heat: 4 }
+        ];
+
+        let lobbyIdx = 0, lobbyTimer = null, lobbyReplies = 0, lobbyTools = {}, lobbyMuted = false;
+
+        function lobbyPush(who, text, mine) {
+            const feed = document.getElementById('lobby-feed');
+            const d = document.createElement('div');
+            d.className = 'lobby-msg text-xs leading-relaxed';
+            d.innerHTML = mine
+                ? `<span class="font-bold text-gb-accent-dark">Pete:</span> <span class="text-gray-700">${text}</span>`
+                : `<span class="font-bold text-rose-700">${who}:</span> <span class="text-gray-700">${text}</span>`;
+            feed.appendChild(d);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function lobbyTick() {
+            if (lobbyMuted || lobbyIdx >= LOBBY_LINES.length) return;
+            const l = LOBBY_LINES[lobbyIdx++];
+            lobbyPush(l.who, l.text, false);
+            const heat = ['quiet', 'noisy', 'heating up', 'ugly', 'ugly'][Math.min(l.heat, 4)];
+            document.getElementById('lobby-heat').textContent = heat;
+        }
+
+        window.startLobby = () => {
+            if (lobbyTimer) return;
+            lobbyTick();
+            lobbyTimer = setInterval(lobbyTick, 2600);
+        };
+
+        window.lobbyReply = () => {
+            const input = document.getElementById('lobby-reply');
+            const txt = (input.value || '').trim();
+            if (!txt) return;
+            lobbyReplies++;
+            lobbyPush('Pete', txt, true);
+            input.value = '';
+            // Replying is allowed and has a real consequence: the feed accelerates.
+            if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = setInterval(lobbyTick, 1200); }
+            setTimeout(() => lobbyPush('TWO OTHERS', 'joined the pile-on', false), 700);
+            window.updateWhiteboard("That's What It Wanted",
+                "He answered, and the lobby sped up. Engagement is the reward being fished for - and now two more players have joined, because an argument is more interesting than a game.", 6);
+            window.sayJodi("And there it goes faster. That's what he was fishing for the whole time — somebody to answer.", 'thinking');
+            if (window.sfx) window.sfx.error();
+        };
+
+        window.lobbyTool = (tool) => {
+            if (lobbyTools[tool]) return;
+            lobbyTools[tool] = true;
+            const btn = document.getElementById(`tool-${tool}`);
+            if (btn) btn.classList.add('done');
+
+            if (tool === 'report') {
+                window.updateWhiteboard("The Only One That Leaves His Screen",
+                    "Reporting is the single action here that reaches past Pete. Muting and blocking fix his evening; reporting is what might stop this player doing it to somebody else tomorrow.", 6);
+                window.sayJodi("That's the one that matters past tonight. Muting fixes his evening — reporting is the one that might spare the next person.", 'thinking');
+            } else if (tool === 'mute') {
+                lobbyMuted = true;
+                if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+                lobbyPush('—', 'RIPTIDE_92 muted. You can\'t see their messages.', false);
+                document.getElementById('lobby-heat').textContent = 'quiet';
+                window.updateWhiteboard("Quiet For Him",
+                    "Muting works instantly and completely - for Pete. The player is still there, still typing, still visible to everyone else in the lobby.", 6);
+                window.sayJodi("Quiet now. For him, anyway — that fella's still going for everybody else in there.", 'thinking');
+            } else {
+                lobbyMuted = true;
+                if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+                lobbyPush('—', 'RIPTIDE_92 blocked. They can\'t reach you again.', false);
+                document.getElementById('lobby-heat').textContent = 'quiet';
+                window.updateWhiteboard("The Door, Closed",
+                    "Blocking is permanent and one-sided - no negotiation, no last word, no reply for them to feed on. Pete never has to see this player again.", 6);
+                window.sayJodi("And that's the door shut. No last word, no argument — he just doesn't get to reach Pete anymore.", 'thinking');
+            }
+            if (window.sfx) window.sfx.click();
+            window.checkCase6();
+        };
+
+        window.checkCase6 = () => {
+            if (pageCompletion[5]) return;
+            const usedReport = !!lobbyTools.report;
+            const usedSilence = !!lobbyTools.mute || !!lobbyTools.block;
+            if (usedReport && usedSilence && lobbyReplies === 0) {
+                window.updateWhiteboard("Three Things, None Of Them Aimed At Him",
+                    "Walking away and closing the door are not the same thing. Pete did three deliberate things - he just did them to the platform instead of to the person.", 6);
+                window.sayJodi("And you never said a word to him. Notice that wasn't the same as doing nothing — you did three things. They just weren't aimed at him. That's the difference between walking away and actually closing the door.", 'happy');
+                window.markReady(5);
+            } else if (usedReport && usedSilence && lobbyReplies > 0) {
+                window.updateWhiteboard("Right Tools, One Detour",
+                    "The tools were the correct move. The reply in the middle is the part worth noticing - it cost nothing to skip, and it sped the whole thing up while it lasted.", 6);
+                window.sayJodi("Right tools in the end. Just notice the detour in the middle — it cost him a couple of minutes and it fed the thing while it lasted.", 'thinking');
+                window.markReady(5);
+            }
+        };
+
+        window.resetCase6 = () => {
+            initCase6();
+            window.startLobby();
+            window.sayJodi('Fresh lobby. Same fella.', 'neutral');
+            if (window.sfx) window.sfx.click();
+        };
+
+        function initCase6() {
+            const feed = document.getElementById('lobby-feed');
+            if (feed) feed.innerHTML = '';
+            lobbyIdx = 0; lobbyReplies = 0; lobbyTools = {}; lobbyMuted = false;
+            if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+            document.querySelectorAll('#page-6 .tool-btn').forEach(b => b.classList.remove('done'));
+            // Guard so the keydown listener is only ever bound once, even though initCase6
+            // runs again on reset and on Restart Lab.
+            const input = document.getElementById('lobby-reply');
+            if (input && !input.dataset.bound) {
+                input.dataset.bound = '1';
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); window.lobbyReply(); }
+                });
+            }
+            if (input) input.value = '';
         }
 
         /* ===================== CASE 6: RATING + HANDOFF ===================== */
@@ -1626,31 +1900,34 @@
             if (window.sfx) window.sfx.tick();
             // Submit appears once any star is picked, so someone who doesn't want to type
             // still has a way to finish. Picking a star must not submit by itself.
-            document.getElementById('case6-submit-btn').classList.remove('hidden');
+            document.getElementById('case7-submit-btn').classList.remove('hidden');
         };
 
         window.finalizeCaseRating = () => {
             if (!selectedStars) return;
-            const feedbackText = document.getElementById('case6-feedback-text')?.value || '';
-            // Logged to its own per-lab rating collection, deliberately separate from the
-            // general open-ended feedback inbox - two different signals, two different uses.
-            console.log('Lab rating submitted:', { module: 'Privacy & Security', stars: selectedStars, feedbackText });
+            const feedbackText = document.getElementById('case7-feedback-text')?.value || '';
+            // Logged to its own per-lab rating collection (course_feedback), deliberately
+            // separate from the general open-ended feedback inbox (messages) - two different
+            // signals, two different uses. Same call every other GoodBlock/module uses.
+            if (window.AuthCore) {
+                window.AuthCore.submitCourseFeedback({ gameName: 'Digital Citizenship', rating: selectedStars, feedback: feedbackText });
+            }
+            if (window.logModuleCompletion) window.logModuleCompletion();
             if (window.sfx) window.sfx.success();
             setTimeout(() => {
-                document.getElementById('case6-rating').classList.add('hidden');
-                document.getElementById('case6-reveal').classList.remove('hidden');
+                document.getElementById('case7-rating').classList.add('hidden');
+                document.getElementById('case7-reveal').classList.remove('hidden');
                 if (window.lucide) window.lucide.createIcons();
             }, 400);
         };
 
         window.launchDigitalDecisionsChallenge = async () => {
-            window.location.href = '/educational-games/digital-decisions/index.html';
+            window.location.href = '/educational-games/digital-decisions/';
         };
 
         // Primary destination: back to the JSH Lab Pack hub, NOT straight into DDC.
-        // TODO: confirm the exact path when wired into the real repo structure.
         window.returnToLabPack = () => {
-            window.location.href = '/index.html';
+            window.location.href = '/jsh/digital-decisions-lab/';
         };
 
         window.handleSystemExit = () => { window.location.href = "https://www.allgoodacademy.com"; };
@@ -1671,11 +1948,31 @@
 
             const startup = document.getElementById('startup-screen');
             if (startup) {
-                startup.addEventListener('click', () => {
+                let startupTriggered = false;
+                const handleStartup = async () => {
+                    if (startupTriggered) return;
+                    startupTriggered = true;
                     if (window.sfx) window.sfx.powerOn();
                     startup.style.opacity = '0';
-                    setTimeout(() => startup.style.display = 'none', 700);
-                });
+                    setTimeout(() => { startup.style.display = 'none'; }, 700);
+
+                    // Same gate the dashboard uses, run right here — reached directly by a
+                    // bookmarked or shared link, this GoodBlock can't rely on the Lab Pack
+                    // hub's own launchLab having already checked this. Completion itself is
+                    // written later, by finalizeCaseRating() once Case 6 is actually reached.
+                    await window.AuthGate.ensureIdentified();
+                };
+                startup.addEventListener('click', handleStartup);
+
+                // Someone actively moving between pages within the last hour shouldn't see
+                // this screen again — same rolling-activity pattern DDC/Social Intelligence use.
+                if (window.AuthCore && window.AuthCore.skipPowerUp) {
+                    let unsub;
+                    unsub = window.AuthCore.onAuthStateChanged(window.AuthCore.auth, () => {
+                        unsub();
+                        handleStartup();
+                    });
+                }
             }
 
             document.getElementById('home-toggle').addEventListener('click', () => {
@@ -1684,7 +1981,7 @@
             });
             document.getElementById('menu-toggle').addEventListener('click', () => window.openCaseMenu());
 
-            const feedbackBox = document.getElementById('case6-feedback-text');
+            const feedbackBox = document.getElementById('case7-feedback-text');
             if (feedbackBox) {
                 feedbackBox.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1704,6 +2001,7 @@
             initCase3();
             initCase4();
             initCase5();
+            initCase6();
 
             window.renderLocks();
             window.playPageIntro(0);
@@ -1713,29 +2011,29 @@
             highestUnlocked = 0;
             pageCompletion = { 0: true, 1: false, 2: false, 3: false, 4: false, 5: true };
 
-            // Case 2: rewind the card stack to the first item.
-            sortQueue = SORT_ITEMS.map(i => i.id);
-            sortPos = 0; sortMissed = []; sortAnswered = false;
-            sortRetryRound = false; firstScamCaught = null;
-            window.renderSortCard();
+            // Case 2
+            srcStack = {}; firstGoodSource = null;
+            document.querySelectorAll('#src-list .src-card').forEach(el => el.classList.remove('in-stack'));
+            window.evaluateStack();
 
-            // Case 3: every switch back on, matching the app's original request.
-            permState = { camera: true, flashlight: true, contacts: true, location: true, microphone: true };
-            document.querySelectorAll('#perm-list .perm-switch').forEach(b => b.classList.add('on'));
+            // Case 3
+            hopIndex = 0; hopReachedOrigin = false;
+            document.getElementById('hop-actions').classList.remove('hidden');
+            document.getElementById('attrib-zone').classList.add('hidden');
+            window.renderHop();
 
             // Case 4
-            document.getElementById('pw-input').value = '';
-            window.evaluatePassword();
+            checksUsed = []; checkLimit = 3;
+            document.getElementById('checks-left').textContent = '3 left';
+            document.getElementById('share-zone').classList.add('hidden');
+            initCase4();
 
             // Case 5
-            fishState = {};
-            document.querySelectorAll('#fish-list .fish-item').forEach(el => {
-                el.classList.remove('checked-correct', 'checked-wrong');
-                el.querySelector('.fish-box').innerHTML = '';
-            });
-            document.getElementById('block-zone').classList.add('hidden');
-            document.getElementById('block-btn').classList.remove('opacity-50', 'pointer-events-none');
-            document.getElementById('block-done').classList.add('hidden');
+            actSeq = [];
+            initCase5();
+
+            // Case 6
+            initCase6();
 
             // Shared surfaces
             currentIntro = null; lastMechanism = null; lastSaid = null;
@@ -1752,15 +2050,20 @@
             // Case 6
             selectedStars = 0;
             document.querySelectorAll('.star-btn').forEach(btn => { btn.classList.remove('text-amber-400'); btn.classList.add('text-gray-300'); });
-            document.getElementById('case6-submit-btn').classList.add('hidden');
-            document.getElementById('case6-feedback-text').value = '';
-            document.getElementById('case6-rating').classList.remove('hidden');
-            document.getElementById('case6-reveal').classList.add('hidden');
+            document.getElementById('case7-submit-btn').classList.add('hidden');
+            document.getElementById('case7-feedback-text').value = '';
+            document.getElementById('case7-rating').classList.remove('hidden');
+            document.getElementById('case7-reveal').classList.add('hidden');
 
             window.closeSystemMenu();
             window.renderLocks();
             window.playPageIntro(0);
             document.getElementById('content-column').scrollTop = 0;
+            if (window.AuthCore && window.AuthCore.saveModuleProgress) {
+                window.AuthCore.saveModuleProgress('digital-citizenship', {
+                    highestUnlocked, pageCompletion,
+                });
+            }
         };
     </script>
 </body>
