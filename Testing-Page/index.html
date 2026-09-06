@@ -814,11 +814,12 @@
                             <p class="text-[10px] text-gray-400 mt-2">Flagged as a known fundraising scam &middot; reported in local news, Oct 14</p>
                         </div>
 
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Tap actions in the order he should do them</p>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Tap actions in the order he should do them &mdash; each one tells you what it costs</p>
                         <div id="act-list" class="space-y-2 mb-3"></div>
 
                         <div class="flex gap-2 mb-4">
                             <button onclick="window.clearActions()" class="text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Clear</button>
+                            <button onclick="window.resetCase5()" class="text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Restart</button>
                             <button id="act-lock" onclick="window.lockActions()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest disabled:opacity-40" disabled>
                                 Lock it in
                             </button>
@@ -866,7 +867,10 @@
                             <button onclick="window.lobbyReply()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-4 rounded-xl text-xs uppercase tracking-widest">Send</button>
                         </div>
 
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Or use the tools</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Or use the tools</p>
+                            <p id="lobby-objective" class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Still to use: Report &middot; Mute or Block</p>
+                        </div>
                         <div class="grid grid-cols-3 gap-2 mb-4">
                             <button id="tool-report" onclick="window.lobbyTool('report')" class="tool-btn rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-bold py-3 text-[11px] uppercase tracking-widest flex flex-col items-center gap-1">
                                 <i data-lucide="flag" class="w-4 h-4"></i> Report
@@ -1142,6 +1146,10 @@
                 highestUnlocked = pageNum;
                 pageCompletion[pageNum - 1] = true;
                 window.renderLocks();
+            // A restored session can land straight on a timed Case, so start those feeds here
+            // too - advanceFromPage never fires on that path.
+            if (highestUnlocked >= 4 && window.startSpread) window.startSpread();
+            if (highestUnlocked >= 5 && window.startLobby) window.startLobby();
                 window.playPageIntro(pageNum);
                 if (window.AuthCore && window.AuthCore.saveModuleProgress) {
                     window.AuthCore.saveModuleProgress('digital-citizenship', {
@@ -1151,6 +1159,7 @@
             }
             // Case 6's chat feed is time-driven, so it must not start until the student can
             // actually see it - otherwise the provocation plays out behind a lock overlay.
+            if (pageNum + 1 === 5 && window.startSpread) window.startSpread();
             if (pageNum + 1 === 6 && window.startLobby) window.startLobby();
             const nextPageEl = document.getElementById(`page-${pageNum + 1}`);
             if (nextPageEl) nextPageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1724,20 +1733,57 @@
            third parties: waiting has a cost that isn't Pete's to bear. */
 
         const ACTIONS = [
-            { id: 'dm',     label: 'Message Della privately', good: true },
-            { id: 'report', label: 'Report the post to the platform', good: true },
-            { id: 'public', label: 'Comment publicly that it\'s a scam', good: false },
-            { id: 'group',  label: 'Warn the group chat', good: false },
-            { id: 'wait',   label: 'Wait and see if anyone else says something', good: false }
+            { id: 'dm', label: 'Message Della privately', required: true,
+              t: 'She Hears It From A Friend', d: 'A private message lets Della take it down herself, which is faster than any platform review — and she learns it from someone who likes her rather than from a notification.',
+              bub: 'Good. That is the one that gets it down fastest, and she keeps her dignity doing it.' },
+            { id: 'report', label: 'Report the post to the platform', required: true,
+              t: 'The Part That Reaches Strangers', d: 'Reporting is the only action here that protects the people Pete will never meet. Della taking it down helps; the platform knowing about the account helps everyone it targets next.',
+              bub: 'And that one is for the folks he is never going to meet. That is the half people forget.' },
+            { id: 'public', label: "Comment publicly that it's a scam", blocks: true,
+              t: 'A Comment Is Fuel', d: 'Commenting pushes the post back up the feed — more people see it, not fewer. And Della gets corrected in front of every one of them. It is the single action that makes both problems worse at once.',
+              bub: 'Mm — a comment bumps that post right back up the feed. More eyes on it, and she gets corrected in front of all of them.' },
+            { id: 'group', label: 'Warn the group chat',
+              t: 'Well Meant, Still A Crowd', d: 'It is not cruel and it does spread the warning — but it tells eleven people about Della\'s mistake before Della knows about it herself. If Pete messages her first, the group is rarely still needed.',
+              bub: 'Kinder than a comment, I will give you that. It still tells eleven people about her mistake before she knows herself.' },
+            { id: 'wait', label: 'Wait and see if anyone else says something',
+              t: 'Waiting Has A Price', d: 'Waiting is not neutral. Every hour it stays up, more strangers see it — the cost just lands on people Pete will never have to look at.',
+              bub: 'Waiting costs somebody. Just not him — and that is exactly what makes it easy to do.' }
         ];
 
         let actSeq = [];
         let spreadTimer = null;
         let spreadCount = 41;
+        let case5Locked = false;
+
+        // The share count climbing is the whole reason this Case differs from a private-vs-
+        // public choice: waiting has a cost, and it lands on third parties. It was declared and
+        // never started in the first build, so that pressure was completely invisible.
+        window.startSpread = () => {
+            if (spreadTimer || case5Locked) return;
+            spreadTimer = setInterval(() => {
+                spreadCount += Math.floor(Math.random() * 3) + 1;
+                const el = document.getElementById('spread-count');
+                if (el) el.textContent = `${spreadCount} shares`;
+            }, 4000);
+        };
+
+        window.stopSpread = () => {
+            if (spreadTimer) { clearInterval(spreadTimer); spreadTimer = null; }
+        };
 
         window.toggleAction = (id) => {
+            if (case5Locked) return;
+            const a = ACTIONS.find(x => x.id === id);
             const i = actSeq.indexOf(id);
-            if (i >= 0) actSeq.splice(i, 1); else actSeq.push(id);
+            if (i >= 0) {
+                actSeq.splice(i, 1);
+            } else {
+                actSeq.push(id);
+                // Every tap responds. Previously only "Lock it in" said anything, so four of
+                // the five options could be selected in total silence.
+                window.updateWhiteboard(a.t, a.d, 5);
+                window.sayJodi(a.bub, a.required ? 'happy' : 'thinking');
+            }
             window.renderActions();
             if (window.sfx) window.sfx.click();
         };
@@ -1752,53 +1798,77 @@
                 if (pos >= 0) { badge.textContent = pos + 1; badge.classList.remove('hidden'); badge.classList.add('flex'); }
                 else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
             });
-            document.getElementById('act-lock').disabled = actSeq.length === 0;
+            const lock = document.getElementById('act-lock');
+            if (lock) lock.disabled = actSeq.length === 0 || case5Locked;
         };
 
         window.clearActions = () => {
+            if (case5Locked) return;
             actSeq = [];
-            document.getElementById('act-lock').disabled = true;
             window.renderActions();
             if (window.sfx) window.sfx.click();
         };
 
         window.lockActions = () => {
-            if (!actSeq.length) return;
-            const hasDM = actSeq.includes('dm');
-            const hasReport = actSeq.includes('report');
-            const hasPublic = actSeq.includes('public');
-            const waited = actSeq.includes('wait');
+            if (!actSeq.length || case5Locked) return;
+            const has = id => actSeq.includes(id);
 
-            if (hasPublic) {
-                window.updateWhiteboard("A Comment Is Fuel",
-                    "Commenting pushes the post back up the feed. More people see it, and Della gets corrected in front of all of them. It's the one action that makes both problems worse.", 5);
-                window.sayJodi("Mm — a public comment bumps that post right back up the feed. More eyes on it, not fewer. And Della gets corrected in front of every one of them.", 'thinking');
+            if (has('public')) {
+                const a = ACTIONS.find(x => x.id === 'public');
+                window.updateWhiteboard(a.t, a.d, 5);
+                window.sayJodi('That comment is the one thing here that makes it worse both ways. Take it out and try again.', 'thinking');
                 return;
             }
-            if (waited && !hasReport) {
-                window.updateWhiteboard("Waiting Has A Price",
-                    "Every hour it stays up, more strangers see it. Waiting isn't neutral here - it just moves the cost onto people who'll never know Pete had the chance to stop it.", 5);
-                window.sayJodi("Waiting costs somebody. Not him — that's the part that makes it easy to do.", 'thinking');
+            if (has('wait') && !has('report')) {
+                const a = ACTIONS.find(x => x.id === 'wait');
+                window.updateWhiteboard(a.t, a.d, 5);
+                window.sayJodi('Waiting costs somebody, and that post is still climbing. What would he actually do?', 'thinking');
                 return;
             }
-            if (!hasDM || !hasReport) {
-                window.updateWhiteboard("One Of These Isn't Enough",
-                    hasDM
-                      ? "Telling Della protects Della. It doesn't take the post down, and it doesn't reach the people already scrolling past it."
-                      : "Reporting takes the post down. It also means Della finds out from a notification instead of from her friend.", 5);
-                window.sayJodi(hasDM
-                    ? "Telling her is right. But that post is still sitting there for everybody else."
-                    : "Reporting it works. But then she hears it from a notification instead of from you.", 'thinking');
+            if (!has('dm') || !has('report')) {
+                window.updateWhiteboard('One Of These Is Not Enough',
+                    has('dm')
+                      ? 'Telling Della protects Della. It does not take the post down for the people already scrolling past it.'
+                      : 'Reporting takes the post down. It also means Della finds out from a notification instead of from her friend.', 5);
+                window.sayJodi(has('dm')
+                    ? 'Telling her is right. But that post is still sitting there for everybody else.'
+                    : 'Reporting works. But then she hears it from a notification instead of from you.', 'thinking');
                 return;
             }
-            if (spreadTimer) { clearInterval(spreadTimer); spreadTimer = null; }
+
+            case5Locked = true;
+            window.stopSpread();
+            document.getElementById('act-lock').disabled = true;
+            document.getElementById('act-lock').textContent = 'Locked in';
+
             const dmFirst = actSeq.indexOf('dm') < actSeq.indexOf('report');
-            window.updateWhiteboard("Both. And The Order Is The Point.",
+            const extras = [];
+            if (has('group')) extras.push('the group chat');
+            if (has('wait')) extras.push('a wait');
+
+            window.updateWhiteboard('Both. And The Order Is The Point.',
                 dmFirst
-                  ? "Telling her first means she takes it down herself and hears it from a friend. Reporting after covers the strangers. That's both duties, in the order that costs least."
-                  : "Reporting first is defensible - it stops the spread soonest. The trade is that Della learns it from the platform rather than from you.", 5);
-            window.sayJodi("Both. That's the answer — and it's the ordering that people miss. Telling her protects her. Reporting it protects everybody scrolling past it at two in the morning who's never going to know your name. You don't have to pick which one of those matters.", 'happy');
+                  ? 'Telling her first means she takes it down herself and hears it from a friend. Reporting after covers the strangers. Both duties, in the order that costs least.'
+                  : 'Reporting first is defensible — it stops the spread soonest. The trade is that Della learns it from the platform rather than from Pete.', 5);
+
+            let line = "Both. That's the answer — and it's the ordering people miss. Telling her protects her. Reporting protects everybody scrolling past it at two in the morning who'll never know his name. You don't have to pick which of those matters.";
+            if (extras.length) line += ` I'd drop ${extras.join(' and ')} — once he's told her directly, that's doing the same job with a bigger audience.`;
+            window.sayJodi(line, 'happy');
             window.markReady(4);
+        };
+
+        window.resetCase5 = () => {
+            case5Locked = false;
+            actSeq = [];
+            spreadCount = 41;
+            const el = document.getElementById('spread-count');
+            if (el) el.textContent = '41 shares';
+            const lock = document.getElementById('act-lock');
+            if (lock) { lock.textContent = 'Lock it in'; lock.disabled = true; }
+            window.renderActions();
+            window.startSpread();
+            window.sayJodi('Back to the start. It is still climbing.', 'neutral');
+            if (window.sfx) window.sfx.click();
         };
 
         function initCase5() {
@@ -1850,8 +1920,8 @@
             if (lobbyMuted || lobbyIdx >= LOBBY_LINES.length) return;
             const l = LOBBY_LINES[lobbyIdx++];
             lobbyPush(l.who, l.text, false);
-            const heat = ['quiet', 'noisy', 'heating up', 'ugly', 'ugly'][Math.min(l.heat, 4)];
-            document.getElementById('lobby-heat').textContent = heat;
+            const heat = ['calm', 'picking up', 'picking up', 'heated', 'hostile'][Math.min(l.heat, 4)];
+            document.getElementById('lobby-heat').textContent = `tone: ${heat}`;
         }
 
         window.startLobby = () => {
@@ -1890,7 +1960,7 @@
                 lobbyMuted = true;
                 if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
                 lobbyPush('—', 'RIPTIDE_92 muted. You can\'t see their messages.', false);
-                document.getElementById('lobby-heat').textContent = 'quiet';
+                document.getElementById('lobby-heat').textContent = 'tone: calm';
                 window.updateWhiteboard("Quiet For Him",
                     "Muting works instantly and completely - for Pete. The player is still there, still typing, still visible to everyone else in the lobby.", 6);
                 window.sayJodi("Quiet now. For him, anyway — that fella's still going for everybody else in there.", 'thinking');
@@ -1898,7 +1968,7 @@
                 lobbyMuted = true;
                 if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
                 lobbyPush('—', 'RIPTIDE_92 blocked. They can\'t reach you again.', false);
-                document.getElementById('lobby-heat').textContent = 'quiet';
+                document.getElementById('lobby-heat').textContent = 'tone: calm';
                 window.updateWhiteboard("The Door, Closed",
                     "Blocking is permanent and one-sided - no negotiation, no last word, no reply for them to feed on. Pete never has to see this player again.", 6);
                 window.sayJodi("And that's the door shut. No last word, no argument — he just doesn't get to reach Pete anymore.", 'thinking');
@@ -1907,14 +1977,32 @@
             window.checkCase6();
         };
 
+        window.updateLobbyObjective = () => {
+            const el = document.getElementById('lobby-objective');
+            if (!el) return;
+            const need = [];
+            if (!lobbyTools.report) need.push('Report');
+            if (!lobbyTools.mute && !lobbyTools.block) need.push('Mute or Block');
+            el.textContent = need.length
+                ? `Still to use: ${need.join(' \u00b7 ')}`
+                : 'Tools used. Pete never answered him.';
+            el.className = need.length
+                ? 'text-[10px] font-bold uppercase tracking-widest text-gray-400'
+                : 'text-[10px] font-bold uppercase tracking-widest text-emerald-600';
+        };
+
         window.checkCase6 = () => {
+            window.updateLobbyObjective();
             if (pageCompletion[5]) return;
             const usedReport = !!lobbyTools.report;
             const usedSilence = !!lobbyTools.mute || !!lobbyTools.block;
             if (usedReport && usedSilence && lobbyReplies === 0) {
                 window.updateWhiteboard("Three Things, None Of Them Aimed At Him",
                     "Walking away and closing the door are not the same thing. Pete did three deliberate things - he just did them to the platform instead of to the person.", 6);
-                window.sayJodi("And you never said a word to him. Notice that wasn't the same as doing nothing — you did three things. They just weren't aimed at him. That's the difference between walking away and actually closing the door.", 'happy');
+                const missed = !lobbyTools.block
+                    ? " The one he didn't reach for was Block — that's the permanent one, and it means that fella can't find him in a lobby again next week."
+                    : (!lobbyTools.mute ? " He skipped Mute, and that's fine — Mute only ever fixes your own evening. Block does the same and keeps doing it." : "");
+                window.sayJodi("And you never said a word to him. Notice that wasn't the same as doing nothing — you did things. They just weren't aimed at him. That's the difference between walking away and actually closing the door." + missed, 'happy');
                 window.markReady(5);
             } else if (usedReport && usedSilence && lobbyReplies > 0) {
                 window.updateWhiteboard("Right Tools, One Detour",
@@ -1937,6 +2025,7 @@
             lobbyIdx = 0; lobbyReplies = 0; lobbyTools = {}; lobbyMuted = false;
             if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
             document.querySelectorAll('#page-6 .tool-btn').forEach(b => b.classList.remove('done'));
+            window.updateLobbyObjective();
             // Guard so the keydown listener is only ever bound once, even though initCase6
             // runs again on reset and on Restart Lab.
             const input = document.getElementById('lobby-reply');
@@ -2092,7 +2181,12 @@
             initCase4();
 
             // Case 5
-            actSeq = [];
+            if (window.stopSpread) window.stopSpread();
+            case5Locked = false; actSeq = []; spreadCount = 41;
+            const sc = document.getElementById('spread-count');
+            if (sc) sc.textContent = '41 shares';
+            const lk = document.getElementById('act-lock');
+            if (lk) { lk.textContent = 'Lock it in'; lk.disabled = true; }
             initCase5();
 
             // Case 6
