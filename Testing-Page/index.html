@@ -245,10 +245,9 @@
             .src-inspect { display: block; width: 100%; text-align: left; padding: 10px 0; font-size: 12px; }
             .src-card { padding: 14px; }
 
-            /* Case 5 - Clear / Restart / Lock could not share one row. */
+            /* Case 5 */
             #act-list .act-opt { padding: 13px; }
-            .case5-controls { flex-wrap: wrap; }
-            .case5-controls #act-lock { flex-basis: 100%; order: 3; margin-top: 8px; padding: 14px; }
+            #act-lock { padding: 15px; }
 
             /* Case 6 - a 190px feed ate too much of a short screen. */
             #lobby-feed { height: 150px; }
@@ -947,11 +946,13 @@
                         <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Tap actions in the order he should do them &mdash; each one tells you what it costs</p>
                         <div id="act-list" class="space-y-2 mb-3"></div>
 
-                        <div class="case5-controls flex gap-2 mb-4">
-                            <button onclick="window.clearActions()" class="case-reset text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Clear</button>
-                            <button onclick="window.resetCase5()" class="case-reset text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent px-2 py-1 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Restart</button>
-                            <button id="act-lock" onclick="window.lockActions()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest disabled:opacity-40" disabled>
-                                Lock it in
+                        <button id="act-lock" onclick="window.lockActions()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest disabled:opacity-40 mb-2" disabled>
+                            Lock it in
+                        </button>
+
+                        <div class="flex justify-center pt-1 pb-2">
+                            <button onclick="window.resetCase5()" class="case-reset flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gb-accent transition-colors">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span id="act-reset-label">Clear selection</span>
                             </button>
                         </div>
 
@@ -1961,12 +1962,14 @@
             const i = actSeq.indexOf(id);
             if (i >= 0) {
                 actSeq.splice(i, 1);
+                // Deselecting was silent, so tapping a chosen card felt like a dead click.
+                window.sayJodi(`Taken back out. ${actSeq.length ? 'What is left is still on the board.' : 'Blank slate.'}`, 'neutral');
             } else {
                 actSeq.push(id);
                 // Every tap responds. Previously only "Lock it in" said anything, so four of
                 // the five options could be selected in total silence.
                 window.updateWhiteboard(a.t, a.d, 5);
-                window.sayJodi(a.bub, a.required ? 'happy' : 'thinking');
+                window.sayJodi(a.bub, a.mood || (a.required ? 'happy' : 'thinking'));
             }
             window.renderActions();
             if (window.sfx) window.sfx.click();
@@ -1986,13 +1989,6 @@
             if (lock) lock.disabled = actSeq.length === 0 || case5Locked;
         };
 
-        window.clearActions = () => {
-            if (case5Locked) return;
-            actSeq = [];
-            window.renderActions();
-            if (window.sfx) window.sfx.click();
-        };
-
         window.lockActions = () => {
             if (!actSeq.length || case5Locked) return;
             const has = id => actSeq.includes(id);
@@ -2006,7 +2002,7 @@
             if (has('wait') && !has('report')) {
                 const a = ACTIONS.find(x => x.id === 'wait');
                 window.updateWhiteboard(a.t, a.d, 5);
-                window.sayJodi('Waiting costs somebody, and that post is still climbing. What would he actually do?', 'thinking');
+                window.sayJodi('Waiting costs somebody, and that post is still climbing. What would he actually do?', 'concerned');
                 return;
             }
             if (!has('dm') || !has('report')) {
@@ -2041,18 +2037,33 @@
             window.markReady(4);
         };
 
+        // One control, two behaviours. Before locking it just clears the selection and
+        // deliberately does NOT rewind the share counter - the post kept spreading while Pete
+        // deliberated, and rewinding the clock because he changed his mind would undo the only
+        // pressure this Case has. After locking it is a genuine restart.
         window.resetCase5 = () => {
-            case5Locked = false;
+            const wasLocked = case5Locked;
             actSeq = [];
-            spreadCount = 41;
-            const el = document.getElementById('spread-count');
-            if (el) el.textContent = '41 shares';
-            const lock = document.getElementById('act-lock');
-            if (lock) { lock.textContent = 'Lock it in'; lock.disabled = true; }
+            if (wasLocked) {
+                case5Locked = false;
+                spreadCount = 41;
+                const el = document.getElementById('spread-count');
+                if (el) el.textContent = '41 shares';
+                const lock = document.getElementById('act-lock');
+                if (lock) { lock.textContent = 'Lock it in'; lock.disabled = true; }
+                window.startSpread();
+                window.sayJodi('Back to the start, and it is climbing again.', 'neutral');
+            } else {
+                window.sayJodi('Cleared. The post is still up, mind you.', 'neutral');
+            }
             window.renderActions();
-            window.startSpread();
-            window.sayJodi('Back to the start. It is still climbing.', 'neutral');
+            window.updateResetLabel();
             if (window.sfx) window.sfx.click();
+        };
+
+        window.updateResetLabel = () => {
+            const el = document.getElementById('act-reset-label');
+            if (el) el.textContent = case5Locked ? 'Start this over' : 'Clear selection';
         };
 
         function initCase5() {
@@ -2067,6 +2078,7 @@
                 list.appendChild(d);
             });
             window.renderActions();
+            window.updateResetLabel();
         }
 
         /* ===================== CASE 6: THE TOXIC LOBBY =====================
@@ -2087,7 +2099,7 @@
             { who: 'RIPTIDE_92', text: '[message hidden — reported language]', heat: 4 }
         ];
 
-        let lobbyIdx = 0, lobbyTimer = null, lobbyReplies = 0, lobbyTools = {}, lobbyMuted = false;
+        let lobbyIdx = 0, lobbyTimer = null, lobbyReplies = 0, lobbyTools = {}, lobbyMuted = false, lobbyNudged = false;
 
         function lobbyPush(who, text, mine) {
             const feed = document.getElementById('lobby-feed');
@@ -2101,7 +2113,17 @@
         }
 
         function lobbyTick() {
-            if (lobbyMuted || lobbyIdx >= LOBBY_LINES.length) return;
+            if (lobbyMuted) return;
+            if (lobbyIdx >= LOBBY_LINES.length) {
+                // The script ran out and the feed just stopped, leaving a student who hadn't
+                // used a tool with nothing happening and no prompt. He keeps going instead.
+                lobbyPush('RIPTIDE_92', LOBBY_LINES[LOBBY_LINES.length - 1].text, false);
+                if (!lobbyNudged) {
+                    lobbyNudged = true;
+                    window.sayJodi('He is not going to run out of steam on his own, sugar. That is rather the point of him.', 'concerned');
+                }
+                return;
+            }
             const l = LOBBY_LINES[lobbyIdx++];
             lobbyPush(l.who, l.text, false);
             const heat = ['calm', 'picking up', 'picking up', 'heated', 'hostile'][Math.min(l.heat, 4)];
@@ -2117,7 +2139,10 @@
         window.lobbyReply = () => {
             const input = document.getElementById('lobby-reply');
             const txt = (input.value || '').trim();
-            if (!txt) return;
+            if (!txt) {
+                window.sayJodi('Type something first if you are going to answer him. Or do not — that is the other option.', 'neutral');
+                return;
+            }
             lobbyReplies++;
             lobbyPush('Pete', txt, true);
             input.value = '';
@@ -2126,12 +2151,21 @@
             setTimeout(() => lobbyPush('TWO OTHERS', 'joined the pile-on', false), 700);
             window.updateWhiteboard("That's What It Wanted",
                 "He answered, and the lobby sped up. Engagement is the reward being fished for - and now two more players have joined, because an argument is more interesting than a game.", 6);
-            window.sayJodi("And there it goes faster. That's what he was fishing for the whole time — somebody to answer.", 'thinking');
+            window.sayJodi("And there it goes faster. That's what he was fishing for the whole time — somebody to answer.", 'concerned');
             if (window.sfx) window.sfx.error();
         };
 
         window.lobbyTool = (tool) => {
-            if (lobbyTools[tool]) return;
+            if (lobbyTools[tool]) {
+                // Re-tapping a used tool did nothing at all. Say why instead.
+                const already = {
+                    report: 'Already reported. It only needs sending once.',
+                    mute: 'Already muted — he cannot reach Pete\'s screen.',
+                    block: 'Already blocked. That one is permanent.'
+                };
+                window.sayJodi(already[tool], 'neutral');
+                return;
+            }
             lobbyTools[tool] = true;
             const btn = document.getElementById(`tool-${tool}`);
             if (btn) btn.classList.add('done');
@@ -2206,8 +2240,10 @@
         function initCase6() {
             const feed = document.getElementById('lobby-feed');
             if (feed) feed.innerHTML = '';
-            lobbyIdx = 0; lobbyReplies = 0; lobbyTools = {}; lobbyMuted = false;
+            lobbyIdx = 0; lobbyReplies = 0; lobbyTools = {}; lobbyMuted = false; lobbyNudged = false;
             if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+            const heat = document.getElementById('lobby-heat');
+            if (heat) heat.textContent = 'tone: calm';
             document.querySelectorAll('#page-6 .tool-btn').forEach(b => b.classList.remove('done'));
             window.updateLobbyObjective();
             // Guard so the keydown listener is only ever bound once, even though initCase6
@@ -2372,6 +2408,7 @@
             const lk = document.getElementById('act-lock');
             if (lk) { lk.textContent = 'Lock it in'; lk.disabled = true; }
             initCase5();
+            if (window.updateResetLabel) window.updateResetLabel();
 
             // Case 6
             initCase6();
