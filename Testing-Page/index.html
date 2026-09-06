@@ -242,6 +242,11 @@
         .src-card.inspected { border-color: #cbd5e1; }
         .vbtn { transition: border-color .12s ease, background-color .12s ease, color .12s ease; }
         .vbtn.picked { border-color: #2B5FA8; background-color: #2B5FA8; color: #fff; }
+        .src-card.verdict-set { border-color: #94a3b8; }
+        .src-card.verdict-set.in-stack { border-color: #2B5FA8; }
+        .src-card.v-ok { border-color: #059669; }
+        .src-card.v-off { border-color: #D97706; }
+        .src-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
         #hold-bar-fill { height: 100%; width: 0%; border-radius: 999px; background-color: #dc2626; transition: width .35s ease, background-color .35s ease; }
 
         /* ---- Case 3: Credit trail ---- */
@@ -627,7 +632,7 @@
                                 <span id="hold-label" class="text-[11px] font-bold text-red-600">Nothing yet</span>
                             </div>
                             <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden"><div id="hold-bar-fill"></div></div>
-                            <p class="text-[10px] text-gray-400 mt-1.5">Look at each one, then say what it's good for. <span id="src-progress" class="font-bold">0 of 7 judged</span></p>
+                            <p class="text-[10px] text-gray-400 mt-1.5">Judge all seven, clear the bar, and cite nothing you can't stand behind. <span id="src-progress" class="font-bold text-gb-accent">0 of 7 judged</span></p>
                         </div>
 
                         <div id="src-list" class="space-y-2 mb-4"></div>
@@ -1288,31 +1293,58 @@
             { id: 'univ', label: 'University of Oklahoma history department page', hint: 'ou.edu',
               verdict: 'cite', credible: true, family: 'academic', shortName: 'university page',
               found: 'Written by a named faculty member. Cites the 1938 USDA survey and two county records you can go read yourself.',
-              title: 'It Shows Its Work', desc: 'Credible does not mean "sounds authoritative". It means you can follow it further down. A named author and real citations let you keep going past this page.' },
+              fb: {
+                cite: { t: 'It Shows Its Work', d: 'Credible does not mean "sounds authoritative" — it means you can follow it further down. A named author and real citations let Pete keep going past this page instead of taking its word.', b: 'That is the one. And notice why — it tells you where it got everything.', m: 'happy' },
+                notevidence: { t: 'This One Can Carry It', d: 'It is not just related to the claim; it directly addresses it, with the records to back it. Setting it aside as background gives away the strongest ordinary source here.', b: 'Mm — that one is stronger than you are giving it credit for. It speaks straight to the claim.', m: 'thinking' },
+                out: { t: 'Too Harsh', d: 'A named historian on the university domain, citing primary records, is about as good as a secondary source gets. If this gets binned, nothing survives.', b: 'Now hold on. If that one goes in the bin, what on earth is left?', m: 'thinking' } } },
+
             { id: 'ency', label: 'Britannica entry on the Dust Bowl', hint: 'britannica.com',
               verdict: 'cite', credible: true, family: 'reference', shortName: 'encyclopedia entry',
               found: 'Signed by a named author, edited before publication, sources listed at the bottom.',
-              title: 'A Place To Stand', desc: 'An encyclopedia is not the end of research, but it is a real place to stand while you look further. Signed, edited, and it points you onward.' },
+              fb: {
+                cite: { t: 'A Place To Stand', d: 'An encyclopedia is not the end of research, but it is a real place to stand while you look further. Signed, edited, and it points you onward.', b: 'Good. Not the last word, but an honest place to start from.', m: 'happy' },
+                notevidence: { t: 'It Does Address This', d: 'Signed and edited work on exactly this topic is evidence. "Not evidence here" is for sources answering a different question — this one answers the question asked.', b: 'It is on the very thing he is arguing, though. That counts.', m: 'thinking' },
+                out: { t: 'Editing Is The Difference', d: 'The reason this is not the blog is that somebody with a name wrote it and somebody else checked it before it went up. That process is exactly what Pete is looking for.', b: 'Mm — somebody signed that one and somebody else checked it. That is the whole difference.', m: 'thinking' } } },
+
             { id: 'usda', label: 'USDA soil conservation archive, 1938 report', hint: 'archives.gov',
               verdict: 'cite', credible: true, family: 'primary', shortName: 'USDA report',
               found: 'The agency itself, writing at the time, with the survey numbers in it. This is the document the others are describing.',
-              title: 'The Thing Itself', desc: 'A primary record is the actual agency at the actual time. Everything else on this page is somebody describing this. It is independent of all of them, which is exactly why it counts on its own.' },
+              fb: {
+                cite: { t: 'The Thing Itself', d: 'A primary record is the agency at the time, in its own words. Everything else here is somebody describing this document. It is independent of all of them, which is why it counts on its own.', b: 'Now that is the real article. Everything else on that page is just somebody talking about it.', m: 'happy' },
+                notevidence: { t: 'This Is The Evidence', d: 'If anything on the page is evidence for this claim, it is the agency\'s own survey numbers. This is what the other sources are pointing at.', b: 'Sugar, that is the evidence. That is the thing the others are all pointing at.', m: 'thinking' },
+                out: { t: 'Do Not Bin The Original', d: 'Primary records can be dry and hard to read, and they are still the strongest thing available. Difficulty is not a credibility problem.', b: 'It is a dull read, I know. Dull is not the same as unreliable.', m: 'thinking' } } },
+
             { id: 'news', label: 'State Historical Society newsletter', hint: 'okhistory.org',
               verdict: 'notevidence', credible: true, family: 'academic', shortName: 'historical society piece',
-              found: 'Reputable society - and the article is the OU department page, reprinted word for word, with credit at the bottom.',
-              title: 'An Echo, Not A Witness', desc: 'Perfectly respectable and completely redundant. Citing this next to the OU page does not give Pete a second opinion; it gives him the same opinion twice. A second source has to be able to disagree.' },
+              found: 'Reputable society — and the article is the OU department page, reprinted word for word, with credit at the bottom.',
+              fb: {
+                notevidence: { t: 'An Echo, Not A Witness', d: 'Perfectly respectable and completely redundant. Beside the OU page it does not give Pete a second opinion; it gives him the same opinion twice. A second source has to be able to disagree.', b: 'Exactly right. It is real, it is just the same voice again wearing a different hat.', m: 'happy' },
+                cite: { t: 'You Already Have This One', d: 'It is a word-for-word reprint of a source already in the stack. Citing both looks like two sources and is one — the second could never disagree with the first.', b: 'Look close at that one. He already has it. That is the same page in a different jacket.', m: 'thinking' },
+                out: { t: 'It Is Not Wrong', d: 'Binning it treats a reputable society as if it were the anonymous blog. The problem is not quality, it is that it adds nothing Pete does not already have.', b: 'Not wrong, though — just redundant. Those are two different problems.', m: 'thinking' } } },
+
             { id: 'forum', label: 'Reddit: "my great-grandpa lived through it"', hint: 'r/history',
               verdict: 'notevidence', credible: false, family: 'testimony',
-              found: 'A detailed family account - dust in the food, school closures. No name, no date, no way to check it. Answers a different question than the one Pete asked.',
-              title: 'Real, And The Wrong Question', desc: 'This is not junk. It is testimony, and testimony is evidence for "what was it like", not for "did federal programs work". To use it, Pete would need a name and a date, and to line it up against a record that can confirm it. Then it becomes a primary source - for a different claim.' },
-            { id: 'blog', label: "DustBowlFacts.net \u2014 'Everything They Never Told You'", hint: 'dustbowlfacts.net',
+              found: 'A detailed family account — dust in the food, school closures. No name, no date, no way to check it.',
+              fb: {
+                notevidence: { t: 'Real, And The Wrong Question', d: 'This is not junk. It is testimony, and testimony is evidence for "what was it like", not "did federal programs work". Give it a name, a date, and a record that confirms it, and it becomes a primary source — for a different claim.', b: 'That is the call I was hoping for. It is real, it is just answering a question he did not ask. Track down a name and a date and it becomes useful — for a different paper.', m: 'happy' },
+                cite: { t: 'It Cannot Hold This Claim', d: 'One family\'s memory, unnamed and undated, cannot establish whether a federal programme measurably worked. It could be entirely true and still not show that.', b: 'It might be every bit true. It still cannot tell him whether the programmes worked.', m: 'thinking' },
+                out: { t: 'Do Not Throw People Away', d: 'Binning firsthand testimony is the over-correction. Historians build whole books out of accounts like this — they just corroborate them first, and use them for the questions testimony can answer.', b: 'Careful now. That is somebody\'s family. Historians use accounts like that all the time — they just check them first, and they ask them the right question.', m: 'thinking' } } },
+
+            { id: 'blog', label: "DustBowlFacts.net — 'Everything They Never Told You'", hint: 'dustbowlfacts.net',
               verdict: 'out', credible: false, family: 'blog',
               found: 'No author anywhere. No sources. An ad between every paragraph.',
-              title: 'Nobody Wrote This', desc: 'It might even be right - but there is no way to find out, and "I could not tell it was wrong" is not the same as checking. With no author and no sources, there is nothing to follow.' },
+              fb: {
+                out: { t: 'Nobody Wrote This', d: 'It might even be right — but there is no way to find out, and "I could not tell it was wrong" is not the same as checking. No author and no sources means nothing to follow.', b: 'Right. No name on it, nothing to follow. There is no door in.', m: 'happy' },
+                cite: { t: 'Nothing To Stand On', d: 'Citing this puts Pete\'s grade behind a page whose author will not sign their name to it. If a marker asks where the claim came from, the answer is nowhere.', b: 'And when somebody asks him where that came from — what does he say?', m: 'thinking' },
+                notevidence: { t: 'Not Even That', d: '"Real, but not evidence here" is for sources that are genuine and answering another question. This one has no author, so there is nothing to be genuine about.', b: 'That middle verdict is for real things pointed the wrong way. There is no one behind this to be real.', m: 'thinking' } } },
+
             { id: 'blog2', label: 'PrairieTruth blog', hint: 'prairietruth.blog',
               verdict: 'out', credible: false, family: 'blog',
-              found: 'Its one citation is DustBowlFacts.net - the other blog on this page.',
-              title: 'One Rumour, Two Hats', desc: 'Look where it got its information: the blog Pete already looked at. Two pages agreeing are not two sources when one copied the other. That is one rumour wearing two hats.' }
+              found: 'Its one citation is DustBowlFacts.net — the other blog on this page.',
+              fb: {
+                out: { t: 'One Rumour, Two Hats', d: 'Look where it got its information: the blog Pete already looked at. Two pages agreeing are not two sources when one copied the other.', b: 'And there it is — it read the other one. That is one rumour in two hats.', m: 'happy' },
+                cite: { t: 'Agreement Is Not Confirmation', d: 'It agrees with the other blog because it copied the other blog. Two pages saying the same thing feels like confirmation and is just repetition.', b: 'It agrees because it copied. That is not two people saying it — that is one, twice.', m: 'thinking' },
+                notevidence: { t: 'Still Nothing Underneath', d: 'Its only source is an anonymous page. There is no firsthand account here to salvage for a different question.', b: 'There is nothing underneath it to rescue, though.', m: 'thinking' } } }
         ];
 
         const VERDICTS = [
@@ -1324,6 +1356,7 @@
         let srcInspected = {};
         let srcVerdict = {};
         let firstGoodSource = null;
+        let echoShown = false;
 
         window.inspectSource = (id) => {
             if (srcInspected[id]) return;
@@ -1332,44 +1365,52 @@
             const el = document.querySelector(`#src-list [data-src="${id}"]`);
             if (el) {
                 el.classList.add('inspected');
-                el.querySelector('.src-found').textContent = s.found;
-                el.querySelector('.src-found').classList.remove('hidden');
+                const f = el.querySelector('.src-found');
+                f.textContent = s.found; f.classList.remove('hidden');
                 el.querySelector('.src-verdicts').classList.remove('hidden');
                 el.querySelector('.src-inspect').classList.add('hidden');
             }
-            window.updateWhiteboard(s.title, s.desc, 2);
-            window.sayJodi('Alright, look at what he actually found there. Then tell me what it is good for.', 'thinking');
+            window.updateWhiteboard('What He Found', s.found, 2);
+            window.sayJodi('Alright — that is what is actually there. Now tell me what it is good for.', 'thinking');
             if (window.sfx) window.sfx.click();
         };
 
+        // EVERY verdict on EVERY source responds. The first build only spoke on wrong answers,
+        // so correct ones were silent and the thing felt broken - and the wrong-answer copy was
+        // generic per verdict, so it said the same sentence about a blog and a family memory.
         window.setVerdict = (id, v) => {
             if (!srcInspected[id]) return;
             const s = SOURCES.find(x => x.id === id);
             srcVerdict[id] = v;
             const el = document.querySelector(`#src-list [data-src="${id}"]`);
             if (el) {
-                el.querySelectorAll('.vbtn').forEach(btn => {
-                    btn.classList.toggle('picked', btn.dataset.v === v);
-                });
+                el.querySelectorAll('.vbtn').forEach(btn => btn.classList.toggle('picked', btn.dataset.v === v));
                 el.classList.toggle('in-stack', v === 'cite');
+                el.classList.add('verdict-set');
+                // Visible per-card state. Without this a student has no idea where they stand
+                // across seven cards and the Case turns into guess-and-check, which is exactly
+                // the habit it's trying to replace.
+                const ok = (v === s.verdict);
+                el.classList.toggle('v-ok', ok);
+                el.classList.toggle('v-off', !ok);
+                const badge = el.querySelector('.src-badge');
+                if (badge) {
+                    badge.classList.remove('hidden');
+                    badge.innerHTML = ok
+                        ? '<span class="text-emerald-700">&#10003; settled</span>'
+                        : '<span class="text-amber-700">&#8635; worth another look</span>';
+                }
             }
             if (v === 'cite' && s.credible && !firstGoodSource && s.shortName) firstGoodSource = s.shortName;
 
-            if (v !== s.verdict) {
-                // Wrong verdicts teach on the spot; they never just bounce.
-                const why = {
-                    cite: 'Citing that one would put weight on something that cannot hold it. Read what he found again.',
-                    notevidence: 'That one is stronger than "not evidence" - it can carry the claim directly.',
-                    out: 'Careful - throwing that one out is too harsh. It is real; it is just answering a different question.'
-                };
-                window.updateWhiteboard('Not Quite That', why[v] || 'Have another look at what he found.', 2);
-                window.sayJodi('Mm - sit with that one a second. Look again at what he actually found.', 'thinking');
-            }
-            if (window.sfx) window.sfx.click();
-            window.evaluateStack();
+            const f = s.fb[v];
+            window.updateWhiteboard(f.t, f.d, 2);
+            window.sayJodi(f.b, f.m);
+            if (window.sfx) { (v === s.verdict) ? window.sfx.tick() : window.sfx.click(); }
+            window.evaluateStack(v === s.verdict);
         };
 
-        window.evaluateStack = () => {
+        window.evaluateStack = (justCorrect) => {
             const cited = SOURCES.filter(s => srcVerdict[s.id] === 'cite');
             const credible = cited.filter(s => s.credible);
             // Independence, not headcount: two sources from one family count once.
@@ -1377,39 +1418,60 @@
 
             const fill = document.getElementById('hold-bar-fill');
             const label = document.getElementById('hold-label');
-            fill.style.width = `${Math.min(100, independent * 50)}%`;
+            // Scaled to THREE, not two. Two independent sources clears the bar (green) but does
+            // not fill it - a full bar at the halfway point read as "case finished" in playtest.
+            fill.style.width = `${Math.min(100, Math.round((independent / 3) * 100))}%`;
             let color = '#dc2626', text = 'Nothing yet', tone = 'text-red-600';
             if (independent === 1) {
                 color = '#d97706'; tone = 'text-amber-600';
-                text = credible.length > 1 ? 'Two sources, one origin' : 'One source standing alone';
-            } else if (independent >= 2) { color = '#059669'; text = 'This would hold up'; tone = 'text-emerald-600'; }
+                text = credible.length > 1 ? 'Two sources, one origin' : 'One source, standing alone';
+            } else if (independent === 2) { color = '#059669'; text = 'Clears the bar'; tone = 'text-emerald-600'; }
+            else if (independent >= 3) { color = '#059669'; text = 'Three that do not overlap'; tone = 'text-emerald-600'; }
             else if (cited.length > 0) { text = 'Nothing checkable yet'; }
             fill.style.backgroundColor = color;
             label.textContent = text;
             label.className = `text-[11px] font-bold ${tone}`;
 
-            if (credible.length >= 2 && independent === 1) {
+            // Fires once on entering the echo state, so it can't clobber per-source feedback
+            // every time the student touches anything else afterwards.
+            const echo = credible.length >= 2 && independent === 1;
+            if (echo && !echoShown) {
+                echoShown = true;
                 window.updateWhiteboard('Two Sources, One Origin',
                     'Both are respectable and one is a word-for-word reprint of the other. Counting them twice counts the same claim twice. The bar needs a source that could disagree.', 2);
-                window.sayJodi('Now look - two good ones, and that bar barely moved. One of those is a reprint of the other. That is not a second opinion, that is an echo.', 'thinking');
+                window.sayJodi('Now look at that bar — two good ones and it barely moved. One of those is a reprint of the other. That is not a second opinion, that is an echo.', 'thinking');
             }
+            if (!echo) echoShown = false;
 
-            const done = SOURCES.every(s => srcVerdict[s.id] === s.verdict);
-            document.getElementById('src-progress').textContent =
-                `${SOURCES.filter(s => srcVerdict[s.id]).length} of ${SOURCES.length} judged`;
-            if (done) window.finishCase2();
+            const judged = SOURCES.filter(s => srcVerdict[s.id]).length;
+            const correct = SOURCES.filter(s => srcVerdict[s.id] === s.verdict).length;
+            const prog = document.getElementById('src-progress');
+            if (prog) prog.textContent = `${judged} of ${SOURCES.length} judged \u00b7 ${correct} settled`;
+
+            /* GATE - softened after playtest. Demanding all seven exactly right made this a
+               guessing grind. What actually has to be true before Pete can write the paragraph:
+                 1. he has formed a view on every source (no skipping the hard ones),
+                 2. his stack holds - two or more INDEPENDENT credible sources, and
+                 3. there is nothing unciteable in it.
+               The out-vs-not-evidence distinction still teaches on every single attempt, but
+               mixing those two up doesn't block progress: both verdicts lead to the same action
+               (don't cite it), so it's a refinement rather than the safety-critical call.
+               Citing an anonymous blog IS safety-critical, so rule 3 has no give in it. */
+            const allJudged = judged === SOURCES.length;
+            const nothingJunkCited = cited.every(s => s.credible);
+            if (allJudged && independent >= 2 && nothingJunkCited) window.finishCase2(correct);
         };
 
         window.finishCase2 = () => {
             if (pageCompletion[1]) return;
             window.updateWhiteboard('Two That Do Not Talk To Each Other',
-                'The bar was never a number of sources. It is whether they would know independently - and whether each one answers the question actually being asked.', 2);
-            window.sayJodi('There it is. And notice what you did with the middle two - you did not throw them in the bin. A family story and a reprint are both real; they just are not evidence for this. That is the part most folks get wrong in the other direction. What Pete needed was two that do not get their information from each other.', 'happy');
+                'The bar was never a number of sources. It is whether they would know independently — and whether each one answers the question actually being asked.', 2);
+            window.sayJodi('There it is. And notice what you did with the middle two — you did not throw them in the bin. A family story and a reprint are both real; they just are not evidence for this. That is the part most folks get wrong in the other direction. What Pete needed was two that do not get their information from each other.', 'happy');
             window.markReady(1);
         };
 
         window.resetCase2 = () => {
-            srcInspected = {}; srcVerdict = {}; firstGoodSource = null;
+            srcInspected = {}; srcVerdict = {}; firstGoodSource = null; echoShown = false;
             initCase2();
             window.evaluateStack();
             window.sayJodi('Fresh start. Look at each one before you judge it.', 'neutral');
@@ -1428,6 +1490,7 @@
                     <p class="text-[11px] text-gray-400 font-mono mt-0.5">${s.hint}</p>
                     <button class="src-inspect mt-2 text-[11px] font-bold uppercase tracking-widest text-gb-accent hover:text-gb-accent-dark">Look at it &rarr;</button>
                     <p class="src-found hidden text-[11px] text-gray-700 mt-2 pt-2 border-t border-gb-accent/20 italic"></p>
+                    <p class="src-badge hidden mt-2"></p>
                     <div class="src-verdicts hidden flex flex-wrap gap-1.5 mt-2">
                         ${VERDICTS.map(v => `<button class="vbtn text-[10px] font-bold uppercase tracking-wide border-2 border-gray-200 rounded-lg px-2 py-1.5 text-gray-600" data-v="${v.id}">${v.label}</button>`).join('')}
                     </div>`;
