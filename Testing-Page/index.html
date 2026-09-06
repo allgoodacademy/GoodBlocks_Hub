@@ -288,7 +288,12 @@
 
         /* ---- Case 2: Evidence stack ---- */
         .src-card { transition: border-color .15s ease, background-color .15s ease, transform .12s ease; cursor: pointer; }
-        .src-card:active { transform: scale(.99); }
+        .src-card:active { transform: scale(.995); }
+        .src-card:hover { border-color: #94a3b8; }
+        /* Verdict buttons live inside a card that is itself clickable, so they need their own
+           obvious hit area and must not look like part of the card press. */
+        .src-card .vbtn { cursor: pointer; }
+        .src-card .src-inspect { pointer-events: none; }
         .src-card.in-stack { border-color: #2B5FA8; background-color: #E8EFF9; }
         .src-card.inspected { border-color: #cbd5e1; }
         .vbtn { transition: border-color .12s ease, background-color .12s ease, color .12s ease; }
@@ -1481,8 +1486,19 @@
         let echoShown = false;
 
         window.inspectSource = (id) => {
-            if (srcInspected[id]) return;
             const s = SOURCES.find(x => x.id === id);
+            if (!s) return;
+            // Already looked at? Re-show what he found instead of silently doing nothing.
+            // Comparing two sources means going back to re-read one, and a dead click there
+            // is exactly what makes an interface feel broken.
+            if (srcInspected[id]) {
+                window.updateWhiteboard('What He Found', s.found, 2);
+                window.sayJodi(srcVerdict[id]
+                    ? 'Have another look at that one, and change your call if you want to.'
+                    : 'That is what is there. What is it good for?', 'thinking');
+                if (window.sfx) window.sfx.click();
+                return;
+            }
             srcInspected[id] = true;
             const el = document.querySelector(`#src-list [data-src="${id}"]`);
             if (el) {
@@ -1648,13 +1664,17 @@
                 d.innerHTML = `
                     <p class="text-sm font-bold text-gray-900 leading-snug">${s.label}</p>
                     <p class="text-[11px] text-gray-400 font-mono mt-0.5">${s.hint}</p>
-                    <button class="src-inspect mt-2 text-[11px] font-bold uppercase tracking-widest text-gb-accent hover:text-gb-accent-dark">Look at it &rarr;</button>
+                    <p class="src-inspect mt-2 text-[11px] font-bold uppercase tracking-widest text-gb-accent">Tap to look at it &rarr;</p>
                     <p class="src-found hidden text-[11px] text-gray-700 mt-2 pt-2 border-t border-gb-accent/20 italic"></p>
                     <p class="src-badge hidden mt-2"></p>
                     <div class="src-verdicts hidden flex flex-wrap gap-1.5 mt-2">
                         ${VERDICTS.map(v => `<button class="vbtn text-[10px] font-bold uppercase tracking-wide border-2 border-gray-200 rounded-lg px-2 py-1.5 text-gray-600" data-v="${v.id}">${v.label}</button>`).join('')}
                     </div>`;
-                d.querySelector('.src-inspect').addEventListener('click', (e) => { e.stopPropagation(); window.inspectSource(s.id); });
+                // The whole card is the target, the same as the option cards in Cases 4 and 5.
+                // Previously only the small "Look at it" link was wired while the card carried
+                // cursor:pointer - so most taps landed on something that promised to respond
+                // and didn't. Verdict buttons stop propagation so they don't re-trigger this.
+                d.addEventListener('click', () => window.inspectSource(s.id));
                 d.querySelectorAll('.vbtn').forEach(btn => {
                     btn.addEventListener('click', (e) => { e.stopPropagation(); window.setVerdict(s.id, btn.dataset.v); });
                 });
